@@ -3,14 +3,44 @@ import 'package:http/http.dart' as http;
 import '../models/game_state.dart';
 
 class ApiService {
-  // Empty string means same origin (works with Pages Functions)
   static const String baseUrl = '';
 
-  static Future<Map<String, dynamic>> login(String name) async {
+  static Future<Map<String, dynamic>> register(String email) async {
+    final res = await http.post(
+      Uri.parse('$baseUrl/api/register'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email}),
+    );
+    return jsonDecode(res.body);
+  }
+
+  static Future<Map<String, dynamic>> login(String email, String password) async {
     final res = await http.post(
       Uri.parse('$baseUrl/api/login'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'name': name}),
+      body: jsonEncode({'email': email, 'password': password}),
+    );
+    return jsonDecode(res.body);
+  }
+
+  static Future<Map<String, dynamic>> forgotPassword(String email) async {
+    final res = await http.post(
+      Uri.parse('$baseUrl/api/forgot-password'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email}),
+    );
+    return jsonDecode(res.body);
+  }
+
+  static Future<Map<String, dynamic>> updateProfile(int userId, {String? nickname, String? newPassword}) async {
+    final res = await http.post(
+      Uri.parse('$baseUrl/api/profile'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'userId': userId,
+        if (nickname != null) 'nickname': nickname,
+        if (newPassword != null) 'newPassword': newPassword,
+      }),
     );
     return jsonDecode(res.body);
   }

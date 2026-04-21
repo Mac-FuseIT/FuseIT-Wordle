@@ -1,6 +1,9 @@
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  email TEXT UNIQUE,
+  nickname TEXT,
+  password TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -29,3 +32,5 @@ CREATE TABLE IF NOT EXISTS attempts (
   FOREIGN KEY (user_id) REFERENCES users(id),
   UNIQUE (user_id, date)
 );
+
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);

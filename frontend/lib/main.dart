@@ -5,16 +5,17 @@ import 'services/api_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/game_screen.dart';
 import 'screens/leaderboard_screen.dart';
+import 'screens/profile_screen.dart';
 
-void main() => runApp(const FuseITWordleApp());
+void main() => runApp(const GuessITApp());
 
-class FuseITWordleApp extends StatelessWidget {
-  const FuseITWordleApp({super.key});
+class GuessITApp extends StatelessWidget {
+  const GuessITApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'WordIT',
+      title: 'Guess.IT',
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark().copyWith(
         scaffoldBackgroundColor: const Color(0xFF121213),
@@ -24,7 +25,7 @@ class FuseITWordleApp extends StatelessWidget {
   }
 }
 
-enum AppView { login, game, leaderboard }
+enum AppView { login, game, leaderboard, profile }
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -55,15 +56,11 @@ class _AppShellState extends State<AppShell> {
     setState(() => _checkingSession = false);
   }
 
-  Future<void> _login(int _, String name) async {
-    final res = await ApiService.login(name);
-    if (res['error'] != null) throw Exception(res['error']);
-    final userId = res['userId'] as int;
-    final userName = res['name'] as String;
+  Future<void> _onLogin(int userId, String name) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('userId', userId);
-    await prefs.setString('userName', userName);
-    setState(() { _userId = userId; _name = userName; _view = AppView.game; });
+    await prefs.setString('userName', name);
+    setState(() { _userId = userId; _name = name; _view = AppView.game; });
   }
 
   Future<void> _logout() async {
@@ -71,6 +68,12 @@ class _AppShellState extends State<AppShell> {
     await prefs.remove('userId');
     await prefs.remove('userName');
     setState(() { _userId = null; _name = null; _view = AppView.login; });
+  }
+
+  void _onNameUpdated(String newName) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('userName', newName);
+    setState(() { _name = newName; _view = AppView.game; });
   }
 
   @override
@@ -82,25 +85,27 @@ class _AppShellState extends State<AppShell> {
     return Scaffold(
       body: Stack(
         children: [
-          // SVG background covering entire screen
           Positioned.fill(
-            child: SvgPicture.asset(
-              'assets/bg.svg',
-              fit: BoxFit.cover,
-            ),
+            child: SvgPicture.asset('assets/bg.svg', fit: BoxFit.cover),
           ),
-          // Content on top
           SafeArea(
             child: switch (_view) {
-              AppView.login => LoginScreen(onLogin: _login),
+              AppView.login => LoginScreen(onLogin: _onLogin),
               AppView.game => GameScreen(
                 userId: _userId!,
                 name: _name!,
                 onShowLeaderboard: () => setState(() => _view = AppView.leaderboard),
+                onShowProfile: () => setState(() => _view = AppView.profile),
                 onLogout: _logout,
               ),
               AppView.leaderboard => LeaderboardScreen(
                 onBack: () => setState(() => _view = AppView.game),
+              ),
+              AppView.profile => ProfileScreen(
+                userId: _userId!,
+                currentName: _name!,
+                onBack: () => setState(() => _view = AppView.game),
+                onNameUpdated: _onNameUpdated,
               ),
             },
           ),

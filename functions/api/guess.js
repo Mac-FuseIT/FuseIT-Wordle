@@ -63,7 +63,7 @@ export async function onRequestPost({ request, env }) {
     // Save final attempt and remove game state
     await env.DB.prepare(
       'INSERT INTO attempts (user_id, date, guesses, num_guesses, solved, completed_at) VALUES (?, ?, ?, ?, ?, ?)'
-    ).bind(userId, date, JSON.stringify(guesses), guesses.length, solved ? 1 : 0, new Date().toISOString()).run();
+    ).bind(userId, date, JSON.stringify(guesses), solved ? guesses.length : guesses.length + 3, solved ? 1 : 0, new Date().toISOString()).run();
     await env.DB.prepare('DELETE FROM game_state WHERE user_id = ? AND date = ?').bind(userId, date).run();
   } else {
     // Update game state

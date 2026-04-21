@@ -9,6 +9,7 @@ class GameScreen extends StatefulWidget {
   final int userId;
   final String name;
   final VoidCallback onShowLeaderboard;
+  final VoidCallback onShowProfile;
   final VoidCallback onLogout;
 
   const GameScreen({
@@ -16,6 +17,7 @@ class GameScreen extends StatefulWidget {
     required this.userId,
     required this.name,
     required this.onShowLeaderboard,
+    required this.onShowProfile,
     required this.onLogout,
   });
 
@@ -55,6 +57,14 @@ class _GameScreenState extends State<GameScreen> {
       _guesses = ApiService.parseGuesses(state['guesses'] ?? []);
       _completed = state['completed'] ?? false;
       _solved = state['solved'] ?? false;
+      if (_completed) {
+        if (_solved) {
+          _successMessage = 'Got it in ${_guesses.length}!';
+        } else {
+          // Extract answer from last guess's context — or just show generic message
+          _successMessage = 'Better luck tomorrow!';
+        }
+      }
     } catch (e) {
       _errorMessage = 'Failed to load game';
     }
@@ -148,7 +158,7 @@ class _GameScreenState extends State<GameScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               children: [
-                Text('WordIT', style: TextStyle(
+                Text('Guess.IT', style: TextStyle(
                   fontFamily: 'Trebuchet MS',
                   color: Colors.white,
                   fontSize: 22,
@@ -159,7 +169,16 @@ class _GameScreenState extends State<GameScreen> {
                   ],
                 )),
                 const Spacer(),
-                Text(widget.name, style: const TextStyle(color: Colors.grey, fontSize: 14)),
+                GestureDetector(
+                  onTap: widget.onShowProfile,
+                  child: Row(
+                    children: [
+                      Text(widget.name, style: const TextStyle(color: Colors.grey, fontSize: 14)),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.edit, color: Colors.grey, size: 14),
+                    ],
+                  ),
+                ),
                 const SizedBox(width: 12),
                 IconButton(
                   icon: const Icon(Icons.leaderboard, color: Colors.white, size: 22),

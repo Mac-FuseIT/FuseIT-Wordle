@@ -1,4 +1,4 @@
-# WordIT
+# Guess.IT
 
 A daily word game deployed on Cloudflare's free tier. Each day a new word is selected with a varying length (4–8 letters). Guess the word with color-coded feedback — green, yellow, grey.
 
@@ -27,13 +27,13 @@ This opens a browser window — authorize wrangler to access your Cloudflare acc
 ### 3. Create the D1 database
 
 ```bash
-npx wrangler d1 create fuseit-word-db
+npx wrangler d1 create fuseit-wordle-db
 ```
 
 This outputs something like:
 
 ```
-✅ Successfully created DB 'fuseit-word-db'
+✅ Successfully created DB 'fuseit-wordle-db'
 database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 ```
 
@@ -42,14 +42,15 @@ Copy the `database_id` and paste it into `wrangler.toml`, replacing `YOUR_D1_DAT
 ```toml
 [[d1_databases]]
 binding = "DB"
-database_name = "fuseit-word-db"
+database_name = "fuseit-wordle-db"
 database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"  # ← paste here
 ```
 
 ### 4. Run the database migration
 
 ```bash
-npx wrangler d1 execute fuseit-word-db --file=migrations/0001_init.sql --remote
+npx wrangler d1 execute fuseit-wordle-db --file=migrations/0001_init.sql --remote
+npx wrangler d1 execute fuseit-wordle-db --file=migrations/0002_email_auth.sql --remote
 ```
 
 When prompted, confirm you want to run against the **remote** database.

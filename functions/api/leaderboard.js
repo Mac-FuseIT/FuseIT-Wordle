@@ -1,31 +1,25 @@
 import { getToday, jsonResponse, errorResponse } from '../../src/db.js';
 import { getOrCreateDailyWord } from '../../src/word-selection.js';
 
-export async function onRequestGet({ request, env }) {
-  const url = new URL(request.url);
-  const date = url.searchParams.get('date') || getToday();
+function getPrevMonth(month) {
+  const [y, m] = month.split('-').map(Number);
+  const d = new Date(y, m - 2, 1); // month-2 because JS months are 0-indexed
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
 
-  // Daily leaderboard
-  const daily = await env.DB.prepare(
-    'SELECT u.name, a.num_guesses AS numGuesses, a.solved FROM attempts a JOIN users u ON u.id = a.user_id WHERE a.date = ? ORDER BY a.solved DESC, a.num_guesses ASC'
-  ).bind(date).all();
+function lastDayOfMonth(month) {
+  const [y, m] = month.split('-').map(Number);
+  return month + '-' + String(new Date(y, m, 0).getDate()).padStart(2, '0');
+}
 
-  // Monthly leaderboard — sum of attempts for the month
-  const month = date.substring(0, 7); // YYYY-MM
-  const { length } = await getOrCreateDailyWord(env.DB, date);
-
-  // Get all days in the month up to today
-  const today = getToday();
-  const monthStart = month + '-01';
-  const monthEnd = today >= monthStart ? (today.startsWith(month) ? today : month + '-31') : month + '-01';
-
-  const monthly = await env.DB.prepare(`
+async function getMonthlyLeaderboard(env, monthStart, monthEnd) {
+  return env.DB.prepare(`
     WITH month_days AS (
       SELECT date, length FROM daily_words WHERE date >= ? AND date <= ?
     ),
     user_scores AS (
       SELECT u.id, u.name,
-        SUM(COALESCE(a.num_guesses, md.length + 1)) AS totalGuesses,
+        SUM(COALESCE(a.num_guesses, md.length + 4)) AS totalGuesses,
         COUNT(a.id) AS daysPlayed
       FROM users u
       CROSS JOIN month_days md
@@ -35,10 +29,38 @@ export async function onRequestGet({ request, env }) {
     )
     SELECT name, totalGuesses, daysPlayed FROM user_scores ORDER BY totalGuesses ASC
   `).bind(monthStart, monthEnd, monthStart, monthEnd).all();
+}
+
+export async function onRequestGet({ request, env }) {
+  const url = new URL(request.url);
+  const date = url.searchParams.get('date') || getToday();
+
+  // Daily leaderboard
+  const daily = await env.DB.prepare(
+    'SELECT u.name, a.num_guesses AS numGuesses, a.solved FROM attempts a JOIN users u ON u.id = a.user_id WHERE a.date = ? ORDER BY a.solved DESC, a.num_guesses ASC'
+  ).bind(date).all();
+
+  // Current month leaderboard
+  const month = date.substring(0, 7);
+  const today = getToday();
+  const monthStart = month + '-01';
+  const monthEnd = today.startsWith(month) ? today : lastDayOfMonth(month);
+  await getOrCreateDailyWord(env.DB, date);
+
+  const monthly = await getMonthlyLeaderboard(env, monthStart, monthEnd);
+
+  // Previous month top 3
+  const prevMonth = getPrevMonth(month);
+  const prevStart = prevMonth + '-01';
+  const prevEnd = lastDayOfMonth(prevMonth);
+  const prevMonthly = await getMonthlyLeaderboard(env, prevStart, prevEnd);
+  const prevTop3 = (prevMonthly.results || []).slice(0, 3);
 
   return jsonResponse({
     daily: daily.results || [],
     monthly: monthly.results || [],
+    previousMonth: prevTop3,
+    previousMonthLabel: prevMonth,
   });
 }
 
