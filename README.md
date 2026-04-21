@@ -27,19 +27,14 @@ This opens a browser window — authorize wrangler to access your Cloudflare acc
 ### 3. Create the D1 database
 
 ```bash
-npx wrangler d1 create fuseit-wordle-db
+npx wrangler d1 create fuseit-word-db
 ```
 
 This outputs something like:
 
 ```
-✅ Successfully created DB 'fuseit-wordle-db'
+✅ Successfully created DB 'fuseit-word-db'
 database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-
-[[d1_databases]]
-binding = "DB"
-database_name = "fuseit-wordle-db"
-database_id = "374b3d54-0441-4f18-9282-5fe9f4020534"
 ```
 
 Copy the `database_id` and paste it into `wrangler.toml`, replacing `YOUR_D1_DATABASE_ID`:
@@ -47,14 +42,14 @@ Copy the `database_id` and paste it into `wrangler.toml`, replacing `YOUR_D1_DAT
 ```toml
 [[d1_databases]]
 binding = "DB"
-database_name = "fuseit-wordle-db"
+database_name = "fuseit-word-db"
 database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"  # ← paste here
 ```
 
 ### 4. Run the database migration
 
 ```bash
-npx wrangler d1 execute fuseit-wordle-db --file=migrations/0001_init.sql
+npx wrangler d1 execute fuseit-word-db --file=migrations/0001_init.sql --remote
 ```
 
 When prompted, confirm you want to run against the **remote** database.
@@ -75,16 +70,16 @@ The compiled output goes to `frontend/build/web/`.
 npx wrangler pages deploy frontend/build/web
 ```
 
-On first deploy, wrangler will ask you to create a new project — name it `fuseit-wordle` (or whatever you like). It will give you a URL like `https://fuseit-wordle.pages.dev`.
+On first deploy, wrangler will ask you to create a new project — name it `fuseit-word` (or whatever you like). It will give you a URL like `https://fuseit-word.pages.dev`.
 
 ### 7. Bind D1 to your Pages project
 
 Go to the [Cloudflare dashboard](https://dash.cloudflare.com/):
 
-1. Navigate to **Workers & Pages** → your project (`fuseit-wordle`)
+1. Navigate to **Workers & Pages** → your project (`fuseit-word`)
 2. Go to **Settings** → **Bindings**
 3. Click **Add** → **D1 Database**
-4. Set variable name to `DB` and select `fuseit-wordle-db`
+4. Set variable name to `DB` and select `fuseit-word-db`
 5. Save, then **redeploy** (or push a new deploy):
 
 ```bash
@@ -102,13 +97,13 @@ To run everything locally:
 cd frontend && flutter build web --release && cd ..
 
 # Start local dev server with D1
-npx wrangler pages dev frontend/build/web --d1=DB=fuseit-wordle-db
+npx wrangler pages dev frontend/build/web --d1=DB=fuseit-word-db
 ```
 
 This starts a local server (usually `http://localhost:8788`) with a local D1 database. Run the migration against local D1 first:
 
 ```bash
-npx wrangler d1 execute fuseit-wordle-db --file=migrations/0001_init.sql --local
+npx wrangler d1 execute fuseit-word-db --file=migrations/0001_init.sql --local
 ```
 
 ## Project Structure

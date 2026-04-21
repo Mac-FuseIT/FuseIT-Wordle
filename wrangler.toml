@@ -4,5 +4,5 @@ pages_build_output_dir = "frontend/build/web"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "fuseit-wordle-db"
-database_id = "374b3d54-0441-4f18-9282-5fe9f4020534"
+database_name = "fuseit-word-db"
+database_id = "fa9b721a-9aba-4891-9869-0d72111cbf52"
