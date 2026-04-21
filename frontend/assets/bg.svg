@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 900" preserveAspectRatio="none">
+  <defs>
+    <radialGradient id="center" cx="50%" cy="50%" r="60%">
+      <stop offset="0%" stop-color="#121213"/>
+      <stop offset="100%" stop-color="#0a0a0b"/>
+    </radialGradient>
+  </defs>
+  <rect width="1440" height="900" fill="url(#center)"/>
+  <!-- Left wavy glow — wider reach -->
+  <path d="M0,0 C200,120 80,300 180,450 C280,600 100,750 0,900 L0,900 L0,0 Z" fill="#6aaa64" opacity="0.15"/>
+  <path d="M0,0 C160,160 60,320 140,480 C220,640 80,780 0,900 L0,900 L0,0 Z" fill="#6aaa64" opacity="0.10"/>
+  <path d="M0,30 C240,180 100,380 220,520 C340,660 120,800 0,900 L0,900 L0,0 Z" fill="#538d4e" opacity="0.07"/>
+  <path d="M0,0 C120,100 40,250 100,400 C160,550 60,700 0,900 L0,900 L0,0 Z" fill="#6aaa64" opacity="0.05"/>
+  <!-- Right wavy glow — wider reach -->
+  <path d="M1440,0 C1240,120 1360,300 1260,450 C1160,600 1340,750 1440,900 L1440,900 L1440,0 Z" fill="#6aaa64" opacity="0.15"/>
+  <path d="M1440,0 C1280,160 1380,320 1300,480 C1220,640 1360,780 1440,900 L1440,900 L1440,0 Z" fill="#6aaa64" opacity="0.10"/>
+  <path d="M1440,30 C1200,180 1340,380 1220,520 C1100,660 1320,800 1440,900 L1440,900 L1440,0 Z" fill="#538d4e" opacity="0.07"/>
+  <path d="M1440,0 C1320,100 1400,250 1340,400 C1280,550 1380,700 1440,900 L1440,900 L1440,0 Z" fill="#6aaa64" opacity="0.05"/>
+  <!-- Subtle top/bottom edge glow -->
+  <path d="M0,0 Q360,30 720,0 Q1080,30 1440,0 L1440,60 Q1080,90 720,60 Q360,90 0,60 Z" fill="#6aaa64" opacity="0.04"/>
+  <path d="M0,900 Q360,870 720,900 Q1080,870 1440,900 L1440,840 Q1080,810 720,840 Q360,810 0,840 Z" fill="#6aaa64" opacity="0.04"/>
+</svg>

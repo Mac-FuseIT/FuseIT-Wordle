@@ -1,0 +1,12 @@
+{
+  "name": "fuseit-wordle",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "npx wrangler pages dev frontend/build/web --d1=DB=fuseit-wordle-db",
+    "deploy": "npx wrangler pages deploy frontend/build/web"
+  },
+  "devDependencies": {
+    "wrangler": "^4.84.0"
+  }
+}
