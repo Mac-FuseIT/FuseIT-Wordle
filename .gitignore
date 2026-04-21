@@ -21,3 +21,9 @@ frontend/.idea/
 
 # Wrangler
 .wrangler/
+
+# Secrets
+.env
+.dev.vars
+
+wrangler.toml
