@@ -211,8 +211,11 @@ class _GameScreenState extends State<GameScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   child: Stack(
                     alignment: Alignment.topCenter,
+                    clipBehavior: Clip.none,
                     children: [
-                      Column(
+                      Padding(
+                        padding: const EdgeInsets.only(top: 40),
+                        child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           // Tile grid
@@ -260,6 +263,7 @@ class _GameScreenState extends State<GameScreen> {
                           ),
                         ),
                     ],
+                  ),
                   ),
                   // Overlays — float on top without pushing grid
                   if (_errorMessage != null)
