@@ -24,15 +24,16 @@ export async function onRequestPost({ request, env }) {
       'INSERT INTO users (name, email, nickname, password) VALUES (?, ?, ?, ?)'
     ).bind(nickname, trimmed, nickname, hashed).run();
 
-    const sent = await sendEmail(
-      env.RESEND_API_KEY,
-      trimmed,
-      'Welcome to Guess.IT!',
-      `Welcome to Guess.IT!\n\nYour login details:\nEmail: ${trimmed}\nPassword: ${password}\n\nYou can change your password in your profile after logging in.`
-    );
-
-    if (!sent) {
-      return errorResponse('Account created but failed to send email. Use forgot password.', 500);
+    try {
+      await sendEmail(
+        env,
+        trimmed,
+        'Welcome to Guess.IT!',
+        `Welcome to Guess.IT!\n\nYour login details:\nEmail: ${trimmed}\nPassword: ${password}\n\nYou can change your password in your profile after logging in.`
+      );
+    } catch (emailErr) {
+      await env.DB.prepare('DELETE FROM users WHERE email = ?').bind(trimmed).run();
+      return errorResponse('Failed to send email: ' + emailErr.message, 500);
     }
 
     return jsonResponse({ message: 'Account created! Check your email for your password.' });

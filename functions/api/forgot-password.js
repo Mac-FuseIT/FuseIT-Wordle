@@ -18,14 +18,16 @@ export async function onRequestPost({ request, env }) {
     const hashed = await hashPassword(password);
     await env.DB.prepare('UPDATE users SET password = ? WHERE id = ?').bind(hashed, user.id).run();
 
-    const sent = await sendEmail(
-      env.RESEND_API_KEY,
-      trimmed,
-      'Guess.IT — New Password',
-      `Your new Guess.IT password is: ${password}\n\nYou can change it in your profile after logging in.`
-    );
-
-    if (!sent) return errorResponse('Failed to send email. Try again.', 500);
+    try {
+      await sendEmail(
+        env,
+        trimmed,
+        'Guess.IT — New Password',
+        `Your new Guess.IT password is: ${password}\n\nYou can change it in your profile after logging in.`
+      );
+    } catch (emailErr) {
+      return errorResponse('Failed to send email: ' + emailErr.message, 500);
+    }
 
     return jsonResponse({ message: 'New password sent to your email!' });
   } catch (e) {

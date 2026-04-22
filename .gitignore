@@ -27,3 +27,4 @@ frontend/.idea/
 .dev.vars
 
 wrangler.toml
+client_secret_.apps.googleusercontent.com.json

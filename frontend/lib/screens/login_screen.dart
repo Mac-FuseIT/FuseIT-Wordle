@@ -33,14 +33,28 @@ class _LoginScreenState extends State<LoginScreen> {
         if (res['error'] != null) {
           setState(() { _error = res['error']; _loading = false; });
         } else {
-          setState(() { _info = res['message']; _mode = _LoginMode.login; _loading = false; });
+          final pw = res['password'];
+          setState(() {
+            _info = pw != null
+                ? '${res['message']}\n\nYour password: $pw'
+                : res['message'];
+            _mode = _LoginMode.login;
+            _loading = false;
+          });
         }
       } else if (_mode == _LoginMode.forgot) {
         final res = await ApiService.forgotPassword(email);
         if (res['error'] != null) {
           setState(() { _error = res['error']; _loading = false; });
         } else {
-          setState(() { _info = res['message']; _mode = _LoginMode.login; _loading = false; });
+          final pw = res['password'];
+          setState(() {
+            _info = pw != null
+                ? '${res['message']}\n\nYour new password: $pw'
+                : res['message'];
+            _mode = _LoginMode.login;
+            _loading = false;
+          });
         }
       } else {
         final password = _passwordController.text.trim();
