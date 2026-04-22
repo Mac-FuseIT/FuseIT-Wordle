@@ -53,7 +53,10 @@ export async function onRequestGet({ request, env }) {
   const auth = await requireAuth(request, env);
   const userId = auth ? auth.userId : null;
   let dayBreakdown = [];
+  let currentUserName = null;
   if (userId) {
+    const user = await env.DB.prepare('SELECT nickname, name FROM users WHERE id = ?').bind(userId).first();
+    if (user) currentUserName = user.nickname || user.name;
     const breakdown = await env.DB.prepare(`
       SELECT dw.date, dw.word, dw.length,
         a.num_guesses AS numGuesses, a.solved
@@ -86,6 +89,7 @@ export async function onRequestGet({ request, env }) {
     dayBreakdown,
     previousMonth: prevTop3,
     previousMonthLabel: prevMonth,
+    currentUserName,
   });
 }
 
