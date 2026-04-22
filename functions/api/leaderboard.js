@@ -1,4 +1,4 @@
-import { getToday, jsonResponse, errorResponse } from '../../src/db.js';
+import { getToday, jsonResponse, errorResponse, requireAuth } from '../../src/db.js';
 import { getOrCreateDailyWord } from '../../src/word-selection.js';
 
 function getPrevMonth(month) {
@@ -50,7 +50,8 @@ export async function onRequestGet({ request, env }) {
   const monthly = await getMonthlyLeaderboard(env, monthStart, monthEnd);
 
   // Day breakdown for requesting user — only days that exist in daily_words, last 10
-  const userId = url.searchParams.get('userId');
+  const auth = await requireAuth(request, env);
+  const userId = auth ? auth.userId : null;
   let dayBreakdown = [];
   if (userId) {
     const breakdown = await env.DB.prepare(`
@@ -93,7 +94,7 @@ export async function onRequestOptions() {
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     },
   });
 }

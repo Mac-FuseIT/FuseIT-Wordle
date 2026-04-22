@@ -1,4 +1,4 @@
-import { getToday, jsonResponse, errorResponse } from '../../src/db.js';
+import { getToday, jsonResponse, errorResponse, requireAuth } from '../../src/db.js';
 import { getOrCreateDailyWord } from '../../src/word-selection.js';
 
 function evaluateGuess(guess, answer) {
@@ -6,7 +6,6 @@ function evaluateGuess(guess, answer) {
   const answerChars = [...answer];
   const guessChars = [...guess];
 
-  // Green pass
   for (let i = 0; i < guessChars.length; i++) {
     if (guessChars[i] === answerChars[i]) {
       result[i] = { letter: guessChars[i], status: 'correct' };
@@ -14,7 +13,6 @@ function evaluateGuess(guess, answer) {
       guessChars[i] = null;
     }
   }
-  // Yellow/grey pass
   for (let i = 0; i < guessChars.length; i++) {
     if (guessChars[i] === null) continue;
     const idx = answerChars.indexOf(guessChars[i]);
@@ -29,8 +27,12 @@ function evaluateGuess(guess, answer) {
 }
 
 export async function onRequestPost({ request, env }) {
-  const { userId, guess } = await request.json();
-  if (!userId || !guess) return errorResponse('Missing userId or guess');
+  const auth = await requireAuth(request, env);
+  if (!auth) return errorResponse('Unauthorized', 401);
+
+  const { guess } = await request.json();
+  const userId = auth.userId;
+  if (!guess) return errorResponse('Missing guess');
 
   const date = getToday();
   const { word, length } = await getOrCreateDailyWord(env.DB, date);
@@ -84,9 +86,9 @@ export async function onRequestPost({ request, env }) {
 
 // Resume game state
 export async function onRequestGet({ request, env }) {
-  const url = new URL(request.url);
-  const userId = url.searchParams.get('userId');
-  if (!userId) return errorResponse('Missing userId');
+  const auth = await requireAuth(request, env);
+  if (!auth) return errorResponse('Unauthorized', 401);
+  const userId = auth.userId;
 
   const date = getToday();
   const { length } = await getOrCreateDailyWord(env.DB, date);
@@ -118,7 +120,7 @@ export async function onRequestOptions() {
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     },
   });
 }

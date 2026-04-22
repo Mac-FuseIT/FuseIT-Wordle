@@ -1,9 +1,34 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/game_state.dart';
 
 class ApiService {
   static const String baseUrl = '';
+  static String? _token;
+
+  static Future<void> _loadToken() async {
+    if (_token != null) return;
+    final prefs = await SharedPreferences.getInstance();
+    _token = prefs.getString('authToken');
+  }
+
+  static Future<void> _saveToken(String token) async {
+    _token = token;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('authToken', token);
+  }
+
+  static Future<void> clearToken() async {
+    _token = null;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('authToken');
+  }
+
+  static Map<String, String> get _authHeaders => {
+    'Content-Type': 'application/json',
+    if (_token != null) 'Authorization': 'Bearer $_token',
+  };
 
   static Future<Map<String, dynamic>> register(String email) async {
     final res = await http.post(
@@ -20,7 +45,11 @@ class ApiService {
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'email': email, 'password': password}),
     );
-    return jsonDecode(res.body);
+    final data = jsonDecode(res.body);
+    if (data['token'] != null) {
+      await _saveToken(data['token']);
+    }
+    return data;
   }
 
   static Future<Map<String, dynamic>> forgotPassword(String email) async {
@@ -33,11 +62,11 @@ class ApiService {
   }
 
   static Future<Map<String, dynamic>> updateProfile(int userId, {String? nickname, String? newPassword, Map<String, dynamic>? theme}) async {
+    await _loadToken();
     final res = await http.post(
       Uri.parse('$baseUrl/api/profile'),
-      headers: {'Content-Type': 'application/json'},
+      headers: _authHeaders,
       body: jsonEncode({
-        'userId': userId,
         if (nickname != null) 'nickname': nickname,
         if (newPassword != null) 'newPassword': newPassword,
         if (theme != null) 'theme': theme,
@@ -52,23 +81,30 @@ class ApiService {
   }
 
   static Future<Map<String, dynamic>> submitGuess(int userId, String guess) async {
+    await _loadToken();
     final res = await http.post(
       Uri.parse('$baseUrl/api/guess'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'userId': userId, 'guess': guess}),
+      headers: _authHeaders,
+      body: jsonEncode({'guess': guess}),
     );
     return jsonDecode(res.body);
   }
 
   static Future<Map<String, dynamic>> getGameState(int userId) async {
-    final res = await http.get(Uri.parse('$baseUrl/api/guess?userId=$userId'));
+    await _loadToken();
+    final res = await http.get(
+      Uri.parse('$baseUrl/api/guess'),
+      headers: _authHeaders,
+    );
     return jsonDecode(res.body);
   }
 
   static Future<Map<String, dynamic>> getLeaderboard(String date, {int? userId}) async {
-    var url = '$baseUrl/api/leaderboard?date=$date';
-    if (userId != null) url += '&userId=$userId';
-    final res = await http.get(Uri.parse(url));
+    await _loadToken();
+    final res = await http.get(
+      Uri.parse('$baseUrl/api/leaderboard?date=$date'),
+      headers: _authHeaders,
+    );
     return jsonDecode(res.body);
   }
 

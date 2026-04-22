@@ -1,5 +1,5 @@
 import { jsonResponse, errorResponse } from '../../src/db.js';
-import { hashPassword } from '../../src/auth.js';
+import { hashPassword, createToken } from '../../src/auth.js';
 
 export async function onRequestPost({ request, env }) {
   try {
@@ -20,7 +20,15 @@ export async function onRequestPost({ request, env }) {
     const hashed = await hashPassword(password.trim());
     if (user.password !== hashed) return errorResponse('Wrong password');
 
-    return jsonResponse({ userId: user.id, name: user.nickname || user.name, email: trimmed, theme: user.theme ? JSON.parse(user.theme) : null });
+    const token = await createToken(user.id, env.TOKEN_SECRET);
+
+    return jsonResponse({
+      userId: user.id,
+      name: user.nickname || user.name,
+      email: trimmed,
+      theme: user.theme ? JSON.parse(user.theme) : null,
+      token,
+    });
   } catch (e) {
     return errorResponse('Server error: ' + e.message, 500);
   }
@@ -31,7 +39,7 @@ export async function onRequestOptions() {
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     },
   });
 }
