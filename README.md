@@ -141,9 +141,13 @@ npx wrangler pages deploy frontend/build/web
 
 Or connect your Git repo to Cloudflare Pages for automatic deploys on push. Set the build command to `cd frontend && flutter build web --release` and the output directory to `frontend/build/web`.
 
-4-letter: 603 words
-5-letter: 756 words
-6-letter: 613 words
-7-letter: 623 words
-8-letter: 870 words
+# The Number of words there is:
 
+| Length | Total | Tech words | Tech % |
+|---|---|---|---|
+| 4-letter | 347 | 165 | 48% |
+| 5-letter | 291 | 115 | 40% |
+| 6-letter | 263 | 120 | 46% |
+| 7-letter | 240 | 96 | 40% |
+| 8-letter | 293 | 89 | 30% |
+Total Amount: 1434 words, 585 Tech words, 40% are Tech words
