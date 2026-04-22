@@ -82,6 +82,7 @@ class _AppShellState extends State<AppShell> {
   }
 
   Future<void> _logout() async {
+    await ApiService.clearToken();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('userId');
     await prefs.remove('userName');

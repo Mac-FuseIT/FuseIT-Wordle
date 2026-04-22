@@ -20,6 +20,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
   List<LeaderboardEntry> _prevTop3 = [];
   List<Map<String, dynamic>> _dayBreakdown = [];
   String _prevMonthLabel = '';
+  String? _currentUserName;
   bool _loading = true;
 
   @override
@@ -37,6 +38,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
       _prevTop3 = ((data['previousMonth'] ?? []) as List).map((e) => LeaderboardEntry.fromJsonMonthly(e)).toList();
       _prevMonthLabel = data['previousMonthLabel'] ?? '';
       _dayBreakdown = List<Map<String, dynamic>>.from(data['dayBreakdown'] ?? []);
+      _currentUserName = data['currentUserName'];
     } catch (_) {}
     setState(() => _loading = false);
   }
@@ -148,18 +150,18 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                               return Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Expanded(child: LeaderboardTable(title: "Today's Results", entries: _daily, accentColor: widget.theme.correct)),
+                                  Expanded(child: LeaderboardTable(title: "Today's Results", entries: _daily, accentColor: widget.theme.correct, currentUserName: _currentUserName)),
                                   const SizedBox(width: 24),
-                                  Expanded(child: LeaderboardTable(title: 'Monthly Standings', entries: _monthly, isMonthly: true, accentColor: widget.theme.correct)),
+                                  Expanded(child: LeaderboardTable(title: 'Monthly Standings', entries: _monthly, isMonthly: true, accentColor: widget.theme.correct, currentUserName: _currentUserName)),
                                 ],
                               );
                             }
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                LeaderboardTable(title: "Today's Results", entries: _daily, accentColor: widget.theme.correct),
+                                LeaderboardTable(title: "Today's Results", entries: _daily, accentColor: widget.theme.correct, currentUserName: _currentUserName),
                                 const SizedBox(height: 24),
-                                LeaderboardTable(title: 'Monthly Standings', entries: _monthly, isMonthly: true, accentColor: widget.theme.correct),
+                                LeaderboardTable(title: 'Monthly Standings', entries: _monthly, isMonthly: true, accentColor: widget.theme.correct, currentUserName: _currentUserName),
                               ],
                             );
                           },

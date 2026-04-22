@@ -6,6 +6,7 @@ class LeaderboardTable extends StatelessWidget {
   final List<LeaderboardEntry> entries;
   final bool isMonthly;
   final Color accentColor;
+  final String? currentUserName;
 
   const LeaderboardTable({
     super.key,
@@ -13,6 +14,7 @@ class LeaderboardTable extends StatelessWidget {
     required this.entries,
     this.isMonthly = false,
     this.accentColor = const Color(0xFF6AAA64),
+    this.currentUserName,
   });
 
   @override
@@ -28,25 +30,35 @@ class LeaderboardTable extends StatelessWidget {
           ...entries.asMap().entries.map((e) {
             final i = e.key;
             final entry = e.value;
+            final isMe = currentUserName != null && entry.name.toLowerCase() == currentUserName!.toLowerCase();
             return Container(
               padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
               margin: const EdgeInsets.only(bottom: 4),
               decoration: BoxDecoration(
-                color: i == 0 ? accentColor.withValues(alpha: 0.2) : const Color(0xFF1A1A1B),
+                color: isMe
+                    ? accentColor.withValues(alpha: 0.25)
+                    : i == 0
+                        ? accentColor.withValues(alpha: 0.1)
+                        : const Color(0xFF1A1A1B),
                 borderRadius: BorderRadius.circular(4),
+                border: isMe ? Border.all(color: accentColor.withValues(alpha: 0.6), width: 1) : null,
               ),
               child: Row(
                 children: [
                   SizedBox(
                     width: 28,
-                    child: Text('${i + 1}.', style: const TextStyle(color: Colors.grey, fontSize: 14)),
+                    child: Text('${i + 1}.', style: TextStyle(color: isMe ? accentColor : Colors.grey, fontSize: 14, fontWeight: isMe ? FontWeight.bold : FontWeight.normal)),
                   ),
-                  Expanded(child: Text(entry.name, style: const TextStyle(color: Colors.white, fontSize: 14))),
+                  Expanded(child: Text(
+                    isMe ? '${entry.name} (you)' : entry.name,
+                    style: TextStyle(color: isMe ? Colors.white : Colors.white, fontSize: 14, fontWeight: isMe ? FontWeight.bold : FontWeight.normal),
+                  )),
                   Text(
                     isMonthly ? '${entry.totalGuesses} total' : '${entry.numGuesses} ${entry.solved == true ? '✓' : '✗'}',
                     style: TextStyle(
-                      color: (!isMonthly && entry.solved == true) ? accentColor : Colors.grey,
+                      color: isMe ? accentColor : (!isMonthly && entry.solved == true) ? accentColor : Colors.grey,
                       fontSize: 14,
+                      fontWeight: isMe ? FontWeight.bold : FontWeight.normal,
                     ),
                   ),
                 ],

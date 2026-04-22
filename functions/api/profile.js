@@ -1,10 +1,13 @@
-import { jsonResponse, errorResponse } from '../../src/db.js';
+import { jsonResponse, errorResponse, requireAuth } from '../../src/db.js';
 import { hashPassword } from '../../src/auth.js';
 
 export async function onRequestPost({ request, env }) {
   try {
-    const { userId, nickname, newPassword, theme } = await request.json();
-    if (!userId) return errorResponse('Missing userId');
+    const auth = await requireAuth(request, env);
+    if (!auth) return errorResponse('Unauthorized', 401);
+    const userId = auth.userId;
+
+    const { nickname, newPassword, theme } = await request.json();
 
     if (nickname !== undefined) {
       const trimmed = (nickname || '').trim();
@@ -35,7 +38,7 @@ export async function onRequestOptions() {
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     },
   });
 }
