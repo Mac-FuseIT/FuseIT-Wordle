@@ -170,13 +170,18 @@ class _GameScreenState extends State<GameScreen> {
                 )),
                 const Spacer(),
                 GestureDetector(
+                  behavior: HitTestBehavior.opaque,
                   onTap: widget.onShowProfile,
-                  child: Row(
-                    children: [
-                      Text(widget.name, style: const TextStyle(color: Colors.grey, fontSize: 14)),
-                      const SizedBox(width: 4),
-                      const Icon(Icons.edit, color: Colors.grey, size: 14),
-                    ],
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(widget.name, style: const TextStyle(color: Colors.grey, fontSize: 14)),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.edit, color: Colors.grey, size: 14),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
