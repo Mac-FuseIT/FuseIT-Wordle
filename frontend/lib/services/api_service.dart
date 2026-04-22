@@ -32,7 +32,7 @@ class ApiService {
     return jsonDecode(res.body);
   }
 
-  static Future<Map<String, dynamic>> updateProfile(int userId, {String? nickname, String? newPassword}) async {
+  static Future<Map<String, dynamic>> updateProfile(int userId, {String? nickname, String? newPassword, Map<String, dynamic>? theme}) async {
     final res = await http.post(
       Uri.parse('$baseUrl/api/profile'),
       headers: {'Content-Type': 'application/json'},
@@ -40,6 +40,7 @@ class ApiService {
         'userId': userId,
         if (nickname != null) 'nickname': nickname,
         if (newPassword != null) 'newPassword': newPassword,
+        if (theme != null) 'theme': theme,
       }),
     );
     return jsonDecode(res.body);

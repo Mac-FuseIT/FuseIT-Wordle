@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import 'models/app_theme.dart';
 import 'services/api_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/game_screen.dart';
 import 'screens/leaderboard_screen.dart';
 import 'screens/profile_screen.dart';
+import 'widgets/wavy_background.dart';
 
 void main() => runApp(const GuessITApp());
 
@@ -38,6 +40,7 @@ class _AppShellState extends State<AppShell> {
   AppView _view = AppView.login;
   int? _userId;
   String? _name;
+  AppTheme _theme = AppTheme.defaultTheme;
   bool _checkingSession = true;
 
   @override
@@ -50,7 +53,11 @@ class _AppShellState extends State<AppShell> {
     final prefs = await SharedPreferences.getInstance();
     final id = prefs.getInt('userId');
     final name = prefs.getString('userName');
+    final themeJson = prefs.getString('userTheme');
     if (id != null && name != null) {
+      if (themeJson != null) {
+        try { _theme = AppTheme.fromJson(jsonDecode(themeJson)); } catch (_) {}
+      }
       setState(() { _userId = id; _name = name; _view = AppView.game; });
     }
     setState(() => _checkingSession = false);
@@ -63,17 +70,35 @@ class _AppShellState extends State<AppShell> {
     setState(() { _userId = userId; _name = name; _view = AppView.game; });
   }
 
+  void _applyLoginTheme(Map<String, dynamic>? themeData) async {
+    if (themeData != null) {
+      try {
+        final t = AppTheme.fromJson(themeData);
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('userTheme', jsonEncode(themeData));
+        setState(() => _theme = t);
+      } catch (_) {}
+    }
+  }
+
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('userId');
     await prefs.remove('userName');
-    setState(() { _userId = null; _name = null; _view = AppView.login; });
+    await prefs.remove('userTheme');
+    setState(() { _userId = null; _name = null; _theme = AppTheme.defaultTheme; _view = AppView.login; });
   }
 
   void _onNameUpdated(String newName) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('userName', newName);
     setState(() { _name = newName; _view = AppView.game; });
+  }
+
+  void _onThemeUpdated(AppTheme newTheme) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('userTheme', jsonEncode(newTheme.toJson()));
+    setState(() { _theme = newTheme; });
   }
 
   @override
@@ -83,17 +108,26 @@ class _AppShellState extends State<AppShell> {
     }
 
     return Scaffold(
+      backgroundColor: _theme.background,
       body: Stack(
         children: [
           Positioned.fill(
-            child: SvgPicture.asset('assets/bg.svg', fit: BoxFit.cover),
+            child: WavyBackground(
+              backgroundColor: _theme.background,
+              accentColor: _theme.correct,
+            ),
           ),
           SafeArea(
             child: switch (_view) {
-              AppView.login => LoginScreen(onLogin: _onLogin),
+              AppView.login => LoginScreen(
+                onLogin: _onLogin,
+                onThemeLoaded: _applyLoginTheme,
+                accentColor: _theme.correct,
+              ),
               AppView.game => GameScreen(
                 userId: _userId!,
                 name: _name!,
+                theme: _theme,
                 onShowLeaderboard: () => setState(() => _view = AppView.leaderboard),
                 onShowProfile: () => setState(() => _view = AppView.profile),
                 onLogout: _logout,
@@ -101,12 +135,15 @@ class _AppShellState extends State<AppShell> {
               AppView.leaderboard => LeaderboardScreen(
                 onBack: () => setState(() => _view = AppView.game),
                 userId: _userId!,
+                theme: _theme,
               ),
               AppView.profile => ProfileScreen(
                 userId: _userId!,
                 currentName: _name!,
+                currentTheme: _theme,
                 onBack: () => setState(() => _view = AppView.game),
                 onNameUpdated: _onNameUpdated,
+                onThemeUpdated: _onThemeUpdated,
               ),
             },
           ),

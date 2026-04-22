@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../models/app_theme.dart';
 import '../models/game_state.dart';
 import '../services/api_service.dart';
 import '../widgets/leaderboard_table.dart';
@@ -6,7 +7,8 @@ import '../widgets/leaderboard_table.dart';
 class LeaderboardScreen extends StatefulWidget {
   final VoidCallback onBack;
   final int userId;
-  const LeaderboardScreen({super.key, required this.onBack, required this.userId});
+  final AppTheme theme;
+  const LeaderboardScreen({super.key, required this.onBack, required this.userId, required this.theme});
 
   @override
   State<LeaderboardScreen> createState() => _LeaderboardScreenState();
@@ -84,7 +86,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                           decoration: BoxDecoration(
                             color: const Color(0xFF121213).withValues(alpha: 0.85),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFF6AAA64).withValues(alpha: 0.4), width: 1),
+                            border: Border.all(color: widget.theme.correct.withValues(alpha: 0.4), width: 1),
                           ),
                           child: Column(
                             children: [
@@ -115,7 +117,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                                       color: const Color(0xFF1A1A1B),
                                       borderRadius: BorderRadius.circular(8),
                                       border: i == 0
-                                          ? Border.all(color: const Color(0xFF6AAA64).withValues(alpha: 0.5), width: 1)
+                                          ? Border.all(color: widget.theme.correct.withValues(alpha: 0.5), width: 1)
                                           : null,
                                     ),
                                     child: Column(
@@ -146,18 +148,18 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                               return Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Expanded(child: LeaderboardTable(title: "Today's Results", entries: _daily)),
+                                  Expanded(child: LeaderboardTable(title: "Today's Results", entries: _daily, accentColor: widget.theme.correct)),
                                   const SizedBox(width: 24),
-                                  Expanded(child: LeaderboardTable(title: 'Monthly Standings', entries: _monthly, isMonthly: true)),
+                                  Expanded(child: LeaderboardTable(title: 'Monthly Standings', entries: _monthly, isMonthly: true, accentColor: widget.theme.correct)),
                                 ],
                               );
                             }
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                LeaderboardTable(title: "Today's Results", entries: _daily),
+                                LeaderboardTable(title: "Today's Results", entries: _daily, accentColor: widget.theme.correct),
                                 const SizedBox(height: 24),
-                                LeaderboardTable(title: 'Monthly Standings', entries: _monthly, isMonthly: true),
+                                LeaderboardTable(title: 'Monthly Standings', entries: _monthly, isMonthly: true, accentColor: widget.theme.correct),
                               ],
                             );
                           },
@@ -181,7 +183,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                               const SizedBox(height: 4),
                               Text(
                                 'Total: ${_dayBreakdown.fold<int>(0, (sum, d) => sum + (d['numGuesses'] as int))}',
-                                style: const TextStyle(color: Color(0xFF6AAA64), fontSize: 14, fontWeight: FontWeight.bold),
+                                style: TextStyle(color: widget.theme.correct, fontSize: 14, fontWeight: FontWeight.bold),
                               ),
                               const SizedBox(height: 12),
                               ..._dayBreakdown.map((day) {
@@ -198,7 +200,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                                   statusColor = Colors.redAccent;
                                   statusText = '+$guesses (missed)';
                                 } else if (solved) {
-                                  statusColor = const Color(0xFF6AAA64);
+                                  statusColor = widget.theme.correct;
                                   statusText = '$guesses ✓';
                                 } else {
                                   statusColor = const Color(0xFFC9B458);

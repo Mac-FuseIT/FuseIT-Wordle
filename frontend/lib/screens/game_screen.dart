@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../models/app_theme.dart';
 import '../models/game_state.dart';
 import '../services/api_service.dart';
 import '../widgets/tile_grid.dart';
@@ -8,6 +9,7 @@ import '../widgets/keyboard.dart';
 class GameScreen extends StatefulWidget {
   final int userId;
   final String name;
+  final AppTheme theme;
   final VoidCallback onShowLeaderboard;
   final VoidCallback onShowProfile;
   final VoidCallback onLogout;
@@ -16,6 +18,7 @@ class GameScreen extends StatefulWidget {
     super.key,
     required this.userId,
     required this.name,
+    required this.theme,
     required this.onShowLeaderboard,
     required this.onShowProfile,
     required this.onLogout,
@@ -144,7 +147,7 @@ class _GameScreenState extends State<GameScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator(color: Color(0xFF6AAA64)));
+      return Center(child: CircularProgressIndicator(color: widget.theme.correct));
     }
 
     return KeyboardListener(
@@ -164,8 +167,8 @@ class _GameScreenState extends State<GameScreen> {
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
                   shadows: [
-                    Shadow(color: Color(0xFF6AAA64), blurRadius: 8),
-                    Shadow(color: Color(0xFF6AAA64), blurRadius: 16),
+                    Shadow(color: widget.theme.correct, blurRadius: 8),
+                    Shadow(color: widget.theme.correct, blurRadius: 16),
                   ],
                 )),
                 const Spacer(),
@@ -219,6 +222,11 @@ class _GameScreenState extends State<GameScreen> {
                             guesses: _guesses,
                             currentInput: _currentInput,
                             onRevealComplete: _onRevealComplete,
+                            correctColor: widget.theme.correct,
+                            presentColor: widget.theme.present,
+                            absentColor: widget.theme.absent,
+                            emptyColor: widget.theme.tileEmpty,
+                            textColor: widget.theme.textColor,
                           ),
 
                       // Status below grid
@@ -235,7 +243,7 @@ class _GameScreenState extends State<GameScreen> {
                         Padding(
                           padding: const EdgeInsets.only(top: 8),
                           child: Text(_successMessage!, style: TextStyle(
-                            color: _solved ? const Color(0xFF6AAA64) : Colors.white,
+                            color: _solved ? widget.theme.correct : widget.theme.textColor,
                             fontSize: 15,
                             fontWeight: FontWeight.bold,
                           )),
@@ -247,7 +255,7 @@ class _GameScreenState extends State<GameScreen> {
                           padding: const EdgeInsets.only(top: 12),
                           child: ElevatedButton(
                             onPressed: widget.onShowLeaderboard,
-                            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6AAA64)),
+                            style: ElevatedButton.styleFrom(backgroundColor: widget.theme.correct),
                             child: const Text('View Leaderboard', style: TextStyle(color: Colors.white)),
                           ),
                         ),
@@ -267,12 +275,12 @@ class _GameScreenState extends State<GameScreen> {
                       ),
                     ),
                   if (_submitting)
-                    const Positioned(
+                    Positioned(
                       top: 0,
                       child: SizedBox(
                         width: 24,
                         height: 24,
-                        child: CircularProgressIndicator(strokeWidth: 2.5, color: Color(0xFF6AAA64)),
+                        child: CircularProgressIndicator(strokeWidth: 2.5, color: widget.theme.correct),
                       ),
                     ),
                   ],
@@ -291,6 +299,10 @@ class _GameScreenState extends State<GameScreen> {
                 onEnter: _submitGuess,
                 onBackspace: _onBackspace,
                 guesses: _guesses,
+                correctColor: widget.theme.correct,
+                presentColor: widget.theme.present,
+                absentColor: widget.theme.absent,
+                keyDefault: widget.theme.keyDefault,
               ),
             ),
         ],

@@ -7,6 +7,11 @@ class TileGrid extends StatefulWidget {
   final List<GuessResult> guesses;
   final String currentInput;
   final VoidCallback? onRevealComplete;
+  final Color correctColor;
+  final Color presentColor;
+  final Color absentColor;
+  final Color emptyColor;
+  final Color textColor;
 
   const TileGrid({
     super.key,
@@ -15,6 +20,11 @@ class TileGrid extends StatefulWidget {
     required this.guesses,
     required this.currentInput,
     this.onRevealComplete,
+    this.correctColor = const Color(0xFF6AAA64),
+    this.presentColor = const Color(0xFFC9B458),
+    this.absentColor = const Color(0xFF3A3A3C),
+    this.emptyColor = const Color(0xFF121213),
+    this.textColor = const Color(0xFFFFFFFF),
   });
 
   @override
@@ -22,7 +32,6 @@ class TileGrid extends StatefulWidget {
 }
 
 class _TileGridState extends State<TileGrid> {
-  // Track how many letters have been revealed for the latest guess
   int _revealedCount = 0;
   int _lastRevealedRow = -1;
   bool _revealing = false;
@@ -30,7 +39,6 @@ class _TileGridState extends State<TileGrid> {
   @override
   void didUpdateWidget(TileGrid oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // A new guess was added — start staggered reveal
     if (widget.guesses.length > oldWidget.guesses.length) {
       _startReveal(widget.guesses.length - 1);
     }
@@ -59,12 +67,9 @@ class _TileGridState extends State<TileGrid> {
 
   Color _statusColor(String status) {
     switch (status) {
-      case 'correct':
-        return const Color(0xFF6AAA64);
-      case 'present':
-        return const Color(0xFFC9B458);
-      default:
-        return const Color(0xFF3A3A3C);
+      case 'correct': return widget.correctColor;
+      case 'present': return widget.presentColor;
+      default: return widget.absentColor;
     }
   }
 
@@ -79,20 +84,17 @@ class _TileGridState extends State<TileGrid> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(widget.wordLength, (col) {
               String letter = '';
-              Color bgColor = const Color(0xFF121213);
-              Color borderColor = const Color(0xFF3A3A3C);
+              Color bgColor = widget.emptyColor;
+              Color borderColor = widget.absentColor;
 
               if (row < widget.guesses.length) {
                 final r = widget.guesses[row].result[col];
                 letter = r.letter.toUpperCase();
-
-                // Is this the row currently being revealed?
                 if (_revealing && row == _lastRevealedRow) {
                   if (col < _revealedCount) {
                     bgColor = _statusColor(r.status);
                     borderColor = bgColor;
                   } else {
-                    // Not yet revealed — show letter but no color
                     borderColor = const Color(0xFF565656);
                   }
                 } else {
@@ -117,11 +119,7 @@ class _TileGridState extends State<TileGrid> {
                 alignment: Alignment.center,
                 child: Text(
                   letter,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(color: widget.textColor, fontSize: 28, fontWeight: FontWeight.bold),
                 ),
               );
             }),

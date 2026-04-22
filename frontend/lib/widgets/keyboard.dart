@@ -6,6 +6,10 @@ class GameKeyboard extends StatelessWidget {
   final VoidCallback onEnter;
   final VoidCallback onBackspace;
   final List<GuessResult> guesses;
+  final Color correctColor;
+  final Color presentColor;
+  final Color absentColor;
+  final Color keyDefault;
 
   const GameKeyboard({
     super.key,
@@ -13,6 +17,10 @@ class GameKeyboard extends StatelessWidget {
     required this.onEnter,
     required this.onBackspace,
     required this.guesses,
+    this.correctColor = const Color(0xFF6AAA64),
+    this.presentColor = const Color(0xFFC9B458),
+    this.absentColor = const Color(0xFF3A3A3C),
+    this.keyDefault = const Color(0xFF818384),
   });
 
   static const _rows = [
@@ -42,14 +50,10 @@ class GameKeyboard extends StatelessWidget {
   Color _keyColor(String key) {
     final status = _letterStatuses[key];
     switch (status) {
-      case 'correct':
-        return const Color(0xFF6AAA64);
-      case 'present':
-        return const Color(0xFFC9B458);
-      case 'absent':
-        return const Color(0xFF3A3A3C);
-      default:
-        return const Color(0xFF818384);
+      case 'correct': return correctColor;
+      case 'present': return presentColor;
+      case 'absent': return absentColor;
+      default: return keyDefault;
     }
   }
 
@@ -70,13 +74,9 @@ class GameKeyboard extends StatelessWidget {
                   height: 52,
                   child: ElevatedButton(
                     onPressed: () {
-                      if (key == 'ENTER') {
-                        onEnter();
-                      } else if (key == '⌫') {
-                        onBackspace();
-                      } else {
-                        onKey(key.toLowerCase());
-                      }
+                      if (key == 'ENTER') { onEnter(); }
+                      else if (key == '⌫') { onBackspace(); }
+                      else { onKey(key.toLowerCase()); }
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _keyColor(key),
@@ -84,13 +84,7 @@ class GameKeyboard extends StatelessWidget {
                       padding: EdgeInsets.zero,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                     ),
-                    child: Text(
-                      key,
-                      style: TextStyle(
-                        fontSize: isWide ? 12 : 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    child: Text(key, style: TextStyle(fontSize: isWide ? 12 : 16, fontWeight: FontWeight.bold)),
                   ),
                 ),
               );
