@@ -3,7 +3,9 @@ import '../services/api_service.dart';
 
 class LoginScreen extends StatefulWidget {
   final Function(int userId, String name) onLogin;
-  const LoginScreen({super.key, required this.onLogin});
+  final Function(Map<String, dynamic>?)? onThemeLoaded;
+  final Color accentColor;
+  const LoginScreen({super.key, required this.onLogin, this.onThemeLoaded, this.accentColor = const Color(0xFF6AAA64)});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -66,6 +68,7 @@ class _LoginScreenState extends State<LoginScreen> {
         if (res['error'] != null) {
           setState(() { _error = res['error']; _loading = false; });
         } else {
+          widget.onThemeLoaded?.call(res['theme'] as Map<String, dynamic>?);
           await widget.onLogin(res['userId'] as int, res['name'] as String);
         }
       }
@@ -90,8 +93,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 fontSize: 62,
                 fontWeight: FontWeight.bold,
                 shadows: [
-                  Shadow(color: Color(0xFF6AAA64), blurRadius: 12),
-                  Shadow(color: Color(0xFF6AAA64), blurRadius: 24),
+                  Shadow(color: widget.accentColor, blurRadius: 12),
+                  Shadow(color: widget.accentColor, blurRadius: 24),
                 ],
               ),
             ),
@@ -153,7 +156,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 8),
               SizedBox(
                 width: 320,
-                child: Text(_info!, style: const TextStyle(color: Color(0xFF6AAA64), fontSize: 13), textAlign: TextAlign.center),
+                child: Text(_info!, style: TextStyle(color: widget.accentColor, fontSize: 13), textAlign: TextAlign.center),
               ),
             ],
             if (_error != null) ...[
@@ -171,7 +174,7 @@ class _LoginScreenState extends State<LoginScreen> {
               child: ElevatedButton(
                 onPressed: _loading ? null : _submit,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6AAA64),
+                  backgroundColor: widget.accentColor,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
                 child: _loading
@@ -193,7 +196,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               TextButton(
                 onPressed: () => setState(() { _mode = _LoginMode.register; _error = null; _info = null; }),
-                child: const Text("Don't have an account? Register", style: TextStyle(color: Color(0xFF6AAA64), fontSize: 13)),
+                child: Text("Don't have an account? Register", style: TextStyle(color: widget.accentColor, fontSize: 13)),
               ),
             ] else ...[
               TextButton(

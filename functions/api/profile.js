@@ -3,7 +3,7 @@ import { hashPassword } from '../../src/auth.js';
 
 export async function onRequestPost({ request, env }) {
   try {
-    const { userId, nickname, newPassword } = await request.json();
+    const { userId, nickname, newPassword, theme } = await request.json();
     if (!userId) return errorResponse('Missing userId');
 
     if (nickname !== undefined) {
@@ -19,8 +19,12 @@ export async function onRequestPost({ request, env }) {
       await env.DB.prepare('UPDATE users SET password = ? WHERE id = ?').bind(hashed, userId).run();
     }
 
-    const user = await env.DB.prepare('SELECT nickname, name FROM users WHERE id = ?').bind(userId).first();
-    return jsonResponse({ name: user.nickname || user.name, updated: true });
+    if (theme !== undefined) {
+      await env.DB.prepare('UPDATE users SET theme = ? WHERE id = ?').bind(JSON.stringify(theme), userId).run();
+    }
+
+    const user = await env.DB.prepare('SELECT nickname, name, theme FROM users WHERE id = ?').bind(userId).first();
+    return jsonResponse({ name: user.nickname || user.name, theme: user.theme ? JSON.parse(user.theme) : null, updated: true });
   } catch (e) {
     return errorResponse('Server error: ' + e.message, 500);
   }

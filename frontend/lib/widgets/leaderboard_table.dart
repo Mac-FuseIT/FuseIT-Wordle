@@ -5,12 +5,14 @@ class LeaderboardTable extends StatelessWidget {
   final String title;
   final List<LeaderboardEntry> entries;
   final bool isMonthly;
+  final Color accentColor;
 
   const LeaderboardTable({
     super.key,
     required this.title,
     required this.entries,
     this.isMonthly = false,
+    this.accentColor = const Color(0xFF6AAA64),
   });
 
   @override
@@ -30,7 +32,7 @@ class LeaderboardTable extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
               margin: const EdgeInsets.only(bottom: 4),
               decoration: BoxDecoration(
-                color: i == 0 ? const Color(0xFF6AAA64).withValues(alpha: 0.2) : const Color(0xFF1A1A1B),
+                color: i == 0 ? accentColor.withValues(alpha: 0.2) : const Color(0xFF1A1A1B),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Row(
@@ -43,7 +45,7 @@ class LeaderboardTable extends StatelessWidget {
                   Text(
                     isMonthly ? '${entry.totalGuesses} total' : '${entry.numGuesses} ${entry.solved == true ? '✓' : '✗'}',
                     style: TextStyle(
-                      color: (!isMonthly && entry.solved == true) ? const Color(0xFF6AAA64) : Colors.grey,
+                      color: (!isMonthly && entry.solved == true) ? accentColor : Colors.grey,
                       fontSize: 14,
                     ),
                   ),
