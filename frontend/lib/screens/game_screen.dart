@@ -206,42 +206,20 @@ class _GameScreenState extends State<GameScreen> {
               child: SingleChildScrollView(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
+                  child: Stack(
+                    alignment: Alignment.topCenter,
                     children: [
-                      // Error message above grid
-                      if (_errorMessage != null)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF1A1A1B),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(_errorMessage!, style: const TextStyle(color: Colors.redAccent, fontSize: 14, fontWeight: FontWeight.bold)),
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Tile grid
+                          TileGrid(
+                            wordLength: _wordLength,
+                            maxAttempts: _maxAttempts,
+                            guesses: _guesses,
+                            currentInput: _currentInput,
+                            onRevealComplete: _onRevealComplete,
                           ),
-                        ),
-
-                      // Loading indicator while validating
-                      if (_submitting)
-                        const Padding(
-                          padding: EdgeInsets.only(bottom: 12),
-                          child: SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(strokeWidth: 2.5, color: Color(0xFF6AAA64)),
-                          ),
-                        ),
-
-                      // Tile grid
-                      TileGrid(
-                        wordLength: _wordLength,
-                        maxAttempts: _maxAttempts,
-                        guesses: _guesses,
-                        currentInput: _currentInput,
-                        onRevealComplete: _onRevealComplete,
-                      ),
 
                       // Status below grid
                       Padding(
@@ -275,6 +253,30 @@ class _GameScreenState extends State<GameScreen> {
                         ),
                     ],
                   ),
+                  // Overlays — float on top without pushing grid
+                  if (_errorMessage != null)
+                    Positioned(
+                      top: 0,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1A1A1B),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(_errorMessage!, style: const TextStyle(color: Colors.redAccent, fontSize: 14, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  if (_submitting)
+                    const Positioned(
+                      top: 0,
+                      child: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2.5, color: Color(0xFF6AAA64)),
+                      ),
+                    ),
+                  ],
+                ),
                 ),
               ),
             ),
