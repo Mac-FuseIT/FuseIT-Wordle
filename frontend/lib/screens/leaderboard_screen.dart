@@ -5,7 +5,8 @@ import '../widgets/leaderboard_table.dart';
 
 class LeaderboardScreen extends StatefulWidget {
   final VoidCallback onBack;
-  const LeaderboardScreen({super.key, required this.onBack});
+  final int userId;
+  const LeaderboardScreen({super.key, required this.onBack, required this.userId});
 
   @override
   State<LeaderboardScreen> createState() => _LeaderboardScreenState();
@@ -15,6 +16,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
   List<LeaderboardEntry> _daily = [];
   List<LeaderboardEntry> _monthly = [];
   List<LeaderboardEntry> _prevTop3 = [];
+  List<Map<String, dynamic>> _dayBreakdown = [];
   String _prevMonthLabel = '';
   bool _loading = true;
 
@@ -27,11 +29,12 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
   Future<void> _load() async {
     try {
       final today = await ApiService.getToday();
-      final data = await ApiService.getLeaderboard(today['date']);
+      final data = await ApiService.getLeaderboard(today['date'], userId: widget.userId);
       _daily = ((data['daily'] ?? []) as List).map((e) => LeaderboardEntry.fromJsonDaily(e)).toList();
       _monthly = ((data['monthly'] ?? []) as List).map((e) => LeaderboardEntry.fromJsonMonthly(e)).toList();
       _prevTop3 = ((data['previousMonth'] ?? []) as List).map((e) => LeaderboardEntry.fromJsonMonthly(e)).toList();
       _prevMonthLabel = data['previousMonthLabel'] ?? '';
+      _dayBreakdown = List<Map<String, dynamic>>.from(data['dayBreakdown'] ?? []);
     } catch (_) {}
     setState(() => _loading = false);
   }
@@ -160,6 +163,84 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                           },
                         ),
                       ),
+                      // Day-by-day breakdown
+                      if (_dayBreakdown.isNotEmpty) ...[
+                        const SizedBox(height: 20),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF121213).withValues(alpha: 0.85),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFF3A3A3C), width: 1),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Your Month Breakdown', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Total: ${_dayBreakdown.fold<int>(0, (sum, d) => sum + (d['numGuesses'] as int))}',
+                                style: const TextStyle(color: Color(0xFF6AAA64), fontSize: 14, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 12),
+                              ..._dayBreakdown.map((day) {
+                                final played = day['played'] as bool;
+                                final solved = day['solved'] as bool;
+                                final guesses = day['numGuesses'] as int;
+                                final word = day['word'] as String;
+                                final date = day['date'] as String;
+                                final length = day['length'] as int;
+
+                                Color statusColor;
+                                String statusText;
+                                if (!played) {
+                                  statusColor = Colors.redAccent;
+                                  statusText = '+$guesses (missed)';
+                                } else if (solved) {
+                                  statusColor = const Color(0xFF6AAA64);
+                                  statusText = '$guesses ✓';
+                                } else {
+                                  statusColor = const Color(0xFFC9B458);
+                                  statusText = '$guesses ✗';
+                                }
+
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                                  margin: const EdgeInsets.only(bottom: 4),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF1A1A1B),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      SizedBox(
+                                        width: 90,
+                                        child: Text(date, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                                      ),
+                                      SizedBox(
+                                        width: 80,
+                                        child: Text(
+                                          word.toUpperCase(),
+                                          style: TextStyle(
+                                            color: played ? Colors.white : Colors.grey,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 1,
+                                          ),
+                                        ),
+                                      ),
+                                      Text('${length}L', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                                      const Spacer(),
+                                      Text(statusText, style: TextStyle(color: statusColor, fontSize: 13, fontWeight: FontWeight.bold)),
+                                    ],
+                                  ),
+                                );
+                              }),
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

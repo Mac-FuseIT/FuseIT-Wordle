@@ -100,6 +100,7 @@ class _AppShellState extends State<AppShell> {
               ),
               AppView.leaderboard => LeaderboardScreen(
                 onBack: () => setState(() => _view = AppView.game),
+                userId: _userId!,
               ),
               AppView.profile => ProfileScreen(
                 userId: _userId!,

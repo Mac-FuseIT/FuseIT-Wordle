@@ -3,7 +3,7 @@ import { getOrCreateDailyWord } from '../../src/word-selection.js';
 
 function getPrevMonth(month) {
   const [y, m] = month.split('-').map(Number);
-  const d = new Date(y, m - 2, 1); // month-2 because JS months are 0-indexed
+  const d = new Date(y, m - 2, 1);
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
 }
 
@@ -49,6 +49,29 @@ export async function onRequestGet({ request, env }) {
 
   const monthly = await getMonthlyLeaderboard(env, monthStart, monthEnd);
 
+  // Day breakdown for requesting user — only days that exist in daily_words, last 10
+  const userId = url.searchParams.get('userId');
+  let dayBreakdown = [];
+  if (userId) {
+    const breakdown = await env.DB.prepare(`
+      SELECT dw.date, dw.word, dw.length,
+        a.num_guesses AS numGuesses, a.solved
+      FROM daily_words dw
+      LEFT JOIN attempts a ON a.date = dw.date AND a.user_id = ?
+      WHERE dw.date >= ? AND dw.date <= ?
+      ORDER BY dw.date DESC
+      LIMIT 10
+    `).bind(userId, monthStart, monthEnd).all();
+    dayBreakdown = (breakdown.results || []).reverse().map(r => ({
+      date: r.date,
+      word: r.word,
+      length: r.length,
+      numGuesses: r.numGuesses ?? r.length + 4,
+      played: r.numGuesses !== null,
+      solved: r.solved === 1,
+    }));
+  }
+
   // Previous month top 3
   const prevMonth = getPrevMonth(month);
   const prevStart = prevMonth + '-01';
@@ -59,6 +82,7 @@ export async function onRequestGet({ request, env }) {
   return jsonResponse({
     daily: daily.results || [],
     monthly: monthly.results || [],
+    dayBreakdown,
     previousMonth: prevTop3,
     previousMonthLabel: prevMonth,
   });

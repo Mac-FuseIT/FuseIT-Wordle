@@ -64,8 +64,10 @@ class ApiService {
     return jsonDecode(res.body);
   }
 
-  static Future<Map<String, dynamic>> getLeaderboard(String date) async {
-    final res = await http.get(Uri.parse('$baseUrl/api/leaderboard?date=$date'));
+  static Future<Map<String, dynamic>> getLeaderboard(String date, {int? userId}) async {
+    var url = '$baseUrl/api/leaderboard?date=$date';
+    if (userId != null) url += '&userId=$userId';
+    final res = await http.get(Uri.parse(url));
     return jsonDecode(res.body);
   }
 
