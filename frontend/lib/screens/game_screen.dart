@@ -337,31 +337,40 @@ class _GameScreenState extends State<GameScreen> {
             ),
           ),
 
-          // Keyboard — keeps layout space, slides and fades visually
-          AnimatedOpacity(
-            opacity: _hideKeyboard ? 0.0 : 1.0,
-            duration: const Duration(milliseconds: 1000),
+          // Keyboard — fades and slides, then collapses space
+          AnimatedSize(
+            duration: const Duration(milliseconds: 600),
             curve: Curves.easeOut,
-            child: AnimatedSlide(
-              offset: _hideKeyboard ? const Offset(0, 0.3) : Offset.zero,
-              duration: const Duration(milliseconds: 1000),
+            child: AnimatedOpacity(
+              opacity: _hideKeyboard ? 0.0 : 1.0,
+              duration: const Duration(milliseconds: 500),
               curve: Curves.easeOut,
-              child: IgnorePointer(
-                ignoring: _hideKeyboard,
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 32),
-                  child: GameKeyboard(
-                    onKey: _onKey,
-                    onEnter: _submitGuess,
-                    onBackspace: _onBackspace,
-                    guesses: _keyboardGuesses,
-                    correctColor: widget.theme.correct,
-                    presentColor: widget.theme.present,
-                    absentColor: widget.theme.absent,
-                    keyDefault: widget.theme.keyDefault,
-                  ),
-                ),
-              ),
+              onEnd: () {
+                if (_hideKeyboard) setState(() {});
+              },
+              child: _hideKeyboard
+                  ? const SizedBox(width: double.infinity)
+                  : AnimatedSlide(
+                      offset: _hideKeyboard ? const Offset(0, 0.3) : Offset.zero,
+                      duration: const Duration(milliseconds: 500),
+                      curve: Curves.easeOut,
+                      child: IgnorePointer(
+                        ignoring: _hideKeyboard,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 32),
+                          child: GameKeyboard(
+                            onKey: _onKey,
+                            onEnter: _submitGuess,
+                            onBackspace: _onBackspace,
+                            guesses: _keyboardGuesses,
+                            correctColor: widget.theme.correct,
+                            presentColor: widget.theme.present,
+                            absentColor: widget.theme.absent,
+                            keyDefault: widget.theme.keyDefault,
+                          ),
+                        ),
+                      ),
+                    ),
             ),
           ),
         ],
