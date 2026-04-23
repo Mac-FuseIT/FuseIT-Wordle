@@ -1,18 +1,23 @@
 import { wordsByLength } from './words.js';
 
-function hashDate(dateStr) {
-  let hash = 0;
-  for (let i = 0; i < dateStr.length; i++) {
-    hash = ((hash << 5) - hash + dateStr.charCodeAt(i)) | 0;
+// MurmurHash3-inspired mixer — much better distribution than djb2
+function hash(str) {
+  let h = 0xdeadbeef;
+  for (let i = 0; i < str.length; i++) {
+    h = Math.imul(h ^ str.charCodeAt(i), 2654435761);
+    h = (h << 13) | (h >>> 19);
   }
-  return Math.abs(hash);
+  h = Math.imul(h ^ (h >>> 16), 2246822507);
+  h = Math.imul(h ^ (h >>> 13), 3266489909);
+  return (h ^ (h >>> 16)) >>> 0;
 }
 
 export function getTodayWord(dateStr) {
-  const hash = hashDate(dateStr);
-  const wordLength = 4 + (hash % 5); // random 4-8
+  const lengthHash = hash('length:' + dateStr);
+  const wordLength = 4 + (lengthHash % 5);
   const words = wordsByLength[wordLength];
-  const wordIndex = hashDate(dateStr + 'salt') % words.length;
+  const wordHash = hash('word:' + dateStr);
+  const wordIndex = wordHash % words.length;
   return { word: words[wordIndex], length: wordLength };
 }
 

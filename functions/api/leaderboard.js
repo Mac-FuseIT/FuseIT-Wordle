@@ -66,14 +66,18 @@ export async function onRequestGet({ request, env }) {
       ORDER BY dw.date DESC
       LIMIT 10
     `).bind(userId, monthStart, monthEnd).all();
-    dayBreakdown = (breakdown.results || []).reverse().map(r => ({
-      date: r.date,
-      word: r.word,
-      length: r.length,
-      numGuesses: r.numGuesses ?? r.length + 4,
-      played: r.numGuesses !== null,
-      solved: r.solved === 1,
-    }));
+    dayBreakdown = (breakdown.results || []).reverse().map(r => {
+      const isToday = r.date === today;
+      const played = r.numGuesses !== null;
+      return {
+        date: r.date,
+        word: (isToday && !played) ? '?' .repeat(r.length) : r.word,
+        length: r.length,
+        numGuesses: r.numGuesses ?? r.length + 4,
+        played,
+        solved: r.solved === 1,
+      };
+    });
   }
 
   // Previous month top 3

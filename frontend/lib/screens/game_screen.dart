@@ -188,11 +188,12 @@ class _GameScreenState extends State<GameScreen> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                IconButton(
-                  icon: const Icon(Icons.leaderboard, color: Colors.white, size: 22),
-                  onPressed: widget.onShowLeaderboard,
-                  tooltip: 'Leaderboard',
-                ),
+                if (_completed)
+                  IconButton(
+                    icon: const Icon(Icons.leaderboard, color: Colors.white, size: 22),
+                    onPressed: widget.onShowLeaderboard,
+                    tooltip: 'Leaderboard',
+                  ),
                 IconButton(
                   icon: const Icon(Icons.logout, color: Colors.grey, size: 20),
                   onPressed: widget.onLogout,
