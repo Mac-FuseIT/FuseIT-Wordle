@@ -33,6 +33,7 @@ class _GameScreenState extends State<GameScreen> {
   int _maxAttempts = 6;
   String _date = '';
   List<GuessResult> _guesses = [];
+  List<GuessResult> _keyboardGuesses = []; // Updated after reveal completes
   String _currentInput = '';
   bool _completed = false;
   bool _solved = false;
@@ -41,6 +42,8 @@ class _GameScreenState extends State<GameScreen> {
   String? _successMessage;
   bool _loading = true;
   bool _submitting = false;
+  bool _shake = false;
+  bool _hideKeyboard = false;
   final FocusNode _focusNode = FocusNode();
 
   @override
@@ -58,11 +61,12 @@ class _GameScreenState extends State<GameScreen> {
 
       final state = await ApiService.getGameState(widget.userId);
       _guesses = ApiService.parseGuesses(state['guesses'] ?? []);
+      _keyboardGuesses = List.from(_guesses); // Already revealed on load
       _completed = state['completed'] ?? false;
       _solved = state['solved'] ?? false;
       if (_completed) {
         if (_solved) {
-          _successMessage = 'Got it in ${_guesses.length}!';
+          _successMessage = 'Excellent!! Got it in ${_guesses.length}!';
         } else {
           // Extract answer from last guess's context — or just show generic message
           _successMessage = 'Better luck tomorrow!';
@@ -71,13 +75,14 @@ class _GameScreenState extends State<GameScreen> {
     } catch (e) {
       _errorMessage = 'Failed to load game';
     }
-    setState(() => _loading = false);
+    setState(() { _loading = false; _hideKeyboard = _completed; });
     _focusNode.requestFocus();
   }
 
   Future<void> _submitGuess() async {
     if (_submitting) return;
     if (_currentInput.length != _wordLength) {
+      _triggerShake();
       setState(() => _errorMessage = 'Not enough letters');
       return;
     }
@@ -86,30 +91,43 @@ class _GameScreenState extends State<GameScreen> {
     try {
       final res = await ApiService.submitGuess(widget.userId, _currentInput);
       if (res['error'] != null) {
+        _triggerShake();
         setState(() { _errorMessage = res['error']; _submitting = false; });
         return;
       }
       setState(() {
         _guesses = ApiService.parseGuesses(res['guesses'] ?? []);
+        // Don't update _keyboardGuesses yet — wait for reveal
         _solved = res['solved'] ?? false;
         _completed = _solved || (_guesses.length >= _maxAttempts);
         _answer = res['answer'];
         _currentInput = '';
         _errorMessage = null;
-        // Don't show success message yet — wait for reveal animation
       });
     } catch (e) {
       setState(() { _errorMessage = 'Error submitting guess'; _submitting = false; });
     }
   }
 
+  void _triggerShake() {
+    setState(() => _shake = true);
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) setState(() => _shake = false);
+    });
+  }
+
   void _onRevealComplete() {
     setState(() {
       _submitting = false;
+      _keyboardGuesses = List.from(_guesses);
       if (_solved) {
-        _successMessage = 'Excellent! Got it in ${_guesses.length}!';
+        _successMessage = 'Excellent!! Got it in ${_guesses.length}!';
       } else if (_completed) {
-        _successMessage = 'The word was: ${_answer?.toUpperCase()}';
+        _successMessage = 'FAILED';
+        _hideKeyboard = true;
+      }
+      if (_solved) {
+        _hideKeyboard = true;
       }
     });
   }
@@ -231,38 +249,62 @@ class _GameScreenState extends State<GameScreen> {
                             absentColor: widget.theme.absent,
                             emptyColor: widget.theme.tileEmpty,
                             textColor: widget.theme.textColor,
+                            shake: _shake,
                           ),
 
-                      // Status below grid
-                      Padding(
-                        padding: const EdgeInsets.only(top: 12),
-                        child: Text(
-                          '$_wordLength letters · Attempt ${_guesses.length + (_completed ? 0 : 1)} of $_maxAttempts',
-                          style: const TextStyle(color: Colors.grey, fontSize: 13),
+                      // Status / success area — fixed height to prevent layout shift
+                      SizedBox(
+                        height: 80,
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 400),
+                          child: _successMessage != null
+                              ? Column(
+                                  key: const ValueKey('success'),
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const SizedBox(height: 4),
+                                    if (_solved)
+                                      Text(_successMessage!, style: TextStyle(
+                                        color: widget.theme.correct,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold,
+                                      ))
+                                    else if (_answer != null) ...[
+                                      Text('The correct word was:', style: TextStyle(
+                                        color: Colors.grey,
+                                        fontSize: 12,
+                                      )),
+                                      const SizedBox(height: 2),
+                                      Text(_answer!.toUpperCase(), style: TextStyle(
+                                        color: widget.theme.textColor,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 2,
+                                      )),
+                                    ] else
+                                      Text(_successMessage!, style: TextStyle(
+                                        color: widget.theme.textColor,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold,
+                                      )),
+                                    const SizedBox(height: 6),
+                                    ElevatedButton(
+                                      onPressed: widget.onShowLeaderboard,
+                                      style: ElevatedButton.styleFrom(backgroundColor: widget.theme.correct),
+                                      child: const Text('View Leaderboard', style: TextStyle(color: Colors.white)),
+                                    ),
+                                  ],
+                                )
+                              : Padding(
+                                  key: const ValueKey('status'),
+                                  padding: const EdgeInsets.only(top: 12),
+                                  child: Text(
+                                    '$_wordLength letters · Attempt ${_guesses.length + (_completed ? 0 : 1)} of $_maxAttempts',
+                                    style: const TextStyle(color: Colors.grey, fontSize: 13),
+                                  ),
+                                ),
                         ),
                       ),
-
-                      // Success/completion message below status
-                      if (_successMessage != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: Text(_successMessage!, style: TextStyle(
-                            color: _solved ? widget.theme.correct : widget.theme.textColor,
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                          )),
-                        ),
-
-                      // Leaderboard button when completed
-                      if (_completed && _successMessage != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 12),
-                          child: ElevatedButton(
-                            onPressed: widget.onShowLeaderboard,
-                            style: ElevatedButton.styleFrom(backgroundColor: widget.theme.correct),
-                            child: const Text('View Leaderboard', style: TextStyle(color: Colors.white)),
-                          ),
-                        ),
                     ],
                   ),
                   ),
@@ -295,21 +337,33 @@ class _GameScreenState extends State<GameScreen> {
             ),
           ),
 
-          // Keyboard with more bottom padding
-          if (!_completed)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 32),
-              child: GameKeyboard(
-                onKey: _onKey,
-                onEnter: _submitGuess,
-                onBackspace: _onBackspace,
-                guesses: _guesses,
-                correctColor: widget.theme.correct,
-                presentColor: widget.theme.present,
-                absentColor: widget.theme.absent,
-                keyDefault: widget.theme.keyDefault,
+          // Keyboard — keeps layout space, slides and fades visually
+          AnimatedOpacity(
+            opacity: _hideKeyboard ? 0.0 : 1.0,
+            duration: const Duration(milliseconds: 1000),
+            curve: Curves.easeOut,
+            child: AnimatedSlide(
+              offset: _hideKeyboard ? const Offset(0, 0.3) : Offset.zero,
+              duration: const Duration(milliseconds: 1000),
+              curve: Curves.easeOut,
+              child: IgnorePointer(
+                ignoring: _hideKeyboard,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 32),
+                  child: GameKeyboard(
+                    onKey: _onKey,
+                    onEnter: _submitGuess,
+                    onBackspace: _onBackspace,
+                    guesses: _keyboardGuesses,
+                    correctColor: widget.theme.correct,
+                    presentColor: widget.theme.present,
+                    absentColor: widget.theme.absent,
+                    keyDefault: widget.theme.keyDefault,
+                  ),
+                ),
               ),
             ),
+          ),
         ],
       ),
     );
