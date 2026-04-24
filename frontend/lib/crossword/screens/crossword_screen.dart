@@ -55,6 +55,8 @@ class _CrosswordScreenState extends State<CrosswordScreen> {
       _elapsed = data['elapsed'] ?? 0;
       _completed = data['completed'] ?? false;
       _completedTime = data['timeSeconds'];
+      _hintsLeft = 3 - ((data['hintsUsed'] ?? 0) as int);
+      _checksLeft = 3 - ((data['checksUsed'] ?? 0) as int);
       if (_completed) {
         _hideClues = true;
         _failed = (_completedTime ?? 0) >= 600;
@@ -194,7 +196,7 @@ class _CrosswordScreenState extends State<CrosswordScreen> {
   void _autoSave() {
     _saveDebounce?.cancel();
     _saveDebounce = Timer(const Duration(seconds: 2), () {
-      if (!_completed) CrosswordApi.save(_grid, _elapsed);
+      if (!_completed) CrosswordApi.save(_grid, _elapsed, hintsUsed: 3 - _hintsLeft, checksUsed: 3 - _checksLeft);
     });
   }
 
@@ -207,7 +209,7 @@ class _CrosswordScreenState extends State<CrosswordScreen> {
       _grid[_selRow!][_selCol!] = answer;
       _hintsLeft--;
     });
-    _autoSave();
+    CrosswordApi.save(_grid, _elapsed, hintsUsed: 3 - _hintsLeft, checksUsed: 3 - _checksLeft);
     _checkCompletion();
   }
 
@@ -229,6 +231,8 @@ class _CrosswordScreenState extends State<CrosswordScreen> {
     final len = activeClue['length'] as int;
     final dr = _isAcross ? 0 : 1;
     final dc = _isAcross ? 1 : 0;
+
+    CrosswordApi.save(_grid, _elapsed, hintsUsed: 3 - _hintsLeft, checksUsed: 3 - _checksLeft);
 
     bool allCorrect = true;
     for (int i = 0; i < len; i++) {

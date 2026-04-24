@@ -12,7 +12,7 @@ export async function onRequestGet({ request, env }) {
   const emptyGrid = puzzle.grid.map(row => row.map(cell => cell === null ? null : ''));
 
   // Check if user has in-progress state
-  const state = await env.DB.prepare('SELECT grid, elapsed FROM crossword_state WHERE user_id = ? AND date = ?').bind(auth.userId, date).first();
+  const state = await env.DB.prepare('SELECT grid, elapsed, hints_used, checks_used FROM crossword_state WHERE user_id = ? AND date = ?').bind(auth.userId, date).first();
   const attempt = await env.DB.prepare('SELECT time_seconds FROM crossword_attempts WHERE user_id = ? AND date = ?').bind(auth.userId, date).first();
 
   return jsonResponse({
@@ -21,6 +21,8 @@ export async function onRequestGet({ request, env }) {
     cluesAcross: puzzle.across,
     cluesDown: puzzle.down,
     elapsed: state ? state.elapsed : 0,
+    hintsUsed: state ? state.hints_used : 0,
+    checksUsed: state ? state.checks_used : 0,
     completed: !!attempt,
     timeSeconds: attempt ? attempt.time_seconds : null,
   });

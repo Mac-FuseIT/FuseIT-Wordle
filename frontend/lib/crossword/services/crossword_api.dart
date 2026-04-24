@@ -21,8 +21,8 @@ class CrosswordApi {
     return jsonDecode(res.body);
   }
 
-  static Future<Map<String, dynamic>> save(List<List<String?>> grid, int elapsed) async {
-    final res = await http.post(Uri.parse('$baseUrl/api/crossword/save'), headers: await _headers, body: jsonEncode({'grid': grid, 'elapsed': elapsed}));
+  static Future<Map<String, dynamic>> save(List<List<String?>> grid, int elapsed, {int hintsUsed = 0, int checksUsed = 0}) async {
+    final res = await http.post(Uri.parse('$baseUrl/api/crossword/save'), headers: await _headers, body: jsonEncode({'grid': grid, 'elapsed': elapsed, 'hintsUsed': hintsUsed, 'checksUsed': checksUsed}));
     return jsonDecode(res.body);
   }
 

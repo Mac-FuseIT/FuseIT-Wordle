@@ -1,0 +1,2 @@
+ALTER TABLE crossword_state ADD COLUMN hints_used INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE crossword_state ADD COLUMN checks_used INTEGER NOT NULL DEFAULT 0;
