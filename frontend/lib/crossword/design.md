@@ -2,7 +2,7 @@
 
 ## Overview
 
-A daily mini crossword puzzle integrated into the Fuse Arcade platform. Each day a new 5×5 crossword grid is generated with tech/dev-themed clues. Players fill in words across and down, with intersecting letters helping solve the puzzle. Completion time is tracked and displayed on a leaderboard.
+A daily mini crossword puzzle integrated into the Fuse Arcade platform. Each day a new 5×5 crossword grid is presented with general knowledge clues. Players fill in words across and down, with intersecting letters helping solve the puzzle. Completion time is tracked and displayed on a leaderboard.
 
 ---
 
@@ -69,24 +69,24 @@ Puzzles are pre-authored as JSON and stored in a JS file (like the word list for
 ```json
 {
   "grid": [
-    ["C","O","D","E","S"],
-    ["L",null,"A","R","A"],
-    ["O","A","T","A","S"],
-    ["N","U","H",null,"K"],
-    ["E","T","S","S","S"]
+    ["S","T","A","R","S"],
+    ["L",null,"C","O","E"],
+    ["O","A","E","S","A"],
+    ["B","K","S",null,"L"],
+    ["S","E","S","S","S"]
   ],
   "across": [
-    {"number": 1, "clue": "Source ___", "row": 0, "col": 0, "length": 5},
-    {"number": 4, "clue": "Data structure for key-value pairs", "row": 1, "col": 2, "length": 3},
+    {"number": 1, "clue": "Twinkle twinkle little ___", "row": 0, "col": 0, "length": 5},
+    {"number": 4, "clue": "Playing card with a single pip", "row": 1, "col": 2, "length": 3},
     {"number": 5, "clue": "Breakfast grain", "row": 2, "col": 0, "length": 5},
-    {"number": 6, "clue": "Authentication standard", "row": 3, "col": 0, "length": 3},
-    {"number": 7, "clue": "Secure Shell", "row": 4, "col": 0, "length": 5}
+    {"number": 6, "clue": "Oven-___", "row": 3, "col": 0, "length": 3},
+    {"number": 7, "clue": "Plural of 'S'", "row": 4, "col": 0, "length": 5}
   ],
   "down": [
-    {"number": 1, "clue": "Git operation", "row": 0, "col": 0, "length": 5},
-    {"number": 2, "clue": "Automation tool", "row": 1, "col": 1, "length": 4},
-    {"number": 3, "clue": "File ___", "row": 0, "col": 2, "length": 5},
-    {"number": 4, "clue": "Arrays in Python", "row": 0, "col": 4, "length": 5}
+    {"number": 1, "clue": "Messy room", "row": 0, "col": 0, "length": 5},
+    {"number": 2, "clue": "Snowflake shape", "row": 1, "col": 1, "length": 4},
+    {"number": 3, "clue": "Trump card", "row": 0, "col": 2, "length": 5},
+    {"number": 4, "clue": "Ocean mammals", "row": 0, "col": 4, "length": 5}
   ]
 }
 ```
@@ -235,10 +235,10 @@ A new home screen that shows both games:
 
 ## Puzzle Content Strategy
 
-Puzzles are tech-themed where possible:
-- Clues reference programming concepts, tools, languages, cloud services
-- Mix of easy (e.g. "Version control system" → GIT) and medium (e.g. "Container orchestration tool" → KUBE)
-- Some general knowledge clues to keep it accessible
+Puzzles are general knowledge themed:
+- Clues cover everyday topics: geography, food, animals, pop culture, sports, science, history
+- Mix of easy (e.g. "Man's best friend" → DOG) and medium (e.g. "Capital of Peru" → LIMA)
+- Accessible to everyone, no specialist knowledge required
 - Need 30+ puzzles minimum for a month of daily play
 - Puzzles cycle deterministically using the date hash
 

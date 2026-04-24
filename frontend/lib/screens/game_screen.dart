@@ -179,6 +179,10 @@ class _GameScreenState extends State<GameScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  onPressed: widget.onLogout,
+                ),
                 Text('Guess.IT', style: TextStyle(
                   fontFamily: 'Trebuchet MS',
                   color: Colors.white,
@@ -212,11 +216,6 @@ class _GameScreenState extends State<GameScreen> {
                     onPressed: widget.onShowLeaderboard,
                     tooltip: 'Leaderboard',
                   ),
-                IconButton(
-                  icon: const Icon(Icons.logout, color: Colors.grey, size: 20),
-                  onPressed: widget.onLogout,
-                  tooltip: 'Logout',
-                ),
               ],
             ),
           ),
