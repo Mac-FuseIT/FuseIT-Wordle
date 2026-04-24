@@ -9,15 +9,15 @@ import 'screens/leaderboard_screen.dart';
 import 'screens/profile_screen.dart';
 import 'widgets/wavy_background.dart';
 
-void main() => runApp(const GuessITApp());
+void main() => runApp(const FuseArcadeApp());
 
-class GuessITApp extends StatelessWidget {
-  const GuessITApp({super.key});
+class FuseArcadeApp extends StatelessWidget {
+  const FuseArcadeApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Guess.IT',
+      title: 'Fuse Arcade',
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark().copyWith(
         scaffoldBackgroundColor: const Color(0xFF121213),
