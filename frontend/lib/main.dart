@@ -10,6 +10,8 @@ import 'screens/leaderboard_screen.dart';
 import 'screens/profile_screen.dart';
 import 'crossword/screens/crossword_screen.dart';
 import 'crossword/screens/crossword_leaderboard.dart';
+import 'strands/screens/strands_screen.dart';
+import 'strands/screens/strands_leaderboard.dart';
 import 'widgets/wavy_background.dart';
 
 void main() => runApp(const FuseArcadeApp());
@@ -28,7 +30,7 @@ class FuseArcadeApp extends StatelessWidget {
   }
 }
 
-enum AppView { login, menu, guessGame, guessLeaderboard, crossGame, crossLeaderboard, profile }
+enum AppView { login, menu, guessGame, guessLeaderboard, crossGame, crossLeaderboard, strandsGame, strandsLeaderboard, profile }
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -116,6 +118,7 @@ class _AppShellState extends State<AppShell> {
                 theme: _theme,
                 onGuessIT: () => setState(() => _view = AppView.guessGame),
                 onCrossIT: () => setState(() => _view = AppView.crossGame),
+                onGramIT: () => setState(() => _view = AppView.strandsGame),
                 onProfile: () => setState(() => _view = AppView.profile),
                 onLogout: _logout,
               ),
@@ -137,6 +140,15 @@ class _AppShellState extends State<AppShell> {
               AppView.crossLeaderboard => CrosswordLeaderboard(
                 theme: _theme,
                 onBack: () => setState(() => _view = AppView.crossGame),
+              ),
+              AppView.strandsGame => StrandsScreen(
+                theme: _theme,
+                onBack: () => setState(() => _view = AppView.menu),
+                onLeaderboard: () => setState(() => _view = AppView.strandsLeaderboard),
+              ),
+              AppView.strandsLeaderboard => StrandsLeaderboard(
+                theme: _theme,
+                onBack: () => setState(() => _view = AppView.strandsGame),
               ),
               AppView.profile => ProfileScreen(
                 userId: _userId!, currentName: _name!, currentTheme: _theme,

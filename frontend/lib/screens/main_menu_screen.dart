@@ -6,6 +6,7 @@ class MainMenuScreen extends StatelessWidget {
   final AppTheme theme;
   final VoidCallback onGuessIT;
   final VoidCallback onCrossIT;
+  final VoidCallback onGramIT;
   final VoidCallback onProfile;
   final VoidCallback onLogout;
 
@@ -15,6 +16,7 @@ class MainMenuScreen extends StatelessWidget {
     required this.theme,
     required this.onGuessIT,
     required this.onCrossIT,
+    required this.onGramIT,
     required this.onProfile,
     required this.onLogout,
   });
@@ -38,8 +40,10 @@ class MainMenuScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 _GameCard(title: 'Guess.IT', subtitle: 'Daily word game', icon: Icons.abc, color: theme.correct, onTap: onGuessIT),
-                const SizedBox(width: 24),
+                const SizedBox(width: 16),
                 _GameCard(title: 'Cross.IT', subtitle: 'Mini crossword', icon: Icons.grid_on, color: theme.present, onTap: onCrossIT),
+                const SizedBox(width: 16),
+                _GameCard(title: 'Gram.IT', subtitle: 'Word strands', icon: Icons.link, color: theme.correct, onTap: onGramIT),
               ],
             ),
             const SizedBox(height: 48),
@@ -87,7 +91,7 @@ class _GameCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 150, height: 160,
+        width: 130, height: 150,
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(16),
