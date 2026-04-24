@@ -86,7 +86,7 @@ class _LoginScreenState extends State<LoginScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Guess.IT',
+              'Fuse Arcade',
               style: TextStyle(
                 fontFamily: 'Trebuchet MS',
                 color: Colors.white,
@@ -100,16 +100,8 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             const SizedBox(height: 15),
             const Text(
-              'A daily word game with varying word lengths (4-8)',
+              'Daily games for FuseIT',
               style: TextStyle(color: Colors.grey, fontSize: 14),
-            ),
-            const Text(
-              'Be the best in the Month, you will get Double your Salary!!',
-              style: TextStyle(color: Colors.grey, fontSize: 14),
-            ),
-            const Text(
-              '(Pending Approval)',
-              style: TextStyle(color: Colors.grey, fontSize: 18),
             ),
             const SizedBox(height: 40),
 

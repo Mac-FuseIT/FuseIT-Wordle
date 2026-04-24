@@ -4,34 +4,34 @@ import 'dart:convert';
 import 'models/app_theme.dart';
 import 'services/api_service.dart';
 import 'screens/login_screen.dart';
+import 'screens/main_menu_screen.dart';
 import 'screens/game_screen.dart';
 import 'screens/leaderboard_screen.dart';
 import 'screens/profile_screen.dart';
+import 'crossword/screens/crossword_screen.dart';
+import 'crossword/screens/crossword_leaderboard.dart';
 import 'widgets/wavy_background.dart';
 
-void main() => runApp(const GuessITApp());
+void main() => runApp(const FuseArcadeApp());
 
-class GuessITApp extends StatelessWidget {
-  const GuessITApp({super.key});
+class FuseArcadeApp extends StatelessWidget {
+  const FuseArcadeApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Guess.IT',
+      title: 'Fuse Arcade',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color(0xFF121213),
-      ),
+      theme: ThemeData.dark().copyWith(scaffoldBackgroundColor: const Color(0xFF121213)),
       home: const AppShell(),
     );
   }
 }
 
-enum AppView { login, game, leaderboard, profile }
+enum AppView { login, menu, guessGame, guessLeaderboard, crossGame, crossLeaderboard, profile }
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
-
   @override
   State<AppShell> createState() => _AppShellState();
 }
@@ -44,10 +44,7 @@ class _AppShellState extends State<AppShell> {
   bool _checkingSession = true;
 
   @override
-  void initState() {
-    super.initState();
-    _restoreSession();
-  }
+  void initState() { super.initState(); _restoreSession(); }
 
   Future<void> _restoreSession() async {
     final prefs = await SharedPreferences.getInstance();
@@ -55,10 +52,8 @@ class _AppShellState extends State<AppShell> {
     final name = prefs.getString('userName');
     final themeJson = prefs.getString('userTheme');
     if (id != null && name != null) {
-      if (themeJson != null) {
-        try { _theme = AppTheme.fromJson(jsonDecode(themeJson)); } catch (_) {}
-      }
-      setState(() { _userId = id; _name = name; _view = AppView.game; });
+      if (themeJson != null) { try { _theme = AppTheme.fromJson(jsonDecode(themeJson)); } catch (_) {} }
+      setState(() { _userId = id; _name = name; _view = AppView.menu; });
     }
     setState(() => _checkingSession = false);
   }
@@ -67,7 +62,7 @@ class _AppShellState extends State<AppShell> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('userId', userId);
     await prefs.setString('userName', name);
-    setState(() { _userId = userId; _name = name; _view = AppView.game; });
+    setState(() { _userId = userId; _name = name; _view = AppView.menu; });
   }
 
   void _applyLoginTheme(Map<String, dynamic>? themeData) async {
@@ -93,13 +88,13 @@ class _AppShellState extends State<AppShell> {
   void _onNameUpdated(String newName) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('userName', newName);
-    setState(() { _name = newName; _view = AppView.game; });
+    setState(() { _name = newName; });
   }
 
   void _onThemeUpdated(AppTheme newTheme) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('userTheme', jsonEncode(newTheme.toJson()));
-    setState(() { _theme = newTheme; });
+    setState(() => _theme = newTheme);
   }
 
   @override
@@ -112,39 +107,41 @@ class _AppShellState extends State<AppShell> {
       backgroundColor: _theme.background,
       body: Stack(
         children: [
-          Positioned.fill(
-            child: WavyBackground(
-              backgroundColor: _theme.background,
-              accentColor: _theme.correct,
-            ),
-          ),
+          Positioned.fill(child: WavyBackground(backgroundColor: _theme.background, accentColor: _theme.correct)),
           SafeArea(
             child: switch (_view) {
-              AppView.login => LoginScreen(
-                onLogin: _onLogin,
-                onThemeLoaded: _applyLoginTheme,
-                accentColor: _theme.correct,
-              ),
-              AppView.game => GameScreen(
-                userId: _userId!,
+              AppView.login => LoginScreen(onLogin: _onLogin, onThemeLoaded: _applyLoginTheme, accentColor: _theme.correct),
+              AppView.menu => MainMenuScreen(
                 name: _name!,
                 theme: _theme,
-                onShowLeaderboard: () => setState(() => _view = AppView.leaderboard),
-                onShowProfile: () => setState(() => _view = AppView.profile),
+                onGuessIT: () => setState(() => _view = AppView.guessGame),
+                onCrossIT: () => setState(() => _view = AppView.crossGame),
+                onProfile: () => setState(() => _view = AppView.profile),
                 onLogout: _logout,
               ),
-              AppView.leaderboard => LeaderboardScreen(
-                onBack: () => setState(() => _view = AppView.game),
-                userId: _userId!,
+              AppView.guessGame => GameScreen(
+                userId: _userId!, name: _name!, theme: _theme,
+                onShowLeaderboard: () => setState(() => _view = AppView.guessLeaderboard),
+                onShowProfile: () => setState(() => _view = AppView.profile),
+                onLogout: () => setState(() => _view = AppView.menu),
+              ),
+              AppView.guessLeaderboard => LeaderboardScreen(
+                onBack: () => setState(() => _view = AppView.guessGame),
+                userId: _userId!, theme: _theme,
+              ),
+              AppView.crossGame => CrosswordScreen(
                 theme: _theme,
+                onBack: () => setState(() => _view = AppView.menu),
+                onLeaderboard: () => setState(() => _view = AppView.crossLeaderboard),
+              ),
+              AppView.crossLeaderboard => CrosswordLeaderboard(
+                theme: _theme,
+                onBack: () => setState(() => _view = AppView.crossGame),
               ),
               AppView.profile => ProfileScreen(
-                userId: _userId!,
-                currentName: _name!,
-                currentTheme: _theme,
-                onBack: () => setState(() => _view = AppView.game),
-                onNameUpdated: _onNameUpdated,
-                onThemeUpdated: _onThemeUpdated,
+                userId: _userId!, currentName: _name!, currentTheme: _theme,
+                onBack: () => setState(() => _view = AppView.menu),
+                onNameUpdated: _onNameUpdated, onThemeUpdated: _onThemeUpdated,
               ),
             },
           ),
