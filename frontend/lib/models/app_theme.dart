@@ -69,7 +69,7 @@ class AppTheme {
     name: 'Forest',
     background: Color(0xFF1B2D1B),
     correct: Color(0xFF4CAF50),
-    present: Color(0xFFFFEB3B),
+    present: Color(0xFFC6A700),
     absent: Color(0xFF2E4A2E),
     tileEmpty: Color(0xFF1B2D1B),
     keyDefault: Color(0xFF6B8E6B),
@@ -101,13 +101,82 @@ class AppTheme {
   static const hackerTheme = AppTheme(
     name: 'Hacker',
     background: Color(0xFF0D0D0D),
-    correct: Color(0xFF00FF00),
-    present: Color(0xFF00CC00),
+    correct: Color(0xFF008F00),
+    present: Color(0xFF006600),
     absent: Color(0xFF1A1A1A),
     tileEmpty: Color(0xFF0D0D0D),
     keyDefault: Color(0xFF333333),
     textColor: Color(0xFF00FF00),
   );
 
-  static const allThemes = [defaultTheme, oceanTheme, forestTheme, sunsetTheme, lightTheme, hackerTheme];
+  static const cyberpunkTheme = AppTheme(
+    name: 'Cyberpunk',
+    background: Color(0xFF0F0E17),
+    correct: Color(0xFFFF2975),
+    present: Color(0xFFFFC600),
+    absent: Color(0xFF232136),
+    tileEmpty: Color(0xFF0F0E17),
+    keyDefault: Color(0xFF4A4458),
+    textColor: Color(0xFFFFFFFE),
+  );
+
+  static const arcticTheme = AppTheme(
+    name: 'Arctic',
+    background: Color(0xFF0B1A30),
+    correct: Color.fromARGB(255, 54, 169, 210),
+    present: Color.fromARGB(255, 126, 138, 227),
+    absent: Color(0xFF162D50),
+    tileEmpty: Color(0xFF0B1A30),
+    keyDefault: Color(0xFF3A5A7C),
+    textColor: Color(0xFFE8F1F8),
+  );
+
+  static const lavenderTheme = AppTheme(
+    name: 'Lavender',
+    background: Color(0xFF1A1028),
+    correct: Color(0xFFB388FF),
+    present: Color(0xFFFF80AB),
+    absent: Color(0xFF2D1F42),
+    tileEmpty: Color(0xFF1A1028),
+    keyDefault: Color(0xFF4A3B65),
+    textColor: Color(0xFFF3E5F5),
+  );
+
+  static const caramelTheme = AppTheme(
+    name: 'Caramel',
+    background: Color(0xFF1C1410),
+    correct: Color(0xFFE8A838),
+    present: Color(0xFFD4764E),
+    absent: Color(0xFF2E221A),
+    tileEmpty: Color(0xFF1C1410),
+    keyDefault: Color(0xFF5C4A3A),
+    textColor: Color(0xFFFFF3E0),
+  );
+
+  static const mintTheme = AppTheme(
+    name: 'Mint',
+    background: Color(0xFF0E1F1A),
+    correct: Color.fromARGB(255, 0, 206, 144),
+    present: Color(0xFF80DEEA),
+    absent: Color(0xFF1A332C),
+    tileEmpty: Color(0xFF0E1F1A),
+    keyDefault: Color(0xFF3A5C52),
+    textColor: Color(0xFFE0FFF4),
+  );
+
+  static const midnightTheme = AppTheme(
+    name: 'Midnight',
+    background: Color(0xFF0A0A14),
+    correct: Color(0xFF5C6BC0),
+    present: Color(0xFFAB47BC),
+    absent: Color(0xFF16162A),
+    tileEmpty: Color(0xFF0A0A14),
+    keyDefault: Color(0xFF33335C),
+    textColor: Color(0xFFE8EAF6),
+  );
+
+  static const allThemes = [
+    defaultTheme, oceanTheme, forestTheme, sunsetTheme, lightTheme, hackerTheme,
+    cyberpunkTheme, arcticTheme, lavenderTheme, caramelTheme, mintTheme, midnightTheme,
+  ];
 }
