@@ -1,7 +1,15 @@
 import { verifyToken } from './auth.js';
 
 export function getToday() {
-  return new Date().toISOString().split('T')[0];
+  return getGameDate(new Date());
+}
+
+// Returns the active game date — weekends use Friday's date
+export function getGameDate(date) {
+  const day = date.getUTCDay(); // 0=Sun, 6=Sat
+  if (day === 0) date.setUTCDate(date.getUTCDate() - 2); // Sun → Fri
+  else if (day === 6) date.setUTCDate(date.getUTCDate() - 1); // Sat → Fri
+  return date.toISOString().split('T')[0];
 }
 
 export function jsonResponse(data, status = 200) {
