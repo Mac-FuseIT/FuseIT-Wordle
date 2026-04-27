@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
 import '../../models/app_theme.dart';
+import '../../widgets/help_dialog.dart';
 import '../services/crossword_api.dart';
 import '../widgets/crossword_grid.dart';
 import '../widgets/clue_list.dart';
@@ -260,7 +261,7 @@ class _CrosswordScreenState extends State<CrosswordScreen> {
     if (_completed) return;
     _timer?.cancel();
     try {
-      await CrosswordApi.giveUp();
+      await CrosswordApi.giveUp(_elapsed);
     } catch (_) {}
     setState(() {
       // Reveal all answers
@@ -330,6 +331,19 @@ class _CrosswordScreenState extends State<CrosswordScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(color: widget.theme.absent, borderRadius: BorderRadius.circular(6)),
                   child: Text('⏱ ${_formatTime(_elapsed)}', style: TextStyle(color: widget.theme.textColor, fontSize: 16, fontWeight: FontWeight.bold)),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: Icon(Icons.help_outline, color: widget.theme.correct, size: 22),
+                  onPressed: () => showHelpDialog(context, widget.theme, 'How to Play Cross.IT', const [
+                    HelpSection(body: 'Fill in the crossword grid by solving the Across and Down clues. Tap a cell to select it, type to fill, tap the same cell again to switch direction.'),
+                    HelpSection(heading: '💡 Hint (3 uses)', body: 'Reveals the correct letter in the currently selected cell. You have 3 hints per puzzle — use them wisely!'),
+                    HelpSection(heading: '✓ Check (3 uses)', body: 'Checks if the currently selected word (Across or Down) is correct. If correct, the cells turn green. If wrong, the word shakes. You have 3 checks per puzzle.'),
+                    HelpSection(heading: '🏳 Give Up', body: 'Reveals all correct answers and ends the puzzle. Your time is recorded as 10:00 (penalty) on the leaderboard.'),
+                    HelpSection(heading: 'Timer', body: 'The timer starts when you begin and stops when you complete the puzzle. Faster times rank higher on the leaderboard.'),
+                    HelpSection(heading: 'Keyboard', body: 'Use your physical keyboard to type letters. Tab switches between Across and Down. Backspace deletes.'),
+                  ]),
+                  tooltip: 'Help',
                 ),
               ],
             ),

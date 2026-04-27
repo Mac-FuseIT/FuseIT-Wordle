@@ -31,8 +31,8 @@ class CrosswordApi {
     return jsonDecode(res.body);
   }
 
-  static Future<Map<String, dynamic>> giveUp() async {
-    final res = await http.post(Uri.parse('$baseUrl/api/crossword/giveup'), headers: await _headers, body: '{}');
+  static Future<Map<String, dynamic>> giveUp(int elapsed) async {
+    final res = await http.post(Uri.parse('$baseUrl/api/crossword/giveup'), headers: await _headers, body: jsonEncode({'elapsed': elapsed}));
     return jsonDecode(res.body);
   }
 

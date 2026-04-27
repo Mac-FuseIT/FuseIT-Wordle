@@ -5,6 +5,7 @@ import '../models/game_state.dart';
 import '../services/api_service.dart';
 import '../widgets/tile_grid.dart';
 import '../widgets/keyboard.dart';
+import '../widgets/help_dialog.dart';
 
 class GameScreen extends StatefulWidget {
   final int userId;
@@ -162,6 +163,17 @@ class _GameScreenState extends State<GameScreen> {
     }
   }
 
+  Widget _legendItem(Color color, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(width: 14, height: 14, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3))),
+        const SizedBox(width: 4),
+        Text(label, style: const TextStyle(color: Colors.grey, fontSize: 11)),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -216,6 +228,18 @@ class _GameScreenState extends State<GameScreen> {
                     onPressed: widget.onShowLeaderboard,
                     tooltip: 'Leaderboard',
                   ),
+                IconButton(
+                  icon: Icon(Icons.help_outline, color: widget.theme.correct, size: 22),
+                  onPressed: () => showHelpDialog(context, widget.theme, 'How to Play Guess.IT', const [
+                    HelpSection(body: 'Guess the hidden word! Each day has a different word length (4–8 letters). You get one extra attempt beyond the word length.'),
+                    HelpSection(heading: '🟩 Correct', body: 'The letter is in the word AND in the correct position.'),
+                    HelpSection(heading: '🟨 Wrong Spot', body: 'The letter is in the word but in the wrong position.'),
+                    HelpSection(heading: '⬛ Not in Word', body: 'The letter is not in the word at all.'),
+                    HelpSection(heading: 'Keyboard', body: 'The on-screen keyboard updates after each guess to show which letters you\'ve tried and their status.'),
+                    HelpSection(heading: 'Leaderboard', body: 'After completing the word, view the daily and monthly leaderboards. Fewer guesses = better rank!'),
+                  ]),
+                  tooltip: 'Help',
+                ),
               ],
             ),
           ),
@@ -349,7 +373,24 @@ class _GameScreenState extends State<GameScreen> {
                 ignoring: _hideKeyboard,
                 child: Padding(
                   padding: const EdgeInsets.only(bottom: 32),
-                  child: GameKeyboard(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Color legend
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _legendItem(widget.theme.correct, 'Correct'),
+                            const SizedBox(width: 16),
+                            _legendItem(widget.theme.present, 'Wrong spot'),
+                            const SizedBox(width: 16),
+                            _legendItem(widget.theme.absent, 'Not in word'),
+                          ],
+                        ),
+                      ),
+                      GameKeyboard(
                     onKey: _onKey,
                     onEnter: _submitGuess,
                     onBackspace: _onBackspace,
@@ -358,6 +399,8 @@ class _GameScreenState extends State<GameScreen> {
                     presentColor: widget.theme.present,
                     absentColor: widget.theme.absent,
                     keyDefault: widget.theme.keyDefault,
+                  ),
+                    ],
                   ),
                 ),
               ),
