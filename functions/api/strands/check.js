@@ -38,6 +38,7 @@ export async function onRequestPost({ request, env }) {
 
   // Check if it's a target word
   const targetMatch = puzzle.words.find(w => w.word === word);
+
   if (targetMatch) {
     foundWords.push({ word, type: 'target', path });
     await saveState(env.DB, auth.userId, date, foundWords, hintCharges, hintsUsed);

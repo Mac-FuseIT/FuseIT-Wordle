@@ -1,4 +1,4 @@
-# Gram.IT — Word Strand Game Design
+# Span.IT — Word Strand Game Design
 
 ## Overview
 
@@ -155,7 +155,7 @@ frontend/lib/strands/
 
 ```
 ┌──────────────────────────────────┐
-│  ← Gram.IT        💡 Hints: 1 │  ← Header with back + hint button
+│  ← Span.IT        💡 Hints: 1 │  ← Header with back + hint button
 ├──────────────────────────────────┤
 │                                  │
 │  Theme: "Bug Squashing Tools"    │  ← Theme hint text
@@ -218,7 +218,7 @@ Add a third game card to the main menu:
 ```
 ┌────────────┐ ┌────────────┐ ┌────────────┐
 │  🔤         │ │  ✚          │ │  🔗         │
-│  Guess.IT  │ │  Cross.IT  │ │  Gram.IT │
+│  Guess.IT  │ │  Cross.IT  │ │  Span.IT │
 │  Word Game │ │  Crossword │ │  Word Find │
 └────────────┘ └────────────┘ └────────────┘
 ```
@@ -238,7 +238,7 @@ Add a third game card to the main menu:
 9. **Flutter — StrandGrid widget**: 6×8 drag-to-select grid
 10. **Flutter — StrandsScreen**: Main game with theme, progress, hints
 11. **Flutter — StrandsLeaderboard**: Leaderboard screen
-12. **Flutter — Main menu update**: Add Gram.IT card
+12. **Flutter — Main menu update**: Add Span.IT card
 13. **Polish**: Drag animations, cell highlighting, theme integration
 
 ---

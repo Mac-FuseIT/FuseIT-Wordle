@@ -70,7 +70,7 @@ class _StrandsLeaderboardState extends State<StrandsLeaderboard> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(children: [
             IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: widget.onBack),
-            const Text('Gram.IT Leaderboard', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+            const Text('Span.IT Leaderboard', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
           ]),
         ),
         const Divider(color: Color(0xFF3A3A3C), height: 1),

@@ -43,7 +43,7 @@ class MainMenuScreen extends StatelessWidget {
                 const SizedBox(width: 16),
                 _GameCard(title: 'Cross.IT', subtitle: 'Mini crossword', icon: Icons.grid_on, color: theme.present, onTap: onCrossIT),
                 const SizedBox(width: 16),
-                _GameCard(title: 'Gram.IT', subtitle: 'Word strands', icon: Icons.link, color: theme.correct, onTap: onGramIT),
+                _GameCard(title: 'Span.IT', subtitle: 'Word strands', icon: Icons.link, color: theme.correct, onTap: onGramIT),
               ],
             ),
             const SizedBox(height: 48),

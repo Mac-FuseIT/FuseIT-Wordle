@@ -137,7 +137,7 @@ class _StrandsScreenState extends State<StrandsScreen> {
           child: Row(
             children: [
               IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: widget.onBack),
-              Text('Gram.IT', style: TextStyle(
+              Text('Span.IT', style: TextStyle(
                 fontFamily: 'Trebuchet MS', color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold,
                 shadows: [Shadow(color: widget.theme.correct, blurRadius: 8), Shadow(color: widget.theme.correct, blurRadius: 16)],
               )),
