@@ -12,6 +12,7 @@ import 'crossword/screens/crossword_screen.dart';
 import 'crossword/screens/crossword_leaderboard.dart';
 import 'strands/screens/strands_screen.dart';
 import 'strands/screens/strands_leaderboard.dart';
+import 'ice/screens/ice_lobby_screen.dart';
 import 'widgets/wavy_background.dart';
 
 void main() => runApp(const FuseArcadeApp());
@@ -30,7 +31,7 @@ class FuseArcadeApp extends StatelessWidget {
   }
 }
 
-enum AppView { login, menu, guessGame, guessLeaderboard, crossGame, crossLeaderboard, strandsGame, strandsLeaderboard, profile }
+enum AppView { login, menu, guessGame, guessLeaderboard, crossGame, crossLeaderboard, strandsGame, strandsLeaderboard, iceGame, profile }
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -119,6 +120,7 @@ class _AppShellState extends State<AppShell> {
                 onGuessIT: () => setState(() => _view = AppView.guessGame),
                 onCrossIT: () => setState(() => _view = AppView.crossGame),
                 onGramIT: () => setState(() => _view = AppView.strandsGame),
+                onIceIT: () => setState(() => _view = AppView.iceGame),
                 onProfile: () => setState(() => _view = AppView.profile),
                 onLogout: _logout,
               ),
@@ -149,6 +151,11 @@ class _AppShellState extends State<AppShell> {
               AppView.strandsLeaderboard => StrandsLeaderboard(
                 theme: _theme,
                 onBack: () => setState(() => _view = AppView.strandsGame),
+              ),
+              AppView.iceGame => IceLobbyScreen(
+                theme: _theme,
+                userName: _name ?? 'Player',
+                onBack: () => setState(() => _view = AppView.menu),
               ),
               AppView.profile => ProfileScreen(
                 userId: _userId!, currentName: _name!, currentTheme: _theme,

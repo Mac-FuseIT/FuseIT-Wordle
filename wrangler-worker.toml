@@ -1,0 +1,11 @@
+name = "fuseit-wordle-worker"
+main = "src/ice-game-worker.js"
+compatibility_date = "2024-01-01"
+
+[[durable_objects.bindings]]
+name = "ICE_GAME"
+class_name = "IceGameSession"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["IceGameSession"]

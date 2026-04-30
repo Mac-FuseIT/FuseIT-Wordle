@@ -139,6 +139,7 @@ npx wrangler d1 execute fuseit-word-db --file=migrations/0001_init.sql --local
 ## Redeploying After Changes
 
 ```bash
+npx wrangler deploy --config wrangler-worker.toml
 cd frontend && flutter build web --release && cd ..
 npx wrangler pages deploy frontend/build/web
 ```
