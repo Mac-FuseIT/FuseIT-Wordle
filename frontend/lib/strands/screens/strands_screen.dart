@@ -27,6 +27,8 @@ class _StrandsScreenState extends State<StrandsScreen> {
   Set<String> _foundThemeCells = {};
   Set<String> _foundSpangramCells = {};
   Set<String> _hintCells = {};
+  String? _hintWord;
+  bool _hintWordRevealed = false;
 
   @override
   void initState() { super.initState(); _load(); }
@@ -51,6 +53,9 @@ class _StrandsScreenState extends State<StrandsScreen> {
     _foundThemeCells = {};
     _foundSpangramCells = {};
     // Don't clear _hintCells — keep them permanent
+    final foundTargets = _foundWords.where((f) => f['type'] == 'target').map((f) => f['word'] as String).toSet();
+    String? lastHintWord;
+    int lastHintCount = 0;
     for (final fw in _foundWords) {
       final type = fw['type'];
       final path = fw['path'] as List?;
@@ -58,11 +63,27 @@ class _StrandsScreenState extends State<StrandsScreen> {
       for (final p in path) {
         final key = '${(p as List)[0]}:${p[1]}';
         if (type == 'target') _foundThemeCells.add(key);
-        if (type == 'hint') {
-          // Add hint cells on load
-          _hintCells.add(key);
+        if (type == 'hint') _hintCells.add(key);
+      }
+      if (type == 'hint') {
+        final w = fw['word'] as String;
+        if (!foundTargets.contains(w)) {
+          if (w == lastHintWord) {
+            lastHintCount++;
+          } else {
+            lastHintWord = w;
+            lastHintCount = 1;
+          }
         }
       }
+    }
+    // Restore persistent hint word display (only from 2nd hint onwards)
+    if (lastHintWord != null && !foundTargets.contains(lastHintWord) && lastHintCount >= 2) {
+      _hintWord = lastHintWord;
+      _hintWordRevealed = lastHintCount >= 3;
+    } else {
+      _hintWord = null;
+      _hintWordRevealed = false;
     }
   }
 
@@ -77,6 +98,8 @@ class _StrandsScreenState extends State<StrandsScreen> {
       final type = res['type'];
       if (type == 'target') {
         _foundWords.add({'word': res['word'], 'type': 'target', 'path': path});
+        // Clear hint display if this was the hinted word
+        if (_hintWord == res['word']) { _hintWord = null; _hintWordRevealed = false; }
         _showMessage('✓ ${res['word']}!', widget.theme.correct);
         if (res['completed'] == true) _completed = true;
       } else if (type == 'bonus') {
@@ -115,8 +138,16 @@ class _StrandsScreenState extends State<StrandsScreen> {
       _hintCharges = res['hintCharges'] ?? (_hintCharges - 1);
       _hintsUsed++;
       final cells = (res['cells'] as List).map((p) => '${(p as List)[0]}:${p[1]}').toSet();
-      setState(() => _hintCells = {..._hintCells, ...cells}); // permanent — accumulate
-      _showMessage('Hint: letters highlighted on grid', widget.theme.present);
+      final word = res['word'] as String;
+      final showWord = res['showWord'] == true;
+      final fullReveal = res['fullReveal'] == true;
+      setState(() {
+        _hintCells = {..._hintCells, ...cells};
+        if (showWord) {
+          _hintWord = word;
+          _hintWordRevealed = fullReveal;
+        }
+      });
     } catch (e) {
       _showMessage('Error using hint', Colors.redAccent);
     }
@@ -163,6 +194,18 @@ class _StrandsScreenState extends State<StrandsScreen> {
                           ? Text(_message!, style: TextStyle(color: _messageColor ?? Colors.white, fontSize: 14, fontWeight: FontWeight.bold))
                           : null,
                     ),
+
+                    // Persistent hint word display
+                    if (_hintWord != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        _hintWordRevealed
+                            ? _hintWord!
+                            : _hintWord!.substring(0, (_hintWord!.length / 2).ceil()) + '*' * (_hintWord!.length - (_hintWord!.length / 2).ceil()),
+                        style: TextStyle(color: widget.theme.present, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 3),
+                      ),
+                      const SizedBox(height: 4),
+                    ],
 
                     // Grid
                     StrandGrid(

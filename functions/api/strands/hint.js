@@ -20,11 +20,17 @@ export async function onRequestPost({ request, env }) {
   const unsolved = puzzle.words.find(w => !foundTargets.has(w.word));
   if (!unsolved) return errorResponse('All words found');
 
-  foundWords.push({ word: unsolved.word, type: 'hint' });
+  // Count how many times this word has already been hinted
+  const prevHints = foundWords.filter(f => f.type === 'hint' && f.word === unsolved.word).length;
+  // 0 prev = first hint (cells only), 1 prev = half word, 2+ prev = full word
+  const showWord = prevHints >= 1;
+  const fullReveal = prevHints >= 2;
+
+  foundWords.push({ word: unsolved.word, type: 'hint', path: unsolved.path });
   await env.DB.prepare('INSERT INTO strand_state (user_id, date, found_words, hint_charges, hints_used) VALUES (?, ?, ?, ?, ?) ON CONFLICT(user_id, date) DO UPDATE SET found_words = ?, hint_charges = ?, hints_used = ?')
     .bind(auth.userId, date, JSON.stringify(foundWords), hintCharges, hintsUsed, JSON.stringify(foundWords), hintCharges, hintsUsed).run();
 
-  return jsonResponse({ cells: unsolved.path, hintCharges });
+  return jsonResponse({ cells: unsolved.path, word: unsolved.word, showWord, fullReveal, hintCharges });
 }
 
 export async function onRequestOptions() {
