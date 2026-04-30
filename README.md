@@ -4,6 +4,7 @@ A daily game hub for FuseIT, deployed on Cloudflare's free tier. Currently hosts
 
 - **Guess.IT** — A daily word game with varying word lengths (4–8 letters). Guess the word with color-coded feedback — green, yellow, grey.
 - **Cross.IT** — A daily mini crossword puzzle (coming soon).
+- **Span.IT** — A daily word-strand puzzle with software dev themes (coming soon).
 
 ## Prerequisites
 
