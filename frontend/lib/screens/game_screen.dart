@@ -133,6 +133,26 @@ class _GameScreenState extends State<GameScreen> {
     });
   }
 
+  String _buildShareText() {
+    final attempt = _solved ? '${_guesses.length}/$_maxAttempts' : 'X/$_maxAttempts';
+    final lines = _guesses.map((g) {
+      return g.result.map((t) {
+        if (t.status == 'correct') return '🟩';
+        if (t.status == 'present') return '🟨';
+        return '⬛';
+      }).join();
+    }).join('\n');
+    return 'Guess.IT $_date $attempt\n\n$lines';
+  }
+
+  void _shareResults() {
+    final text = _buildShareText();
+    Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Results copied to clipboard!'), duration: Duration(seconds: 2)),
+    );
+  }
+
   void _onKey(String key) {
     if (_completed || _submitting) return;
     if (_currentInput.length < _wordLength) {
@@ -277,7 +297,7 @@ class _GameScreenState extends State<GameScreen> {
 
                       // Status / success area — fixed height to prevent layout shift
                       SizedBox(
-                        height: 80,
+                        height: 120,
                         child: AnimatedSwitcher(
                           duration: const Duration(milliseconds: 400),
                           child: _successMessage != null
@@ -315,6 +335,13 @@ class _GameScreenState extends State<GameScreen> {
                                       onPressed: widget.onShowLeaderboard,
                                       style: ElevatedButton.styleFrom(backgroundColor: widget.theme.correct),
                                       child: const Text('View Leaderboard', style: TextStyle(color: Colors.white)),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    ElevatedButton.icon(
+                                      onPressed: _shareResults,
+                                      icon: const Icon(Icons.share, size: 16, color: Colors.white),
+                                      label: const Text('Share Results', style: TextStyle(color: Colors.white)),
+                                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF3A3A3C)),
                                     ),
                                   ],
                                 )
