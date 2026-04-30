@@ -45,11 +45,11 @@ function canPlace(grid, word, row, col, isAcross, placed) {
 
   // Check cell before word is empty or edge
   const br = row - dr, bc = col - dc;
-  if (br >= 0 && bc >= 0 && grid[br][bc] !== '') return false;
+  if (br >= 0 && br < SIZE && bc >= 0 && bc < SIZE && grid[br][bc] !== '') return false;
 
   // Check cell after word is empty or edge
   const ar = row + dr * len, ac = col + dc * len;
-  if (ar < SIZE && ac < SIZE && grid[ar][ac] !== '') return false;
+  if (ar >= 0 && ar < SIZE && ac >= 0 && ac < SIZE && grid[ar][ac] !== '') return false;
 
   let hasIntersection = placed.length === 0; // First word doesn't need intersection
 
