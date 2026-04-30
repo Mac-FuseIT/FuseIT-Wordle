@@ -403,14 +403,7 @@ export function generateStrandPuzzle(dateStr) {
 }
 
 export async function getOrCreateDailyStrand(db, dateStr) {
-  const row = await db.prepare('SELECT grid, theme, spangram, theme_words FROM strand_puzzles WHERE date = ?').bind(dateStr).first();
-  if (row) {
-    const words = JSON.parse(row.theme_words);
-    return { grid: JSON.parse(row.grid), words };
-  }
-
-  const puzzle = generateStrandPuzzle(dateStr);
-  await db.prepare('INSERT OR IGNORE INTO strand_puzzles (date, grid, theme, spangram, theme_words) VALUES (?, ?, ?, ?, ?)')
-    .bind(dateStr, JSON.stringify(puzzle.grid), '', '{}', JSON.stringify(puzzle.words)).run();
-  return puzzle;
+  const row = await db.prepare('SELECT grid, theme_words FROM strand_puzzles WHERE date = ?').bind(dateStr).first();
+  if (!row) return null;
+  return { grid: JSON.parse(row.grid), words: JSON.parse(row.theme_words) };
 }

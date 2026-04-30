@@ -7,6 +7,7 @@ export async function onRequestGet({ request, env }) {
 
   const date = getToday();
   const puzzle = await getOrCreateDailyStrand(env.DB, date);
+  if (!puzzle) return errorResponse("Today's puzzle isn't ready yet. Check back soon!", 503);
 
   const state = await env.DB.prepare('SELECT found_words, hint_charges, hints_used FROM strand_state WHERE user_id = ? AND date = ?').bind(auth.userId, date).first();
   const attempt = await env.DB.prepare('SELECT completed FROM strand_attempts WHERE user_id = ? AND date = ?').bind(auth.userId, date).first();
