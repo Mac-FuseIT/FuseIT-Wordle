@@ -50,7 +50,7 @@ class _StrandsScreenState extends State<StrandsScreen> {
   void _rebuildCellSets() {
     _foundThemeCells = {};
     _foundSpangramCells = {};
-    _hintCells = {};
+    // Don't clear _hintCells — keep them permanent
     for (final fw in _foundWords) {
       final type = fw['type'];
       final path = fw['path'] as List?;
@@ -58,6 +58,10 @@ class _StrandsScreenState extends State<StrandsScreen> {
       for (final p in path) {
         final key = '${(p as List)[0]}:${p[1]}';
         if (type == 'target') _foundThemeCells.add(key);
+        if (type == 'hint') {
+          // Add hint cells on load
+          _hintCells.add(key);
+        }
       }
     }
   }
@@ -110,16 +114,9 @@ class _StrandsScreenState extends State<StrandsScreen> {
       }
       _hintCharges = res['hintCharges'] ?? (_hintCharges - 1);
       _hintsUsed++;
-      if (res['level'] == 1) {
-        // Show cells
-        final cells = (res['cells'] as List).map((p) => '${(p as List)[0]}:${p[1]}').toSet();
-        setState(() => _hintCells = cells);
-        _showMessage('Hint: letters highlighted on grid', widget.theme.present);
-      } else if (res['level'] == 2) {
-        _showMessage('Hint: the word is ${res['word']}', widget.theme.present);
-        final path = (res['path'] as List).map((p) => '${(p as List)[0]}:${p[1]}').toSet();
-        setState(() => _hintCells = path);
-      }
+      final cells = (res['cells'] as List).map((p) => '${(p as List)[0]}:${p[1]}').toSet();
+      setState(() => _hintCells = {..._hintCells, ...cells}); // permanent — accumulate
+      _showMessage('Hint: letters highlighted on grid', widget.theme.present);
     } catch (e) {
       _showMessage('Error using hint', Colors.redAccent);
     }
@@ -142,18 +139,6 @@ class _StrandsScreenState extends State<StrandsScreen> {
                 shadows: [Shadow(color: widget.theme.correct, blurRadius: 8), Shadow(color: widget.theme.correct, blurRadius: 16)],
               )),
               const Spacer(),
-              GestureDetector(
-                onTap: _hintCharges > 0 ? _useHint : null,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: _hintCharges > 0 ? widget.theme.present.withValues(alpha: 0.2) : widget.theme.absent,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: _hintCharges > 0 ? widget.theme.present : widget.theme.absent),
-                  ),
-                  child: Text('💡 $_hintCharges', style: TextStyle(color: _hintCharges > 0 ? widget.theme.present : Colors.grey, fontSize: 14, fontWeight: FontWeight.bold)),
-                ),
-              ),
             ],
           ),
         ),
@@ -193,8 +178,27 @@ class _StrandsScreenState extends State<StrandsScreen> {
 
                     const SizedBox(height: 16),
 
+                    // Hint button centered below grid
+                    GestureDetector(
+                      onTap: _hintCharges > 0 ? _useHint : null,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: _hintCharges > 0 ? widget.theme.present.withValues(alpha: 0.15) : const Color(0xFF2A2A2C),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: _hintCharges > 0 ? widget.theme.present : const Color(0xFF3A3A3C)),
+                        ),
+                        child: Text(
+                          '$_hintCharges Hints (${_nonThemeFound % 3}/3 to hint)',
+                          style: TextStyle(color: _hintCharges > 0 ? widget.theme.present : Colors.grey, fontSize: 14, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
                     // Progress
-                    Text('Theme: $_themeFound/$_wordCount   Non-theme: $_nonThemeFound (${_nonThemeFound % 3}/3 to hint)',
+                    Text('Theme: $_themeFound/$_wordCount',
                       style: TextStyle(color: widget.theme.textColor.withValues(alpha: 0.5), fontSize: 12)),
 
                     if (_completed) ...[

@@ -57,7 +57,8 @@ export async function onRequestPost({ request, env }) {
       if (dictRes.ok) {
         foundWords.push({ word, type: 'bonus', path });
         const bonusCount = foundWords.filter(f => f.type === 'bonus').length;
-        hintCharges = Math.floor(bonusCount / 3);
+        // Only award a charge when crossing a multiple-of-3 threshold
+        if (bonusCount % 3 === 0) hintCharges++;
         await saveState(env.DB, auth.userId, date, foundWords, hintCharges, hintsUsed);
         return jsonResponse({ type: 'bonus', word, hintCharges, bonusCount });
       }
