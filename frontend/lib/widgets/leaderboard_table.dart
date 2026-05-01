@@ -49,10 +49,17 @@ class LeaderboardTable extends StatelessWidget {
                     width: 28,
                     child: Text('${i + 1}.', style: TextStyle(color: isMe ? accentColor : Colors.grey, fontSize: 14, fontWeight: isMe ? FontWeight.bold : FontWeight.normal)),
                   ),
-                  Expanded(child: Text(
-                    isMe ? '${entry.name} (you)' : entry.name,
-                    style: TextStyle(color: isMe ? Colors.white : Colors.white, fontSize: 14, fontWeight: isMe ? FontWeight.bold : FontWeight.normal),
-                  )),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isMe ? '${entry.name} (you)' : entry.name,
+                          style: TextStyle(color: isMe ? Colors.white : Colors.white, fontSize: 14, fontWeight: isMe ? FontWeight.bold : FontWeight.normal),
+                        ),
+                      ],
+                    ),
+                  ),
                   Text(
                     isMonthly ? '${entry.totalGuesses} total' : '${entry.numGuesses} ${entry.solved == true ? '✓' : '✗'}',
                     style: TextStyle(

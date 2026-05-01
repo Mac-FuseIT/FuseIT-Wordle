@@ -49,8 +49,9 @@ class LeaderboardEntry {
   final bool? solved;
   final int? totalGuesses;
   final int? daysPlayed;
+  final String? email;
 
-  LeaderboardEntry({required this.name, required this.numGuesses, this.solved, this.totalGuesses, this.daysPlayed});
+  LeaderboardEntry({required this.name, required this.numGuesses, this.solved, this.totalGuesses, this.daysPlayed, this.email});
 
   factory LeaderboardEntry.fromJsonDaily(Map<String, dynamic> json) {
     return LeaderboardEntry(
@@ -66,6 +67,7 @@ class LeaderboardEntry {
       numGuesses: json['totalGuesses'],
       totalGuesses: json['totalGuesses'],
       daysPlayed: json['daysPlayed'],
+      email: json['email'],
     );
   }
 }

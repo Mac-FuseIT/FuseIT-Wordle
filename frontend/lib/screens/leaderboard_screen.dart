@@ -105,6 +105,12 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                                   const Icon(Icons.emoji_events, color: Color(0xFFC9B458), size: 22),
                                 ],
                               ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'Congratulations ${_prevTop3.isNotEmpty ? _prevTop3[0].email!.split('@').first : 'winner'}, you receive Double your Salary this month!! (Pending Approval)',
+                                style: const TextStyle(color: Colors.grey, fontSize: 12),
+                                textAlign: TextAlign.center,
+                              ),
                               const SizedBox(height: 14),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -127,6 +133,14 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                                         Text(medals[i], style: const TextStyle(fontSize: 24)),
                                         const SizedBox(height: 4),
                                         Text(entry.name, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                                        if (entry.email != null) ...[
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            entry.email!.split('@').first,
+                                            style: const TextStyle(color: Colors.grey, fontSize: 11),
+                                          ),
+                                        ],
+                                        const SizedBox(height: 4),
                                         Text('${entry.totalGuesses} pts', style: const TextStyle(color: Colors.grey, fontSize: 12)),
                                       ],
                                     ),

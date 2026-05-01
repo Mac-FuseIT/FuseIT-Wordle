@@ -18,7 +18,7 @@ async function getMonthlyLeaderboard(env, monthStart, monthEnd) {
       SELECT date, length FROM daily_words WHERE date >= ? AND date <= ?
     ),
     user_scores AS (
-      SELECT u.id, u.name,
+      SELECT u.id, u.name, u.email,
         SUM(COALESCE(a.num_guesses, md.length + 4)) AS totalGuesses,
         COUNT(a.id) AS daysPlayed
       FROM users u
@@ -27,7 +27,7 @@ async function getMonthlyLeaderboard(env, monthStart, monthEnd) {
       WHERE EXISTS (SELECT 1 FROM attempts WHERE user_id = u.id AND date >= ? AND date <= ?)
       GROUP BY u.id
     )
-    SELECT name, totalGuesses, daysPlayed FROM user_scores ORDER BY totalGuesses ASC
+    SELECT name, email, totalGuesses, daysPlayed FROM user_scores ORDER BY totalGuesses ASC
   `).bind(monthStart, monthEnd, monthStart, monthEnd).all();
 }
 
@@ -80,12 +80,17 @@ export async function onRequestGet({ request, env }) {
     });
   }
 
-  // Previous month top 3
-  const prevMonth = getPrevMonth(month);
-  const prevStart = prevMonth + '-01';
-  const prevEnd = lastDayOfMonth(prevMonth);
-  const prevMonthly = await getMonthlyLeaderboard(env, prevStart, prevEnd);
-  const prevTop3 = (prevMonthly.results || []).slice(0, 3);
+  // Previous month top 3 (only show if current day is 1-7)
+  const currentDay = parseInt(today.split('-')[2], 10);
+  let prevTop3 = [];
+  let prevMonth = '';
+  if (currentDay <= 7) {
+    prevMonth = getPrevMonth(month);
+    const prevStart = prevMonth + '-01';
+    const prevEnd = lastDayOfMonth(prevMonth);
+    const prevMonthly = await getMonthlyLeaderboard(env, prevStart, prevEnd);
+    prevTop3 = (prevMonthly.results || []).slice(0, 3);
+  }
 
   return jsonResponse({
     daily: daily.results || [],
