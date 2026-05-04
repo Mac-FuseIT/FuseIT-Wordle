@@ -1,0 +1,11 @@
+name = "fuseit-pong-worker"
+main = "src/pong-game-worker.js"
+compatibility_date = "2024-01-01"
+
+[[durable_objects.bindings]]
+name = "PONG_GAME"
+class_name = "PongGameSession"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["PongGameSession"]

@@ -7,6 +7,7 @@ class MainMenuScreen extends StatelessWidget {
   final VoidCallback onGuessIT;
   final VoidCallback onCrossIT;
   final VoidCallback onGramIT;
+  final VoidCallback onPongIT;
   final VoidCallback onProfile;
   final VoidCallback onLogout;
 
@@ -17,6 +18,7 @@ class MainMenuScreen extends StatelessWidget {
     required this.onGuessIT,
     required this.onCrossIT,
     required this.onGramIT,
+    required this.onPongIT,
     required this.onProfile,
     required this.onLogout,
   });
@@ -44,6 +46,8 @@ class MainMenuScreen extends StatelessWidget {
                 _GameCard(title: 'Cross.IT', subtitle: 'Mini crossword', icon: Icons.grid_on, color: theme.present, onTap: onCrossIT),
                 const SizedBox(width: 16),
                 _GameCard(title: 'Span.IT', subtitle: 'Word strands', icon: Icons.link, color: theme.correct, onTap: onGramIT),
+                const SizedBox(width: 16),
+                _GameCard(title: 'Pong.IT', subtitle: 'Classic pong', icon: Icons.sports_esports, color: theme.present, onTap: onPongIT),
               ],
             ),
             const SizedBox(height: 48),
