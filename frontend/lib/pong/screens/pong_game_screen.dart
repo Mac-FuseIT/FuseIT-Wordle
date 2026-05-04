@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../services/pong_websocket.dart';
 import '../../models/app_theme.dart';
 import '../../widgets/wavy_background.dart';
+import 'dart:html' as html;
 
 class PongGameScreen extends StatefulWidget {
   final String sessionId;
@@ -40,6 +41,24 @@ class _PongGameScreenState extends State<PongGameScreen> {
   void initState() {
     super.initState();
     widget.ws.onMessage = _handleMessage;
+    _setupKeyboardListener();
+  }
+
+  void _setupKeyboardListener() {
+    html.window.onKeyDown.listen((event) {
+      if (_finished || _myId == null) return;
+      print('[Game] Key pressed: ${event.key}');
+      
+      if (event.key == 'w' || event.key == 'W' || event.key == 'ArrowUp') {
+        _myPaddleY = (_myPaddleY - 15).clamp(0.0, 500.0);
+        print('[Game] Moving up to $_myPaddleY');
+        widget.ws.send({'type': 'move', 'y': _myPaddleY});
+      } else if (event.key == 's' || event.key == 'S' || event.key == 'ArrowDown') {
+        _myPaddleY = (_myPaddleY + 15).clamp(0.0, 500.0);
+        print('[Game] Moving down to $_myPaddleY');
+        widget.ws.send({'type': 'move', 'y': _myPaddleY});
+      }
+    });
   }
 
   @override
@@ -72,25 +91,6 @@ class _PongGameScreenState extends State<PongGameScreen> {
     }
   }
 
-  void _handleKeyEvent(KeyEvent event) {
-    print('[Game] Key event: ${event.runtimeType}, key: ${event.logicalKey}');
-    if (_finished || _myId == null) {
-      print('[Game] Ignoring key - finished: $_finished, myId: $_myId');
-      return;
-    }
-    if (event is KeyDownEvent || event is KeyRepeatEvent) {
-      if (event.logicalKey == LogicalKeyboardKey.arrowUp || event.logicalKey == LogicalKeyboardKey.keyW) {
-        _myPaddleY = (_myPaddleY - 15).clamp(0.0, 500.0);
-        print('[Game] Moving up to $_myPaddleY');
-        widget.ws.send({'type': 'move', 'y': _myPaddleY});
-      } else if (event.logicalKey == LogicalKeyboardKey.arrowDown || event.logicalKey == LogicalKeyboardKey.keyS) {
-        _myPaddleY = (_myPaddleY + 15).clamp(0.0, 500.0);
-        print('[Game] Moving down to $_myPaddleY');
-        widget.ws.send({'type': 'move', 'y': _myPaddleY});
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_finished) {
@@ -109,56 +109,45 @@ class _PongGameScreenState extends State<PongGameScreen> {
 
     return Scaffold(
       backgroundColor: widget.theme.background,
-      body: Focus(
-        autofocus: true,
-        onKeyEvent: (node, event) {
-          _handleKeyEvent(event);
-          return KeyEventResult.handled;
-        },
-        child: Stack(
-          children: [
-            Positioned.fill(child: WavyBackground(backgroundColor: widget.theme.background, accentColor: widget.theme.correct)),
-            Stack(
+      body: Stack(
+        children: [
+          Positioned.fill(child: WavyBackground(backgroundColor: widget.theme.background, accentColor: widget.theme.correct)),
+          Positioned(
+            top: 20,
+            left: 0,
+            right: 0,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                Positioned(
-                  top: 20,
-                  left: 0,
-                  right: 0,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      Text('$p1Name: ${scores['p1']}',
-                          style: TextStyle(color: widget.theme.correct, fontSize: 18, fontWeight: FontWeight.bold)),
-                      Text('$p2Name: ${scores['p2']}',
-                          style: TextStyle(color: widget.theme.present, fontSize: 18, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                ),
-                Center(
-                  child: Container(
-                    width: 800,
-                    height: 600,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF121213).withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: widget.theme.correct.withValues(alpha: 0.3), width: 2),
-                    ),
-                    child: CustomPaint(
-                      painter: PongPainter(
-                        ballX: ball['x'],
-                        ballY: ball['y'],
-                        p1Y: paddles['p1'],
-                        p2Y: paddles['p2'],
-                        p1Color: widget.theme.correct,
-                        p2Color: widget.theme.present,
-                      ),
-                    ),
-                  ),
-                ),
+                Text('$p1Name: ${scores['p1']}',
+                    style: TextStyle(color: widget.theme.correct, fontSize: 18, fontWeight: FontWeight.bold)),
+                Text('$p2Name: ${scores['p2']}',
+                    style: TextStyle(color: widget.theme.present, fontSize: 18, fontWeight: FontWeight.bold)),
               ],
             ),
-          ],
-        ),
+          ),
+          Center(
+            child: Container(
+              width: 800,
+              height: 600,
+              decoration: BoxDecoration(
+                color: const Color(0xFF121213).withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: widget.theme.correct.withValues(alpha: 0.3), width: 2),
+              ),
+              child: CustomPaint(
+                painter: PongPainter(
+                  ballX: ball['x'],
+                  ballY: ball['y'],
+                  p1Y: paddles['p1'],
+                  p2Y: paddles['p2'],
+                  p1Color: widget.theme.correct,
+                  p2Color: widget.theme.present,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
