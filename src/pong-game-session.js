@@ -113,10 +113,12 @@ export class PongGameSession extends DurableObject {
       }
 
       if (this.gameState.ball.x <= 30 && Math.abs(this.gameState.ball.y - this.gameState.paddles.p1) < 50) {
-        this.gameState.ball.vx = Math.abs(this.gameState.ball.vx);
+        this.gameState.ball.vx = Math.abs(this.gameState.ball.vx) * 1.1;
+        this.gameState.ball.vy *= 1.1;
       }
       if (this.gameState.ball.x >= 770 && Math.abs(this.gameState.ball.y - this.gameState.paddles.p2) < 50) {
-        this.gameState.ball.vx = -Math.abs(this.gameState.ball.vx);
+        this.gameState.ball.vx = -Math.abs(this.gameState.ball.vx) * 1.1;
+        this.gameState.ball.vy *= 1.1;
       }
 
       if (this.gameState.ball.x < 0) {
@@ -134,10 +136,17 @@ export class PongGameSession extends DurableObject {
         this.broadcast({ type: 'game_over', winner, scores: this.gameState.scores });
         
         // Delete session from database
-        if (this.sessionId && this.env.DB) {
-          await this.env.DB.prepare('DELETE FROM pong_sessions WHERE session_id = ?')
-            .bind(this.sessionId).run();
-          console.log('[DO] Deleted session from database:', this.sessionId);
+        console.log('[DO] Game over, attempting to delete session:', this.sessionId);
+        if (this.sessionId && this.env && this.env.DB) {
+          try {
+            const result = await this.env.DB.prepare('DELETE FROM pong_sessions WHERE session_id = ?')
+              .bind(this.sessionId).run();
+            console.log('[DO] Deleted session from database:', this.sessionId, 'Result:', result);
+          } catch (error) {
+            console.error('[DO] Error deleting session:', error);
+          }
+        } else {
+          console.error('[DO] Cannot delete - sessionId:', this.sessionId, 'env:', !!this.env, 'DB:', !!this.env?.DB);
         }
         
         setTimeout(() => this.ctx.getWebSockets().forEach(ws => ws.close()), 5000);

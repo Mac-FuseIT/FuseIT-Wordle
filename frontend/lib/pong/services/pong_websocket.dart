@@ -46,4 +46,9 @@ class PongWebSocket {
     final scheme = loc.scheme == 'https' ? 'wss' : 'ws';
     return '$scheme://${loc.host}';
   }
+
+  String getBaseUrl() {
+    final loc = Uri.base;
+    return '${loc.scheme}://${loc.host}';
+  }
 }

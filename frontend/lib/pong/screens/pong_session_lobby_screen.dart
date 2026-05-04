@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import '../../models/app_theme.dart';
 import '../../widgets/wavy_background.dart';
 import '../services/pong_websocket.dart';
@@ -58,6 +59,7 @@ class _PongSessionLobbyScreenState extends State<PongSessionLobbyScreen> {
             nickname: widget.nickname,
             theme: widget.theme,
             ws: _ws,
+            initialPlayers: _players,
             onExit: widget.onExit,
           ),
         ),
@@ -68,6 +70,20 @@ class _PongSessionLobbyScreenState extends State<PongSessionLobbyScreen> {
   void _startGame() {
     print('[Session Lobby] Starting game');
     _ws.send({'type': 'start'});
+  }
+
+  Future<void> _deleteSession() async {
+    try {
+      final response = await http.delete(
+        Uri.parse('${_ws.getBaseUrl()}/api/pong/delete/${widget.sessionId}'),
+      );
+      if (response.statusCode == 200) {
+        _ws.close();
+        widget.onExit();
+      }
+    } catch (e) {
+      print('[Session Lobby] Error deleting session: $e');
+    }
   }
 
   @override
@@ -116,6 +132,19 @@ class _PongSessionLobbyScreenState extends State<PongSessionLobbyScreen> {
                         )
                       else if (_players.length < 2)
                         const Text('Waiting for opponent...', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                      if (widget.isCreator)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 20),
+                          child: ElevatedButton(
+                            onPressed: _deleteSession,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: widget.theme.absent,
+                              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            child: const Text('Delete Session', style: TextStyle(fontSize: 18, color: Colors.white)),
+                          ),
+                        ),
                     ],
                   ),
                 ),
