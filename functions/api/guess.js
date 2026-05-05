@@ -41,9 +41,12 @@ export async function onRequestPost({ request, env }) {
 
   if (normalizedGuess.length !== length) return errorResponse(`Guess must be ${length} letters`);
 
-  // Validate word exists via dictionary API
-  const dictRes = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${normalizedGuess}`);
-  if (!dictRes.ok) return errorResponse('Not a valid word');
+  // Check target word first - if it matches, skip dictionary validation
+  const isCorrect = normalizedGuess === word;
+  if (!isCorrect) {
+    const dictRes = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${normalizedGuess}`);
+    if (!dictRes.ok) return errorResponse('Not a valid word');
+  }
 
   // Check if already completed
   const existing = await env.DB.prepare('SELECT id FROM attempts WHERE user_id = ? AND date = ?').bind(userId, date).first();
