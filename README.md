@@ -156,3 +156,32 @@ Or connect your Git repo to Cloudflare Pages for automatic deploys on push. Set 
 | 7-letter | 240 | 96 | 40% |
 | 8-letter | 293 | 89 | 30% |
 Total Amount: 1434 words, 585 Tech words, 40% are Tech words
+
+## Gmail OAuth Setup (for password reset / account creation emails)
+
+Environment variables required in Cloudflare Pages:
+- `GMAIL_CLIENT_ID`
+- `GMAIL_CLIENT_SECRET`
+- `GMAIL_REFRESH_TOKEN`
+- `SENDER_EMAIL`
+
+### Getting/Refreshing credentials
+
+**1. Get Client ID & Secret** (only needed once, or if you create a new project):
+1. Go to [Google Cloud Console](https://console.cloud.google.com) → **APIs & Services** → **Credentials**
+2. Click **"+ Create Credentials"** → **OAuth client ID** → Application type: **Web application**
+3. Under **Authorized redirect URIs** add: `https://developers.google.com/oauthplayground` (no trailing slash)
+4. Click **Create** → copy the **Client ID** and **Client Secret**
+
+**2. Get Refresh Token** (repeat this when the token expires/is revoked):
+1. Go to [OAuth Playground](https://developers.google.com/oauthplayground)
+2. Click ⚙️ gear icon → check **"Use your own OAuth credentials"** → enter your Client ID and Secret → close
+3. In the left panel, find **Gmail API v1** → select `https://mail.google.com/` → click **"Authorize APIs"**
+4. Sign in with your Gmail account and grant access
+5. **Immediately** click **"Exchange authorization code for tokens"** (codes expire in ~10 minutes)
+6. Copy the **Refresh token** → update `GMAIL_REFRESH_TOKEN` in Cloudflare Pages environment variables
+
+**Why tokens expire:**
+- App is in "Testing" mode → tokens expire after 7 days
+- Fix: Go to Google Cloud Console → **OAuth consent screen** → change from **Testing** to **Production**
+- Tokens also expire if unused for 6 months or manually revoked
