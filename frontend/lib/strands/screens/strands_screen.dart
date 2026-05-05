@@ -184,7 +184,7 @@ class _StrandsScreenState extends State<StrandsScreen> {
                 child: Column(
                   children: [
                     // Word count
-                    Text('Find $_wordCount hidden dev words!', style: TextStyle(color: widget.theme.textColor.withValues(alpha: 0.7), fontSize: 14)),
+                    Text('Find $_wordCount hidden words!', style: TextStyle(color: widget.theme.textColor.withValues(alpha: 0.7), fontSize: 14)),
                     const SizedBox(height: 12),
 
                     // Message
