@@ -29,6 +29,7 @@ class _PongSessionLobbyScreenState extends State<PongSessionLobbyScreen> {
   final PongWebSocket _ws = PongWebSocket();
   List<Map<String, dynamic>> _players = [];
   bool _started = false;
+  String? _myId;
 
   @override
   void initState() {
@@ -49,7 +50,10 @@ class _PongSessionLobbyScreenState extends State<PongSessionLobbyScreen> {
   void _handleMessage(Map<String, dynamic> msg) {
     print('[Session Lobby] Received message: $msg');
     if (msg['type'] == 'lobby') {
-      setState(() => _players = List<Map<String, dynamic>>.from(msg['players']));
+      setState(() {
+        _players = List<Map<String, dynamic>>.from(msg['players']);
+        _myId = _players.firstWhere((p) => p['name'] == widget.nickname, orElse: () => {})['id'];
+      });
     } else if (msg['type'] == 'start') {
       setState(() => _started = true);
       Navigator.of(context).pushReplacement(
@@ -120,7 +124,7 @@ class _PongSessionLobbyScreenState extends State<PongSessionLobbyScreen> {
                         child: Text(p['name'], style: const TextStyle(color: Colors.white70, fontSize: 16)),
                       )),
                       const SizedBox(height: 40),
-                      if (widget.isCreator && _players.length == 2)
+                      if (_myId == 'p1' && _players.length == 2)
                         ElevatedButton(
                           onPressed: _startGame,
                           style: ElevatedButton.styleFrom(
@@ -132,7 +136,7 @@ class _PongSessionLobbyScreenState extends State<PongSessionLobbyScreen> {
                         )
                       else if (_players.length < 2)
                         const Text('Waiting for opponent...', style: TextStyle(color: Colors.white70, fontSize: 14)),
-                      if (widget.isCreator)
+                      if (_myId == 'p1')
                         Padding(
                           padding: const EdgeInsets.only(top: 20),
                           child: ElevatedButton(

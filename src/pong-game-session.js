@@ -50,21 +50,20 @@ export class PongGameSession extends DurableObject {
     console.log('[DO] Received message:', msg, 'Current players:', this.players.size);
 
     if (msg.type === 'set_name') {
-      // Check if this websocket already has a player assigned
       if (!this.players.has(ws)) {
         const playerId = this.players.size === 0 ? 'p1' : 'p2';
         console.log('[DO] Assigning player ID:', playerId, 'to', msg.name);
         this.players.set(ws, { id: playerId, name: msg.name });
-        
-        if (!this.creatorName) {
-          this.creatorName = msg.name;
-        }
-      } else {
-        console.log('[DO] WebSocket already has player assigned');
+        if (!this.creatorName) this.creatorName = msg.name;
       }
-      
-      console.log('[DO] Broadcasting lobby with players:', this.getLobbyPlayers());
+
       this.broadcast({ type: 'lobby', players: this.getLobbyPlayers() });
+
+      // If game already started, send the rejoining player straight into the game
+      if (this.gameState.started && !this.gameState.finished) {
+        ws.send(JSON.stringify({ type: 'start' }));
+        ws.send(JSON.stringify({ type: 'state', ...this.gameState }));
+      }
     }
 
     if (msg.type === 'start' && this.players.size === 2 && !this.gameState.started) {
