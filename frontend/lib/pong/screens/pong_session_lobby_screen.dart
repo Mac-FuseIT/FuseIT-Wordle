@@ -136,7 +136,8 @@ class _PongSessionLobbyScreenState extends State<PongSessionLobbyScreen> {
                         )
                       else if (_players.length < 2)
                         const Text('Waiting for opponent...', style: TextStyle(color: Colors.white70, fontSize: 14)),
-                      if (_myId == 'p1')
+                      // Show delete when alone in lobby (regardless of p1/p2 assignment)
+                      if (_players.length == 1 && _myId != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 20),
                           child: ElevatedButton(

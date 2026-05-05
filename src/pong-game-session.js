@@ -60,9 +60,14 @@ export class PongGameSession extends DurableObject {
       this.broadcast({ type: 'lobby', players: this.getLobbyPlayers() });
 
       // If game already started, send the rejoining player straight into the game
+      // and restart the game loop now that we have 2 players again
       if (this.gameState.started && !this.gameState.finished) {
         ws.send(JSON.stringify({ type: 'start' }));
         ws.send(JSON.stringify({ type: 'state', ...this.gameState }));
+        if (this.players.size === 2) {
+          this.lastUpdate = Date.now();
+          this.startGameLoop();
+        }
       }
     }
 
@@ -84,6 +89,11 @@ export class PongGameSession extends DurableObject {
     console.log('[DO] WebSocket closed, players before:', this.players.size);
     this.players.delete(ws);
     console.log('[DO] Players after delete:', this.players.size);
+    // Reassign IDs so remaining player is always p1
+    let i = 1;
+    for (const [, player] of this.players) {
+      player.id = `p${i++}`;
+    }
     this.broadcast({ type: 'lobby', players: this.getLobbyPlayers() });
   }
 
@@ -97,11 +107,12 @@ export class PongGameSession extends DurableObject {
   }
 
   startGameLoop() {
+    this.lastUpdate = Date.now(); // reset timer at game start, not construction
     const tick = async () => {
       if (this.gameState.finished || this.players.size < 2) return;
 
       const now = Date.now();
-      const dt = (now - this.lastUpdate) / 16.67;
+      const dt = Math.min((now - this.lastUpdate) / 16.67, 3); // cap dt to prevent huge jumps
       this.lastUpdate = now;
 
       this.gameState.ball.x += this.gameState.ball.vx * dt;
@@ -111,20 +122,26 @@ export class PongGameSession extends DurableObject {
         this.gameState.ball.vy *= -1;
       }
 
-      if (this.gameState.ball.x <= 30 && Math.abs(this.gameState.ball.y - this.gameState.paddles.p1) < 50) {
-        this.gameState.ball.vx = Math.abs(this.gameState.ball.vx) * 1.1;
-        this.gameState.ball.vy *= 1.1;
+      // p1 paddle on left (x~20), p2 paddle on right (x~780)
+      if (this.gameState.ball.x <= 30 && this.gameState.ball.vx < 0 && Math.abs(this.gameState.ball.y - this.gameState.paddles.p1) < 55) {
+        const speed = Math.min(Math.hypot(this.gameState.ball.vx, this.gameState.ball.vy) * 1.1, 12);
+        this.gameState.ball.vx = Math.abs(speed * 0.8);
+        this.gameState.ball.vy = this.gameState.ball.vy > 0 ? speed * 0.6 : -speed * 0.6;
+        this.gameState.ball.x = 31; // prevent sticking
       }
-      if (this.gameState.ball.x >= 770 && Math.abs(this.gameState.ball.y - this.gameState.paddles.p2) < 50) {
-        this.gameState.ball.vx = -Math.abs(this.gameState.ball.vx) * 1.1;
-        this.gameState.ball.vy *= 1.1;
+      if (this.gameState.ball.x >= 770 && this.gameState.ball.vx > 0 && Math.abs(this.gameState.ball.y - this.gameState.paddles.p2) < 55) {
+        const speed = Math.min(Math.hypot(this.gameState.ball.vx, this.gameState.ball.vy) * 1.1, 12);
+        this.gameState.ball.vx = -Math.abs(speed * 0.8);
+        this.gameState.ball.vy = this.gameState.ball.vy > 0 ? speed * 0.6 : -speed * 0.6;
+        this.gameState.ball.x = 769; // prevent sticking
       }
 
+      // ball exits left = p1 missed = p2 scores
+      // ball exits right = p2 missed = p1 scores
       if (this.gameState.ball.x < 0) {
         this.gameState.scores.p2++;
         this.resetBall();
-      }
-      if (this.gameState.ball.x > 800) {
+      } else if (this.gameState.ball.x > 800) {
         this.gameState.scores.p1++;
         this.resetBall();
       }
