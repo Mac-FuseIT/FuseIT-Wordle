@@ -90,6 +90,29 @@ class _PongSessionLobbyScreenState extends State<PongSessionLobbyScreen> {
     }
   }
 
+  Widget _playerSlot(String id) {
+    final player = _players.firstWhere((p) => p['id'] == id, orElse: () => <String, dynamic>{});
+    final color = id == 'p1' ? widget.theme.correct : widget.theme.present;
+    final hasPlayer = player.isNotEmpty;
+    return Column(
+      children: [
+        CircleAvatar(
+          radius: 36,
+          backgroundColor: hasPlayer ? color : const Color(0xFF3A3A3C),
+          child: hasPlayer
+              ? Text(player['name'].toString().substring(0, 1).toUpperCase(),
+                  style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold))
+              : const Icon(Icons.person_outline, color: Colors.grey, size: 32),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          hasPlayer ? player['name'] : '...',
+          style: TextStyle(color: hasPlayer ? Colors.white : Colors.grey, fontSize: 14, fontWeight: FontWeight.bold),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -117,37 +140,51 @@ class _PongSessionLobbyScreenState extends State<PongSessionLobbyScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text('Players', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 20),
-                      ..._players.map((p) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Text(p['name'], style: const TextStyle(color: Colors.white70, fontSize: 16)),
-                      )),
-                      const SizedBox(height: 40),
-                      if (_myId == 'p1' && _players.length == 2)
-                        ElevatedButton(
-                          onPressed: _startGame,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: widget.theme.correct,
-                            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      const Text('Players', style: TextStyle(color: Colors.grey, fontSize: 14)),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _playerSlot('p1'),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                            child: Text('VS', style: TextStyle(color: widget.theme.correct, fontSize: 20, fontWeight: FontWeight.bold)),
                           ),
-                          child: const Text('Start Game', style: TextStyle(fontSize: 18, color: Colors.white)),
+                          _playerSlot('p2'),
+                        ],
+                      ),
+                      const SizedBox(height: 40),
+                      const Text('Use ↑ ↓ arrow keys to move your paddle', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                      const SizedBox(height: 24),
+                      if (_myId == 'p1' && _players.length == 2)
+                        SizedBox(                          
+                          width: 200,
+                          height: 44,
+                          child: ElevatedButton(
+                            onPressed: _startGame,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: widget.theme.correct,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            child: const Text('Start Game', style: TextStyle(fontSize: 16, color: Colors.white)),
+                          ),
                         )
                       else if (_players.length < 2)
                         const Text('Waiting for opponent...', style: TextStyle(color: Colors.white70, fontSize: 14)),
-                      // Show delete when alone in lobby (regardless of p1/p2 assignment)
                       if (_players.length == 1 && _myId != null)
                         Padding(
-                          padding: const EdgeInsets.only(top: 20),
-                          child: ElevatedButton(
-                            onPressed: _deleteSession,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: widget.theme.absent,
-                              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          padding: const EdgeInsets.only(top: 16),
+                          child: SizedBox(
+                            width: 200,
+                            height: 44,
+                            child: ElevatedButton(
+                              onPressed: _deleteSession,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF3A3A3C),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                              child: const Text('Delete Session', style: TextStyle(fontSize: 16, color: Colors.white)),
                             ),
-                            child: const Text('Delete Session', style: TextStyle(fontSize: 18, color: Colors.white)),
                           ),
                         ),
                     ],

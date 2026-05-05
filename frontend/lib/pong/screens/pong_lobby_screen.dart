@@ -125,16 +125,20 @@ class _PongLobbyScreenState extends State<PongLobbyScreen> {
                       children: [
                         Padding(
                           padding: const EdgeInsets.all(20),
-                          child: ElevatedButton(
-                            onPressed: _createSession,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: widget.theme.correct,
-                              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          child: SizedBox(
+                            width: double.infinity,
+                            height: 44,
+                            child: ElevatedButton(
+                              onPressed: _createSession,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: widget.theme.correct,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                              child: const Text('Create Game', style: TextStyle(fontSize: 16, color: Colors.white)),
                             ),
-                            child: const Text('Create Game', style: TextStyle(fontSize: 18, color: Colors.white)),
                           ),
                         ),
+                        const Divider(color: Color(0xFF3A3A3C), height: 1),
                         Expanded(
                           child: ListView.builder(
                             padding: const EdgeInsets.symmetric(horizontal: 20),
