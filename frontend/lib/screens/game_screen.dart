@@ -387,37 +387,29 @@ class _GameScreenState extends State<GameScreen> {
             ),
           ),
 
-          // Keyboard — keeps layout space, slides and fades visually
-          AnimatedOpacity(
-            opacity: _hideKeyboard ? 0.0 : 1.0,
+          // Keyboard — collapses when game is complete
+          AnimatedSize(
             duration: const Duration(milliseconds: 1000),
             curve: Curves.easeOut,
-            child: AnimatedSlide(
-              offset: _hideKeyboard ? const Offset(0, 0.3) : Offset.zero,
-              duration: const Duration(milliseconds: 1000),
-              curve: Curves.easeOut,
-              child: IgnorePointer(
-                ignoring: _hideKeyboard,
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 32),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Color legend
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            _legendItem(widget.theme.correct, 'Correct'),
-                            const SizedBox(width: 16),
-                            _legendItem(widget.theme.present, 'Wrong spot'),
-                            const SizedBox(width: 16),
-                            _legendItem(widget.theme.absent, 'Not in word'),
-                          ],
-                        ),
-                      ),
-                      GameKeyboard(
+            child: _hideKeyboard ? const SizedBox.shrink() : Padding(
+              padding: const EdgeInsets.only(bottom: 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _legendItem(widget.theme.correct, 'Correct'),
+                        const SizedBox(width: 16),
+                        _legendItem(widget.theme.present, 'Wrong spot'),
+                        const SizedBox(width: 16),
+                        _legendItem(widget.theme.absent, 'Not in word'),
+                      ],
+                    ),
+                  ),
+                  GameKeyboard(
                     onKey: _onKey,
                     onEnter: _submitGuess,
                     onBackspace: _onBackspace,
@@ -427,9 +419,7 @@ class _GameScreenState extends State<GameScreen> {
                     absentColor: widget.theme.absent,
                     keyDefault: widget.theme.keyDefault,
                   ),
-                    ],
-                  ),
-                ),
+                ],
               ),
             ),
           ),
