@@ -8,6 +8,7 @@ class MainMenuScreen extends StatelessWidget {
   final VoidCallback onCrossIT;
   final VoidCallback onGramIT;
   final VoidCallback onPongIT;
+  final VoidCallback onInvadeIT;
   final VoidCallback onProfile;
   final VoidCallback onLogout;
 
@@ -19,6 +20,7 @@ class MainMenuScreen extends StatelessWidget {
     required this.onCrossIT,
     required this.onGramIT,
     required this.onPongIT,
+    required this.onInvadeIT,
     required this.onProfile,
     required this.onLogout,
   });
@@ -44,10 +46,22 @@ class MainMenuScreen extends StatelessWidget {
                 _GameCard(title: 'Guess.IT', subtitle: 'Daily word game', icon: Icons.abc, color: theme.correct, onTap: onGuessIT),
                 const SizedBox(width: 16),
                 _GameCard(title: 'Cross.IT', subtitle: 'Mini crossword', icon: Icons.grid_on, color: theme.present, onTap: onCrossIT),
-                const SizedBox(width: 16),
+              ],
+            ),
+            const Divider(color: Color(0xFF3A3A3C), height: 1),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
                 _GameCard(title: 'Span.IT', subtitle: 'Word strands', icon: Icons.link, color: theme.correct, onTap: onGramIT),
                 const SizedBox(width: 16),
                 _GameCard(title: 'Pong.IT', subtitle: 'Classic pong', icon: Icons.sports_esports, color: theme.present, onTap: onPongIT),
+              ],
+            ),
+            const Divider(color: Color(0xFF3A3A3C), height: 1),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _GameCard(title: 'Invade.IT', subtitle: 'Space invaders', icon: Icons.rocket_launch, color: theme.correct, onTap: onInvadeIT),
               ],
             ),
             const SizedBox(height: 48),
