@@ -30,7 +30,7 @@ Canvas size: **800 × 600** (same as Pong.IT)
 ## Player
 
 - Starts at bottom-center of canvas
-- Moves **freely left/right** using **← →** arrow keys
+- Moves **freely in all directions** using **← → ↑ ↓** arrow keys
 - Shoots upward with **Spacebar** (one bullet at a time, or up to 2 simultaneous)
 - Has **2 lives** (hit twice = game over)
 - Visual: green spaceship icon (theme.correct color)
@@ -118,8 +118,11 @@ Canvas size: **800 × 600** (same as Pong.IT)
 |-------------|-----------------|
 | ← Arrow     | Move left        |
 | → Arrow     | Move right       |
+| ↑ Arrow     | Move up          |
+| ↓ Arrow     | Move down        |
 | Spacebar    | Shoot            |
 
+- Player can move freely across the **entire canvas** (not restricted to bottom row)
 - Uses `HardwareKeyboard.instance.addHandler` (same as Pong.IT — proven to work on Flutter web)
 
 ---
@@ -167,7 +170,7 @@ CREATE TABLE invade_scores (
 - All physics computed client-side (no server needed — single player)
 - State: player position, enemy positions, bullets, score, lives, level
 - On each tick:
-  1. Move player (if key held)
+  1. Move player (left/right/up/down if key held)
   2. Move player bullets up
   3. Move enemy grid (side-to-side + down)
   4. Move enemy bullets down

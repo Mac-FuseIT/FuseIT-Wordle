@@ -13,6 +13,8 @@ import 'crossword/screens/crossword_leaderboard.dart';
 import 'strands/screens/strands_screen.dart';
 import 'strands/screens/strands_leaderboard.dart';
 import 'pong/screens/pong_lobby_screen.dart';
+import 'invade/invade_game_screen.dart';
+import 'invade/invade_lobby_screen.dart';
 import 'widgets/wavy_background.dart';
 
 void main() => runApp(const FuseArcadeApp());
@@ -31,7 +33,7 @@ class FuseArcadeApp extends StatelessWidget {
   }
 }
 
-enum AppView { login, menu, guessGame, guessLeaderboard, crossGame, crossLeaderboard, strandsGame, strandsLeaderboard, pongGame, profile }
+enum AppView { login, menu, guessGame, guessLeaderboard, crossGame, crossLeaderboard, strandsGame, strandsLeaderboard, pongGame, invadeGame, profile }
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -121,6 +123,7 @@ class _AppShellState extends State<AppShell> {
                 onCrossIT: () => setState(() => _view = AppView.crossGame),
                 onGramIT: () => setState(() => _view = AppView.strandsGame),
                 onPongIT: () => setState(() => _view = AppView.pongGame),
+                onInvadeIT: () => setState(() => _view = AppView.invadeGame),
                 onProfile: () => setState(() => _view = AppView.profile),
                 onLogout: _logout,
               ),
@@ -154,6 +157,12 @@ class _AppShellState extends State<AppShell> {
               ),
               AppView.pongGame => PongLobbyScreen(
                 nickname: _name!,
+                theme: _theme,
+                onBack: () => setState(() => _view = AppView.menu),
+              ),
+              AppView.invadeGame => InvadeLobbyScreen(
+                nickname: _name!,
+                userId: _userId!,
                 theme: _theme,
                 onBack: () => setState(() => _view = AppView.menu),
               ),
