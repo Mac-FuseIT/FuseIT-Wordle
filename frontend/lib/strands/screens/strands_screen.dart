@@ -29,6 +29,8 @@ class _StrandsScreenState extends State<StrandsScreen> {
   Set<String> _hintCells = {};
   String? _hintWord;
   bool _hintWordRevealed = false;
+  String _theme = '';
+  String _spangram = '';
 
   @override
   void initState() { super.initState(); _load(); }
@@ -36,15 +38,22 @@ class _StrandsScreenState extends State<StrandsScreen> {
   Future<void> _load() async {
     try {
       final data = await StrandsApi.getToday();
+      if (data['error'] != null) {
+        _message = 'Oh no, there is no Span.IT for today!! Sorry 😔';
+        setState(() => _loading = false);
+        return;
+      }
       _grid = (data['grid'] as List).map((r) => (r as List).map((c) => c.toString()).toList()).toList();
       _wordCount = data['wordCount'] ?? 0;
       _hintCharges = data['hintCharges'] ?? 0;
       _hintsUsed = data['hintsUsed'] ?? 0;
       _completed = data['completed'] ?? false;
       _foundWords = List<Map<String, dynamic>>.from(data['foundWords'] ?? []);
+      _theme = data['theme'] ?? '';
+      _spangram = data['spangram'] ?? '';
       _rebuildCellSets();
     } catch (e) {
-      _message = 'Failed to load puzzle';
+      _message = 'Oh no, there is no Span.IT for today!! Sorry 😔';
     }
     setState(() => _loading = false);
   }
@@ -52,7 +61,6 @@ class _StrandsScreenState extends State<StrandsScreen> {
   void _rebuildCellSets() {
     _foundThemeCells = {};
     _foundSpangramCells = {};
-    // Don't clear _hintCells — keep them permanent
     final foundTargets = _foundWords.where((f) => f['type'] == 'target').map((f) => f['word'] as String).toSet();
     String? lastHintWord;
     int lastHintCount = 0;
@@ -62,22 +70,22 @@ class _StrandsScreenState extends State<StrandsScreen> {
       if (path == null) continue;
       for (final p in path) {
         final key = '${(p as List)[0]}:${p[1]}';
-        if (type == 'target') _foundThemeCells.add(key);
+        if (type == 'target') {
+          if (fw['isSpangram'] == true || (fw['word'] as String?) == _spangram) {
+            _foundSpangramCells.add(key);
+          } else {
+            _foundThemeCells.add(key);
+          }
+        }
         if (type == 'hint') _hintCells.add(key);
       }
       if (type == 'hint') {
         final w = fw['word'] as String;
         if (!foundTargets.contains(w)) {
-          if (w == lastHintWord) {
-            lastHintCount++;
-          } else {
-            lastHintWord = w;
-            lastHintCount = 1;
-          }
+          if (w == lastHintWord) { lastHintCount++; } else { lastHintWord = w; lastHintCount = 1; }
         }
       }
     }
-    // Restore persistent hint word display (only from 2nd hint onwards)
     if (lastHintWord != null && !foundTargets.contains(lastHintWord) && lastHintCount >= 2) {
       _hintWord = lastHintWord;
       _hintWordRevealed = lastHintCount >= 3;
@@ -97,10 +105,11 @@ class _StrandsScreenState extends State<StrandsScreen> {
       final res = await StrandsApi.checkWord(path);
       final type = res['type'];
       if (type == 'target') {
-        _foundWords.add({'word': res['word'], 'type': 'target', 'path': path});
-        // Clear hint display if this was the hinted word
+        _foundWords.add({'word': res['word'], 'type': 'target', 'isSpangram': res['isSpangram'] ?? false, 'path': path});
         if (_hintWord == res['word']) { _hintWord = null; _hintWordRevealed = false; }
-        _showMessage('✓ ${res['word']}!', widget.theme.correct);
+        final isSpangram = res['isSpangram'] == true;
+        _showMessage(isSpangram ? '🌟 ${res['word']}! (Spangram!)' : '✓ ${res['word']}!',
+            isSpangram ? widget.theme.present : widget.theme.correct);
         if (res['completed'] == true) _completed = true;
       } else if (type == 'bonus') {
         _hintCharges = res['hintCharges'] ?? _hintCharges;
@@ -183,6 +192,25 @@ class _StrandsScreenState extends State<StrandsScreen> {
                 constraints: const BoxConstraints(maxWidth: 400),
                 child: Column(
                   children: [
+                    // Theme display
+                    if (_theme.isNotEmpty) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: widget.theme.correct.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: widget.theme.correct.withValues(alpha: 0.3)),
+                        ),
+                        child: Column(
+                          children: [
+                            Text('Today\'s Theme', style: TextStyle(color: Colors.grey, fontSize: 11)),
+                            const SizedBox(height: 2),
+                            Text(_theme, style: TextStyle(color: widget.theme.correct, fontSize: 16, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
                     // Word count
                     Text('Find $_wordCount hidden words!', style: TextStyle(color: widget.theme.textColor.withValues(alpha: 0.7), fontSize: 14)),
                     const SizedBox(height: 12),
@@ -261,13 +289,20 @@ class _StrandsScreenState extends State<StrandsScreen> {
                       Wrap(
                         spacing: 8, runSpacing: 6,
                         children: _foundWords.where((f) => f['type'] == 'target').map((f) {
+                          final isSpangram = f['isSpangram'] == true || f['word'] == _spangram;
                           return Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
-                              color: widget.theme.correct,
+                              color: isSpangram ? widget.theme.present : widget.theme.correct,
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: Text(f['word'], style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (isSpangram) const Text('🌟 ', style: TextStyle(fontSize: 12)),
+                                Text(f['word'], style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
                           );
                         }).toList(),
                       ),

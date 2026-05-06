@@ -1,5 +1,4 @@
 import { getToday, jsonResponse, errorResponse, requireAuth } from '../../../src/db.js';
-import { getOrCreateDailyStrand } from '../../../src/strand-selection.js';
 
 function isAdjacent(a, b) {
   return Math.abs(a[0] - b[0]) <= 1 && Math.abs(a[1] - b[1]) <= 1 && !(a[0] === b[0] && a[1] === b[1]);
@@ -25,39 +24,38 @@ export async function onRequestPost({ request, env }) {
   if (!path || !isValidPath(path)) return jsonResponse({ type: 'invalid' });
 
   const date = getToday();
-  const puzzle = await getOrCreateDailyStrand(env.DB, date);
+  const row = await env.DB.prepare('SELECT grid, spangram, theme_words FROM spanit_puzzles WHERE date = ?').bind(date).first();
+  if (!row) return jsonResponse({ type: 'invalid' });
 
+  const puzzle = { grid: JSON.parse(row.grid), words: JSON.parse(row.theme_words), spangram: row.spangram };
   const word = path.map(([r, c]) => puzzle.grid[r][c]).join('');
 
-  let state = await env.DB.prepare('SELECT found_words, hint_charges, hints_used FROM strand_state WHERE user_id = ? AND date = ?').bind(auth.userId, date).first();
+  let state = await env.DB.prepare('SELECT found_words, hint_charges, hints_used FROM spanit_state WHERE user_id = ? AND date = ?').bind(auth.userId, date).first();
   const foundWords = state ? JSON.parse(state.found_words) : [];
   let hintCharges = state ? state.hint_charges : 0;
   const hintsUsed = state ? state.hints_used : 0;
 
   if (foundWords.some(f => f.word === word && f.type === 'target')) return jsonResponse({ type: 'already_found' });
 
-  // Check if it's a target word
   const targetMatch = puzzle.words.find(w => w.word === word);
-
   if (targetMatch) {
-    foundWords.push({ word, type: 'target', path });
+    const isSpangram = word === puzzle.spangram;
+    foundWords.push({ word, type: 'target', isSpangram, path });
     await saveState(env.DB, auth.userId, date, foundWords, hintCharges, hintsUsed);
     const completed = foundWords.filter(f => f.type === 'target').length === puzzle.words.length;
     if (completed) {
-      await env.DB.prepare('INSERT OR IGNORE INTO strand_attempts (user_id, date, hints_used, completed, completed_at) VALUES (?, ?, ?, 1, ?)')
+      await env.DB.prepare('INSERT OR IGNORE INTO spanit_attempts (user_id, date, hints_used, completed, completed_at) VALUES (?, ?, ?, 1, ?)')
         .bind(auth.userId, date, hintsUsed, new Date().toISOString()).run();
     }
-    return jsonResponse({ type: 'target', word, completed, found: foundWords.filter(f => f.type === 'target').length, total: puzzle.words.length });
+    return jsonResponse({ type: 'target', word, isSpangram, completed, found: foundWords.filter(f => f.type === 'target').length, total: puzzle.words.length });
   }
 
-  // Check non-theme valid word (4+ letters)
   if (word.length >= 4 && !foundWords.some(f => f.word === word)) {
     try {
       const dictRes = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word.toLowerCase()}`);
       if (dictRes.ok) {
         foundWords.push({ word, type: 'bonus', path });
         const bonusCount = foundWords.filter(f => f.type === 'bonus').length;
-        // Only award a charge when crossing a multiple-of-3 threshold
         if (bonusCount % 3 === 0) hintCharges++;
         await saveState(env.DB, auth.userId, date, foundWords, hintCharges, hintsUsed);
         return jsonResponse({ type: 'bonus', word, hintCharges, bonusCount });
@@ -69,7 +67,7 @@ export async function onRequestPost({ request, env }) {
 }
 
 async function saveState(db, userId, date, foundWords, hintCharges, hintsUsed) {
-  await db.prepare('INSERT INTO strand_state (user_id, date, found_words, hint_charges, hints_used) VALUES (?, ?, ?, ?, ?) ON CONFLICT(user_id, date) DO UPDATE SET found_words = ?, hint_charges = ?, hints_used = ?')
+  await db.prepare('INSERT INTO spanit_state (user_id, date, found_words, hint_charges, hints_used) VALUES (?, ?, ?, ?, ?) ON CONFLICT(user_id, date) DO UPDATE SET found_words = ?, hint_charges = ?, hints_used = ?')
     .bind(userId, date, JSON.stringify(foundWords), hintCharges, hintsUsed, JSON.stringify(foundWords), hintCharges, hintsUsed).run();
 }
 
