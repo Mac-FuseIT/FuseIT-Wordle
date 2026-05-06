@@ -9,6 +9,7 @@ class MainMenuScreen extends StatelessWidget {
   final VoidCallback onGramIT;
   final VoidCallback onPongIT;
   final VoidCallback onInvadeIT;
+  final VoidCallback onDashIT;
   final VoidCallback onProfile;
   final VoidCallback onLogout;
 
@@ -21,6 +22,7 @@ class MainMenuScreen extends StatelessWidget {
     required this.onGramIT,
     required this.onPongIT,
     required this.onInvadeIT,
+    required this.onDashIT,
     required this.onProfile,
     required this.onLogout,
   });
@@ -78,6 +80,8 @@ class MainMenuScreen extends StatelessWidget {
                 _GameCard(title: 'Pong.IT', subtitle: 'Classic pong', icon: Icons.sports_esports, color: theme.present, onTap: onPongIT),
                 const SizedBox(width: 16),
                 _GameCard(title: 'Invade.IT', subtitle: 'Space invaders', icon: Icons.rocket_launch, color: theme.correct, onTap: onInvadeIT),
+                const SizedBox(width: 16),
+                _GameCard(title: 'Dash.IT', subtitle: 'Daily platformer', icon: Icons.directions_run, color: theme.present, onTap: onDashIT),
               ],
             ),
             const SizedBox(height: 48),
