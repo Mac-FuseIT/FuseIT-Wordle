@@ -40,27 +40,43 @@ class MainMenuScreen extends StatelessWidget {
             const SizedBox(height: 8),
             Text('Daily games for FuseIT', style: TextStyle(color: theme.textColor.withValues(alpha: 0.5), fontSize: 14)),
             const SizedBox(height: 48),
+            const SizedBox(height: 48),
+            // Word Games
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text('Word Games', style: TextStyle(color: theme.textColor.withValues(alpha: 0.5), fontSize: 13, letterSpacing: 1)),
+                const SizedBox(width: 12),
+                SizedBox(width: 200, child: Divider(color: theme.textColor.withValues(alpha: 0.15))),
+              ],
+            ),
+            const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 _GameCard(title: 'Guess.IT', subtitle: 'Daily word game', icon: Icons.abc, color: theme.correct, onTap: onGuessIT),
                 const SizedBox(width: 16),
                 _GameCard(title: 'Cross.IT', subtitle: 'Mini crossword', icon: Icons.grid_on, color: theme.present, onTap: onCrossIT),
-              ],
-            ),
-            const Divider(color: Color(0xFF3A3A3C), height: 1),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _GameCard(title: 'Span.IT', subtitle: 'Word strands', icon: Icons.link, color: theme.correct, onTap: onGramIT),
                 const SizedBox(width: 16),
-                _GameCard(title: 'Pong.IT', subtitle: 'Classic pong', icon: Icons.sports_esports, color: theme.present, onTap: onPongIT),
+                _GameCard(title: 'Span.IT', subtitle: 'Word strands', icon: Icons.link, color: theme.correct, onTap: onGramIT),
               ],
             ),
-            const Divider(color: Color(0xFF3A3A3C), height: 1),
+            const SizedBox(height: 32),
+            // Arcade Games
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                Text('Arcade Games', style: TextStyle(color: theme.textColor.withValues(alpha: 0.5), fontSize: 13, letterSpacing: 1)),
+                const SizedBox(width: 12),
+                SizedBox(width: 200, child: Divider(color: theme.textColor.withValues(alpha: 0.15))),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _GameCard(title: 'Pong.IT', subtitle: 'Classic pong', icon: Icons.sports_esports, color: theme.present, onTap: onPongIT),
+                const SizedBox(width: 16),
                 _GameCard(title: 'Invade.IT', subtitle: 'Space invaders', icon: Icons.rocket_launch, color: theme.correct, onTap: onInvadeIT),
               ],
             ),

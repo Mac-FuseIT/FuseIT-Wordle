@@ -69,6 +69,7 @@ class _InvadeGameScreenState extends State<InvadeGameScreen> with SingleTickerPr
 
   int _score = 0, _level = 1, _bestScore = 0;
   bool _gameOver = false;
+  String? _levelMessage;
 
   final List<_Enemy> _enemies = [];
   final List<_Bullet> _playerBullets = [];
@@ -237,8 +238,13 @@ class _InvadeGameScreenState extends State<InvadeGameScreen> with SingleTickerPr
               if (_enemiesKilled >= _killsToNextLevel) {
                 _enemiesKilled = 0;
                 _level++;
+                _lives = 2;
                 _score += 100;
                 _startSpawnTimer();
+                _levelMessage = 'LEVEL $_level';
+                Future.delayed(const Duration(seconds: 2), () {
+                  if (mounted) setState(() => _levelMessage = null);
+                });
               }
             } else {
               e.flashing = true;
@@ -337,8 +343,21 @@ class _InvadeGameScreenState extends State<InvadeGameScreen> with SingleTickerPr
             ),
           ],
         ),
-        if (_gameOver)
+        if (_levelMessage != null)
           Center(
+            child: IgnorePointer(
+              child: Text(
+                _levelMessage!,
+                style: TextStyle(
+                  color: widget.theme.correct.withValues(alpha: 0.35),
+                  fontSize: 80,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 8,
+                ),
+              ),
+            ),
+          ),
+        if (_gameOver)          Center(
             child: Container(
               padding: const EdgeInsets.all(32),
               decoration: BoxDecoration(
