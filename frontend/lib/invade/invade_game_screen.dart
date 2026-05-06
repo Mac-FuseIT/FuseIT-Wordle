@@ -298,16 +298,7 @@ class _InvadeGameScreenState extends State<InvadeGameScreen> with SingleTickerPr
                   IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: widget.onBack),
                   Text('Invade.IT', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold,
                       shadows: [Shadow(color: widget.theme.correct, blurRadius: 8)])),
-                  const Spacer(),
-                  Text('Score: $_score', style: TextStyle(color: widget.theme.correct, fontSize: 16, fontWeight: FontWeight.bold)),
-                  const SizedBox(width: 24),
-                  Row(children: List.generate(2, (i) => Icon(
-                    i < _lives ? Icons.favorite : Icons.favorite_border,
-                    color: widget.theme.present, size: 20))),
-                  const SizedBox(width: 24),
-                  Text('Level: $_level', style: const TextStyle(color: Colors.white70, fontSize: 16)),
-                ],
-              ),
+              ]),
             ),
             const Divider(color: Color(0xFF3A3A3C), height: 1),
             Expanded(
@@ -331,6 +322,9 @@ class _InvadeGameScreenState extends State<InvadeGameScreen> with SingleTickerPr
                             playerBullets: _playerBullets,
                             aimBullets: _aimBullets,
                             explosions: _explosions,
+                            lives: _lives,
+                            score: _score,
+                            level: _level,
                             theme: widget.theme,
                           ),
                           size: Size.infinite,
@@ -419,17 +413,29 @@ class _InvadePainter extends CustomPainter {
   final List<_Bullet> playerBullets;
   final List<_AimBullet> aimBullets;
   final List<_Explosion> explosions;
+  final int lives, score, level;
   final AppTheme theme;
 
   _InvadePainter({
     required this.px, required this.py, required this.playerFlash,
     required this.enemies, required this.playerBullets,
-    required this.aimBullets, required this.explosions, required this.theme,
+    required this.aimBullets, required this.explosions,
+    required this.lives, required this.score, required this.level,
+    required this.theme,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
     final sx = size.width / 800, sy = size.height / 600;
+
+    // Score & level at top-center
+    final textPainter = TextPainter(textDirection: TextDirection.ltr);
+    textPainter.text = TextSpan(
+      text: 'Score: $score    Level: $level',
+      style: TextStyle(color: theme.correct.withValues(alpha: 0.9), fontSize: 14 * sx * 2, fontWeight: FontWeight.bold),
+    );
+    textPainter.layout();
+    textPainter.paint(canvas, Offset(size.width / 2 - textPainter.width / 2, 10 * sy));
 
     // Player
     if (!playerFlash) {
@@ -479,6 +485,28 @@ class _InvadePainter extends CustomPainter {
         Offset(ex.x * sx, ex.y * sy), ex.radius * sx,
         Paint()..color = theme.present.withValues(alpha: 1 - ex.radius / ex.maxRadius),
       );
+    }
+
+    // Hearts at bottom-center of canvas
+    const totalHearts = 2;
+    final heartSpacing = 30 * sx;
+    final heartsStartX = size.width / 2 - (totalHearts - 1) * heartSpacing / 2;
+    for (int i = 0; i < totalHearts; i++) {
+      final filled = i < lives;
+      final cx = heartsStartX + i * heartSpacing;
+      final cy = (580) * sy;
+      final r = 10 * sx;
+      final paint = Paint()
+        ..color = theme.present.withValues(alpha: filled ? 0.8 : 0.2)
+        ..style = filled ? PaintingStyle.fill : PaintingStyle.stroke
+        ..strokeWidth = 1.5;
+      final path = Path();
+      path.moveTo(cx, cy + r * 0.3);
+      path.cubicTo(cx, cy - r * 0.5, cx - r * 1.2, cy - r * 0.5, cx - r * 1.2, cy + r * 0.2);
+      path.cubicTo(cx - r * 1.2, cy + r * 0.8, cx, cy + r * 1.4, cx, cy + r * 1.4);
+      path.cubicTo(cx, cy + r * 1.4, cx + r * 1.2, cy + r * 0.8, cx + r * 1.2, cy + r * 0.2);
+      path.cubicTo(cx + r * 1.2, cy - r * 0.5, cx, cy - r * 0.5, cx, cy + r * 0.3);
+      canvas.drawPath(path, paint);
     }
   }
 

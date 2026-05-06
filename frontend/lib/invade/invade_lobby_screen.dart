@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../models/app_theme.dart';
+import '../widgets/help_dialog.dart';
 import 'invade_game_screen.dart';
 
 class InvadeLobbyScreen extends StatefulWidget {
@@ -109,6 +110,27 @@ class _InvadeLobbyScreenState extends State<InvadeLobbyScreen> {
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
                         child: const Text('Play', style: TextStyle(fontSize: 16, color: Colors.white)),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 44,
+                      child: ElevatedButton(
+                        onPressed: () => showHelpDialog(context, widget.theme, 'How to Play Invade.IT', const [
+                          HelpSection(body: 'Enemy ships spawn from the top of the screen and move around randomly. Destroy them before they destroy you!'),
+                          HelpSection(heading: '← → ↑ ↓ Arrow Keys', body: 'Move your ship freely in all directions across the entire screen.'),
+                          HelpSection(heading: '🚀 Shooting', body: 'Hold down Spacebar to shoot. When your shots run out, release Spacebar and hold it again to fire another burst.'),
+                          HelpSection(heading: '👾 Enemy Tiers', body: 'Grunt (grey) — 10 pts, easy.\nSoldier (yellow) — 25 pts, shoots faster.\nCommander (green) — 50 pts, takes 2 hits, most aggressive.'),
+                          HelpSection(heading: '❤️ Lives', body: 'You start with 2 lives shown as hearts at the bottom of the screen. Getting hit loses a life. Reach a new level and your health is fully restored.'),
+                          HelpSection(heading: '⬆️ Levels', body: 'Destroy 10+ enemies to reach the next level. Each level spawns enemies faster and with tougher tiers.'),
+                          HelpSection(heading: '🏆 Score', body: 'Your highest score is saved to the leaderboard. Clearing a wave gives a +100 bonus.'),
+                        ]),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF3A3A3C),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        child: const Text('How to Play', style: TextStyle(fontSize: 16, color: Colors.white)),
                       ),
                     ),
                     const SizedBox(height: 32),
