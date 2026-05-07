@@ -108,6 +108,11 @@ class ApiService {
     return jsonDecode(res.body);
   }
 
+  static Future<Map<String, dynamic>> getInvadeLeaderboard() async {
+    await _loadToken();
+    final res = await http.get(Uri.parse('$baseUrl/api/invade/leaderboard'), headers: _authHeaders);
+    return jsonDecode(res.body);
+  }
   static Future<String?> startInvadeSession() async {
     await _loadToken();
     final res = await http.post(Uri.parse('$baseUrl/api/invade/start'), headers: _authHeaders);
@@ -115,12 +120,12 @@ class ApiService {
     return data['sessionToken'] as String?;
   }
 
-  static Future<void> submitInvadeScore(String nickname, int score, int level, String sessionToken) async {
+  static Future<void> submitInvadeScore(int score, int level, String sessionToken) async {
     await _loadToken();
     await http.post(
       Uri.parse('$baseUrl/api/invade/score'),
       headers: _authHeaders,
-      body: jsonEncode({'nickname': nickname, 'score': score, 'level': level, 'sessionToken': sessionToken}),
+      body: jsonEncode({'score': score, 'level': level, 'sessionToken': sessionToken}),
     );
   }
 

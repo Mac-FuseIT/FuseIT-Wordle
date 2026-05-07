@@ -3,7 +3,6 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'dart:math';
 import 'dart:async';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../services/api_service.dart';
 import '../models/app_theme.dart';
@@ -146,8 +145,7 @@ class _InvadeGameScreenState extends State<InvadeGameScreen> with SingleTickerPr
 
   Future<void> _loadBest() async {
     try {
-      final res = await http.get(Uri.parse('/api/invade/leaderboard?userId=${widget.userId}'));
-      final data = jsonDecode(res.body);
+      final data = await ApiService.getInvadeLeaderboard();
       if (mounted) setState(() => _bestScore = data['best'] ?? 0);
     } catch (_) {}
   }
@@ -155,7 +153,7 @@ class _InvadeGameScreenState extends State<InvadeGameScreen> with SingleTickerPr
   Future<void> _submitScore() async {
     if (_score <= _bestScore || _sessionToken == null) return;
     try {
-      await ApiService.submitInvadeScore(widget.nickname, _score, _level, _sessionToken!);
+      await ApiService.submitInvadeScore(_score, _level, _sessionToken!);
     } catch (_) {}
   }
 

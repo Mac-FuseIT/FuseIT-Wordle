@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import '../models/app_theme.dart';
+import '../services/api_service.dart';
 import '../widgets/help_dialog.dart';
 import 'invade_game_screen.dart';
 
@@ -37,8 +36,7 @@ class _InvadeLobbyScreenState extends State<InvadeLobbyScreen> {
 
   Future<void> _loadLeaderboard() async {
     try {
-      final res = await http.get(Uri.parse('/api/invade/leaderboard?userId=${widget.userId}'));
-      final data = jsonDecode(res.body);
+      final data = await ApiService.getInvadeLeaderboard();
       if (mounted) setState(() {
         _leaderboard = List<Map<String, dynamic>>.from(data['leaderboard'] ?? []);
         _myBest = data['best'] ?? 0;
