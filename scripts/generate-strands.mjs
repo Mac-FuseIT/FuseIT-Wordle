@@ -213,13 +213,24 @@ async function generatePuzzle(dateStr, themeWords, themeName, rng) {
         if (new Set([spangram, ...otherWords]).size !== otherWords.length + 1) continue;
 
         const allWords = [spangram, ...otherWords];
+        let bestPlacement = null;
 
         for (let attempt = 0; attempt < 3; attempt++) {
           const grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
           const placed = backtrack(grid, allWords, 0, TOTAL, rng);
-          if (placed && placed.every(({ word, path }) => !canSpellWithOtherCells(grid, word, path))) {
-            return { theme: themeName, spangram: spangram.toUpperCase(), grid, words: placed };
+          if (placed) {
+            // Shuffle placed words so spangram is in a random position for hints
+            const shuffled = shuffle(placed, rng);
+            if (placed.every(({ word, path }) => !canSpellWithOtherCells(grid, word, path))) {
+              return { theme: themeName, spangram: spangram.toUpperCase(), grid, words: shuffled };
+            }
+            if (!bestPlacement) bestPlacement = { grid, placed: shuffled };
           }
+        }
+
+        // Use fallback placement if strict check never passed
+        if (bestPlacement) {
+          return { theme: themeName, spangram: spangram.toUpperCase(), grid: bestPlacement.grid, words: bestPlacement.placed };
         }
 
         for (const len of [...new Set(otherLengths)].reverse()) {
