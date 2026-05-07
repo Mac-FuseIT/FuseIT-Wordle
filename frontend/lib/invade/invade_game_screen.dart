@@ -40,7 +40,12 @@ class _Explosion {
   _Explosion(this.x, this.y, this.maxRadius);
 }
 
-// ─── Invade Game Screen ────────────────────────────────────────────────────────
+class _HealthPack {
+  double x, y;
+  _HealthPack(this.x, this.y);
+}
+
+
 
 class InvadeGameScreen extends StatefulWidget {
   final String nickname;
@@ -76,10 +81,12 @@ class _InvadeGameScreenState extends State<InvadeGameScreen> with SingleTickerPr
   final List<_Bullet> _playerBullets = [];
   final List<_Bullet> _enemyBullets = [];
   final List<_Explosion> _explosions = [];
+  final List<_HealthPack> _healthPacks = [];
 
   bool _leftDown = false, _rightDown = false, _upDown = false, _downDown = false, _spaceDown = false;
   Timer? _shootTimer;
   Timer? _spawnTimer;
+  Timer? _healthPackTimer;
 
   late Ticker _ticker;
   DateTime _lastTick = DateTime.now();
@@ -95,6 +102,7 @@ class _InvadeGameScreenState extends State<InvadeGameScreen> with SingleTickerPr
     _loadBest();
     _loadSession();
     _startSpawnTimer();
+    _startHealthPackTimer();
     HardwareKeyboard.instance.addHandler(_handleKey);
     _shootTimer = Timer.periodic(const Duration(milliseconds: 300), (_) {
       if (_spaceDown && !_gameOver && _playerBullets.length < 2) {
@@ -109,6 +117,7 @@ class _InvadeGameScreenState extends State<InvadeGameScreen> with SingleTickerPr
     HardwareKeyboard.instance.removeHandler(_handleKey);
     _shootTimer?.cancel();
     _spawnTimer?.cancel();
+    _healthPackTimer?.cancel();
     _ticker.dispose();
     super.dispose();
   }
@@ -119,6 +128,13 @@ class _InvadeGameScreenState extends State<InvadeGameScreen> with SingleTickerPr
     final ms = max(500, 2000 - (_level - 1) * 400);
     _spawnTimer = Timer.periodic(Duration(milliseconds: ms), (_) {
       if (!_gameOver) _spawnEnemy();
+    });
+  }
+
+  void _startHealthPackTimer() {
+    _healthPackTimer?.cancel();
+    _healthPackTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      if (!_gameOver) setState(() => _healthPacks.add(_HealthPack(30 + _rng.nextDouble() * (W - 60), -20)));
     });
   }
 
@@ -241,7 +257,7 @@ class _InvadeGameScreenState extends State<InvadeGameScreen> with SingleTickerPr
               if (_enemiesKilled >= _killsToNextLevel) {
                 _enemiesKilled = 0;
                 _level++;
-                _lives = 2;
+                _lives = max(_lives, 2);
                 _score += 100;
                 _startSpawnTimer();
                 _levelMessage = 'LEVEL $_level';
@@ -258,6 +274,15 @@ class _InvadeGameScreenState extends State<InvadeGameScreen> with SingleTickerPr
       }
       _playerBullets.removeWhere(toRemoveBullets.contains);
       _enemies.removeWhere(toRemoveEnemies.contains);
+
+      // Move health packs & collect
+      for (final h in _healthPacks) h.y += 1.0 * dt;
+      final collected = _healthPacks.where((h) => (h.x - _px).abs() < 22 && (h.y - _py).abs() < 22).toList();
+      if (collected.isNotEmpty) {
+        _healthPacks.removeWhere(collected.contains);
+        _lives += collected.length;
+      }
+      _healthPacks.removeWhere((h) => h.y > H + 30);
 
       // Collision: aimed bullets vs player
       if (!_invincible) {
@@ -279,11 +304,12 @@ class _InvadeGameScreenState extends State<InvadeGameScreen> with SingleTickerPr
 
   void _restart() {
     _enemies.clear(); _playerBullets.clear(); _enemyBullets.clear();
-    _aimBullets.clear(); _explosions.clear();
+    _aimBullets.clear(); _explosions.clear(); _healthPacks.clear();
     _score = 0; _level = 1; _lives = 2; _gameOver = false;
     _enemiesKilled = 0; _sessionToken = null;
     _px = W / 2; _py = H - 60;
     _startSpawnTimer();
+    _startHealthPackTimer();
     _loadSession();
   }
 
@@ -326,6 +352,7 @@ class _InvadeGameScreenState extends State<InvadeGameScreen> with SingleTickerPr
                             playerBullets: _playerBullets,
                             aimBullets: _aimBullets,
                             explosions: _explosions,
+                            healthPacks: _healthPacks,
                             lives: _lives,
                             score: _score,
                             level: _level,
@@ -417,6 +444,7 @@ class _InvadePainter extends CustomPainter {
   final List<_Bullet> playerBullets;
   final List<_AimBullet> aimBullets;
   final List<_Explosion> explosions;
+  final List<_HealthPack> healthPacks;
   final int lives, score, level;
   final AppTheme theme;
 
@@ -424,6 +452,7 @@ class _InvadePainter extends CustomPainter {
     required this.px, required this.py, required this.playerFlash,
     required this.enemies, required this.playerBullets,
     required this.aimBullets, required this.explosions,
+    required this.healthPacks,
     required this.lives, required this.score, required this.level,
     required this.theme,
   });
@@ -480,7 +509,7 @@ class _InvadePainter extends CustomPainter {
 
     // Aimed bullets
     for (final b in aimBullets) {
-      canvas.drawCircle(Offset(b.x * sx, b.y * sy), 4 * sx, Paint()..color = theme.absent);
+      canvas.drawCircle(Offset(b.x * sx, b.y * sy), 4 * sx, Paint()..color = theme.present);
     }
 
     // Explosions
@@ -491,19 +520,24 @@ class _InvadePainter extends CustomPainter {
       );
     }
 
+    // Health packs
+    for (final h in healthPacks) {
+      final hx = h.x * sx, hy = h.y * sy;
+      final r = 10 * sx;
+      canvas.drawRect(Rect.fromLTWH(hx - r * 0.3, hy - r, r * 0.6, r * 2), Paint()..color = Colors.redAccent);
+      canvas.drawRect(Rect.fromLTWH(hx - r, hy - r * 0.3, r * 2, r * 0.6), Paint()..color = Colors.redAccent);
+    }
+
     // Hearts at bottom-center of canvas
-    const totalHearts = 2;
     final heartSpacing = 30 * sx;
-    final heartsStartX = size.width / 2 - (totalHearts - 1) * heartSpacing / 2;
-    for (int i = 0; i < totalHearts; i++) {
-      final filled = i < lives;
+    final heartsStartX = size.width / 2 - (lives - 1) * heartSpacing / 2;
+    for (int i = 0; i < lives; i++) {
       final cx = heartsStartX + i * heartSpacing;
       final cy = (580) * sy;
       final r = 10 * sx;
       final paint = Paint()
-        ..color = theme.present.withValues(alpha: filled ? 0.8 : 0.2)
-        ..style = filled ? PaintingStyle.fill : PaintingStyle.stroke
-        ..strokeWidth = 1.5;
+        ..color = theme.present.withValues(alpha: 0.8)
+        ..style = PaintingStyle.fill;
       final path = Path();
       path.moveTo(cx, cy + r * 0.3);
       path.cubicTo(cx, cy - r * 0.5, cx - r * 1.2, cy - r * 0.5, cx - r * 1.2, cy + r * 0.2);
