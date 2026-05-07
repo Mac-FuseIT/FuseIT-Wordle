@@ -46,10 +46,7 @@ function shuffle(arr, rng) {
 // ─── Datamuse API ─────────────────────────────────────────────────────────────
 
 async function fetchThemeWords(topics) {
-  const keyword = topics.split(',')[0].trim();
-  // rel_trg = "triggered by" - words strongly associated with the topic
-  // Use multiple keywords and combine results
-  const keywords = topics.split(',').map(k => k.trim()).slice(0, 3);
+  const keywords = topics.split(',').map(k => k.trim());
   const results = await Promise.all(
     keywords.map(kw =>
       fetch(`https://api.datamuse.com/words?rel_trg=${encodeURIComponent(kw)}&max=200`)
@@ -57,11 +54,28 @@ async function fetchThemeWords(topics) {
         .catch(() => [])
     )
   );
-  // Only keep high-scoring words (score > 500 = strongly associated)
-  const all = results.flat()
+  let words = results.flat()
     .filter(w => w.score > 500)
-    .map(w => w.word.toLowerCase());
-  return [...new Set(all)].filter(w => /^[a-z]+$/.test(w) && w.length >= 4 && w.length <= 8);
+    .map(w => w.word.toLowerCase())
+    .filter(w => /^[a-z]+$/.test(w) && w.length >= 4 && w.length <= 8);
+
+  // If too few words, try ml= (means like) with lower threshold
+  if (words.length < 20) {
+    const fallback = await Promise.all(
+      keywords.slice(0, 2).map(kw =>
+        fetch(`https://api.datamuse.com/words?ml=${encodeURIComponent(kw)}&max=200`)
+          .then(r => r.json())
+          .catch(() => [])
+      )
+    );
+    const extra = fallback.flat()
+      .filter(w => w.score > 1000)
+      .map(w => w.word.toLowerCase())
+      .filter(w => /^[a-z]+$/.test(w) && w.length >= 4 && w.length <= 8);
+    words = [...new Set([...words, ...extra])];
+  }
+
+  return [...new Set(words)];
 }
 
 // ─── Grid Placement ───────────────────────────────────────────────────────────
