@@ -9,11 +9,11 @@ export async function onRequestGet({ request, env }) {
   const monthStart = month + '-01';
 
   const daily = await env.DB.prepare(
-    'SELECT u.name, sa.hints_used AS hintsUsed, sa.completed AS solved FROM strand_attempts sa JOIN users u ON u.id = sa.user_id WHERE sa.date = ? ORDER BY sa.completed DESC, sa.hints_used ASC'
+    'SELECT u.name, sa.hints_used AS hintsUsed, sa.completed AS solved FROM spanit_attempts sa JOIN users u ON u.id = sa.user_id WHERE sa.date = ? ORDER BY sa.completed DESC, sa.hints_used ASC'
   ).bind(date).all();
 
   const monthly = await env.DB.prepare(
-    'SELECT u.name, CAST(ROUND(AVG(sa.hints_used)) AS INTEGER) AS avgHints, COUNT(sa.id) AS daysPlayed FROM strand_attempts sa JOIN users u ON u.id = sa.user_id WHERE sa.date >= ? AND sa.date <= ? GROUP BY u.id ORDER BY avgHints ASC'
+    'SELECT u.name, CAST(ROUND(AVG(sa.hints_used)) AS INTEGER) AS avgHints, COUNT(sa.id) AS daysPlayed FROM spanit_attempts sa JOIN users u ON u.id = sa.user_id WHERE sa.date >= ? AND sa.date <= ? GROUP BY u.id ORDER BY avgHints ASC'
   ).bind(monthStart, date).all();
 
   const user = await env.DB.prepare('SELECT nickname, name FROM users WHERE id = ?').bind(auth.userId).first();
