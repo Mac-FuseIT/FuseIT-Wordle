@@ -114,18 +114,21 @@ function backtrack(grid, words, idx, remaining, rng) {
   return null;
 }
 
-// Check if a word can be spelled using cells NOT belonging to its own path
-// (would make the puzzle ambiguous/unsolvable)
+// Check if a word can be spelled via ANY path other than its canonical one
 function canSpellWithOtherCells(grid, word, ownPath) {
-  const ownCells = new Set(ownPath.map(([r, c]) => `${r}:${c}`));
+  const ownKey = ownPath.map(([r, c]) => `${r}:${c}`).join(',');
   const letters = word.toUpperCase().split('');
 
   function dfs(idx, r, c, visited) {
     if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return false;
     const key = `${r}:${c}`;
-    if (ownCells.has(key) || visited.has(key)) return false;
+    if (visited.has(key)) return false;
     if (grid[r][c] !== letters[idx]) return false;
-    if (idx === letters.length - 1) return true;
+    if (idx === letters.length - 1) {
+      // Found a complete path - check it's not the same as ownPath
+      const pathKey = [...visited, key].join(',');
+      return pathKey !== ownKey;
+    }
     visited.add(key);
     for (const [dr, dc] of DIRS) {
       if (dfs(idx + 1, r + dr, c + dc, visited)) { visited.delete(key); return true; }
@@ -155,60 +158,61 @@ const PLANS = [
 // ─── Puzzle Generator ─────────────────────────────────────────────────────────
 
 async function generatePuzzle(dateStr, themeWords, themeName, rng) {
-  // Separate by length
   const byLength = { 4: [], 5: [], 6: [], 7: [], 8: [] };
   for (const w of themeWords) {
     if (byLength[w.length]) byLength[w.length].push(w);
   }
 
-  // Need at least one 8-letter word for spangram
-  if (byLength[8].length === 0) {
-    console.log(`  No 8-letter words for theme "${themeName}", skipping`);
-    return null;
-  }
+  if (byLength[8].length === 0) return null;
 
-  // Shuffle all pools
   for (const len of [4, 5, 6, 7, 8]) byLength[len] = shuffle(byLength[len], rng);
 
-  const spangram = byLength[8][0];
-
-  // Try multiple plans
   const plans = shuffle([...PLANS], rng);
+
   for (const plan of plans) {
-    // plan has one 8 (spangram) + others
     const otherLengths = [...plan];
     const idx8 = otherLengths.indexOf(8);
     otherLengths.splice(idx8, 1);
 
-    // Check we have enough words of each length
     const needed = {};
     for (const l of otherLengths) needed[l] = (needed[l] || 0) + 1;
     let feasible = true;
     for (const [l, n] of Object.entries(needed)) {
-      if ((byLength[l]?.length || 0) < n + 1) { feasible = false; break; } // +1 to skip spangram if it's also len 8
+      if ((byLength[l]?.length || 0) < n + 1) { feasible = false; break; }
     }
     if (!feasible) continue;
 
-    // Pick words
-    const usedIdx = { 4: 0, 5: 0, 6: 0, 7: 0, 8: 1 }; // start 8 at 1 to skip spangram
-    const otherWords = [];
-    let ok = true;
-    for (const len of otherLengths) {
-      const pool = byLength[len];
-      if (usedIdx[len] >= pool.length) { ok = false; break; }
-      otherWords.push(pool[usedIdx[len]++]);
-    }
-    if (!ok) continue;
+    for (let spanIdx = 0; spanIdx < Math.min(byLength[8].length, 3); spanIdx++) {
+      const spangram = byLength[8][spanIdx];
+      const usedIdx = { 4: 0, 5: 0, 6: 0, 7: 0, 8: 0 };
 
-    const allWords = [spangram, ...otherWords];
-    if (new Set(allWords).size !== allWords.length) continue;
+      for (let combo = 0; combo < 5; combo++) {
+        const otherWords = [];
+        const tempIdx = { ...usedIdx };
+        let ok = true;
+        for (const len of otherLengths) {
+          while (tempIdx[len] < byLength[len].length && byLength[len][tempIdx[len]] === spangram) tempIdx[len]++;
+          if (tempIdx[len] >= byLength[len].length) { ok = false; break; }
+          otherWords.push(byLength[len][tempIdx[len]++]);
+        }
+        if (!ok) break;
+        if (new Set([spangram, ...otherWords]).size !== otherWords.length + 1) continue;
 
-    // Try to place on grid
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
-      const placed = backtrack(grid, allWords, 0, TOTAL, rng);
-      if (placed && placed.every(({ word, path }) => !canSpellWithOtherCells(grid, word, path))) {
-        return { theme: themeName, spangram: spangram.toUpperCase(), grid, words: placed };
+        const allWords = [spangram, ...otherWords];
+
+        for (let attempt = 0; attempt < 3; attempt++) {
+          const grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+          const placed = backtrack(grid, allWords, 0, TOTAL, rng);
+          if (placed && placed.every(({ word, path }) => !canSpellWithOtherCells(grid, word, path))) {
+            return { theme: themeName, spangram: spangram.toUpperCase(), grid, words: placed };
+          }
+        }
+
+        for (const len of [...new Set(otherLengths)].reverse()) {
+          usedIdx[len]++;
+          if (usedIdx[len] < byLength[len].length) break;
+          usedIdx[len] = 0;
+        }
       }
     }
   }
@@ -218,8 +222,12 @@ async function generatePuzzle(dateStr, themeWords, themeName, rng) {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 const days = parseInt(process.argv[2] ?? '60', 10);
+
+// Use local date to avoid UTC offset issues
+function localDateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
 const today = new Date();
-today.setHours(0, 0, 0, 0);
 
 // Pre-fetch all theme word lists (cache them)
 console.log('Fetching theme words from Datamuse API...');
@@ -244,7 +252,7 @@ let ok = 0, fail = 0;
 for (let i = 0; i < days; i++) {
   const d = new Date(today);
   d.setDate(d.getDate() + i);
-  const dateStr = d.toISOString().slice(0, 10);
+  const dateStr = localDateStr(d);
 
   const rng = seededRng(hashStr('spanit:' + dateStr));
   const theme = THEMES[Math.floor(rng() * THEMES.length)];
