@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import '../models/app_theme.dart';
+import '../services/api_service.dart';
 import '../widgets/help_dialog.dart';
 import 'invade_game_screen.dart';
 
@@ -37,8 +36,7 @@ class _InvadeLobbyScreenState extends State<InvadeLobbyScreen> {
 
   Future<void> _loadLeaderboard() async {
     try {
-      final res = await http.get(Uri.parse('/api/invade/leaderboard?userId=${widget.userId}'));
-      final data = jsonDecode(res.body);
+      final data = await ApiService.getInvadeLeaderboard();
       if (mounted) setState(() {
         _leaderboard = List<Map<String, dynamic>>.from(data['leaderboard'] ?? []);
         _myBest = data['best'] ?? 0;
@@ -122,7 +120,8 @@ class _InvadeLobbyScreenState extends State<InvadeLobbyScreen> {
                           HelpSection(heading: '← → ↑ ↓ Arrow Keys', body: 'Move your ship freely in all directions across the entire screen.'),
                           HelpSection(heading: '🚀 Shooting', body: 'Hold down Spacebar to shoot. When your shots run out, release Spacebar and hold it again to fire another burst.'),
                           HelpSection(heading: '👾 Enemy Tiers', body: 'Grunt (grey) — 10 pts, easy.\nSoldier (yellow) — 25 pts, shoots faster.\nCommander (green) — 50 pts, takes 2 hits, most aggressive.'),
-                          HelpSection(heading: '❤️ Lives', body: 'You start with 2 lives shown as hearts at the bottom of the screen. Getting hit loses a life. Reach a new level and your health is fully restored.'),
+                          HelpSection(heading: '❤️ Lives', body: 'You start with 2 lives shown as hearts at the bottom of the screen. Getting hit loses a life. Reaching a new level tops you up to 2 hearts — but if you already have more, you keep them.'),
+                          HelpSection(heading: '➕ Health Packs', body: 'A red cross occasionally drops from the top of the screen. Fly over it to collect it and gain 1 extra heart. Don\'t let it drift past you!'),
                           HelpSection(heading: '⬆️ Levels', body: 'Destroy 10+ enemies to reach the next level. Each level spawns enemies faster and with tougher tiers.'),
                           HelpSection(heading: '🏆 Score', body: 'Your highest score is saved to the leaderboard. Clearing a wave gives a +100 bonus.'),
                         ]),

@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS invade_sessions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  session_token TEXT NOT NULL UNIQUE,
+  started_at TEXT NOT NULL
+);

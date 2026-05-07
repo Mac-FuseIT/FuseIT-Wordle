@@ -66,7 +66,7 @@ class MainMenuScreen extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text('Arcade Games', style: TextStyle(color: theme.textColor.withValues(alpha: 0.5), fontSize: 13, letterSpacing: 1)),
+                Text('Classic Games', style: TextStyle(color: theme.textColor.withValues(alpha: 0.5), fontSize: 13, letterSpacing: 1)),
                 const SizedBox(width: 12),
                 SizedBox(width: 200, child: Divider(color: theme.textColor.withValues(alpha: 0.15))),
               ],
