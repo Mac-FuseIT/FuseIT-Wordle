@@ -108,6 +108,22 @@ class ApiService {
     return jsonDecode(res.body);
   }
 
+  static Future<String?> startInvadeSession() async {
+    await _loadToken();
+    final res = await http.post(Uri.parse('$baseUrl/api/invade/start'), headers: _authHeaders);
+    final data = jsonDecode(res.body);
+    return data['sessionToken'] as String?;
+  }
+
+  static Future<void> submitInvadeScore(String nickname, int score, int level, String sessionToken) async {
+    await _loadToken();
+    await http.post(
+      Uri.parse('$baseUrl/api/invade/score'),
+      headers: _authHeaders,
+      body: jsonEncode({'nickname': nickname, 'score': score, 'level': level, 'sessionToken': sessionToken}),
+    );
+  }
+
   static List<GuessResult> parseGuesses(List<dynamic> raw) {
     return raw.map((g) => GuessResult.fromJson(g as Map<String, dynamic>)).toList();
   }

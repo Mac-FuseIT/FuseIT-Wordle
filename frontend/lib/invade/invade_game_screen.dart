@@ -5,6 +5,7 @@ import 'dart:math';
 import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../services/api_service.dart';
 import '../models/app_theme.dart';
 import '../widgets/wavy_background.dart';
 
@@ -70,6 +71,7 @@ class _InvadeGameScreenState extends State<InvadeGameScreen> with SingleTickerPr
   int _score = 0, _level = 1, _bestScore = 0;
   bool _gameOver = false;
   String? _levelMessage;
+  String? _sessionToken;
 
   final List<_Enemy> _enemies = [];
   final List<_Bullet> _playerBullets = [];
@@ -92,6 +94,7 @@ class _InvadeGameScreenState extends State<InvadeGameScreen> with SingleTickerPr
   void initState() {
     super.initState();
     _loadBest();
+    _loadSession();
     _startSpawnTimer();
     HardwareKeyboard.instance.addHandler(_handleKey);
     _shootTimer = Timer.periodic(const Duration(milliseconds: 300), (_) {
@@ -137,6 +140,10 @@ class _InvadeGameScreenState extends State<InvadeGameScreen> with SingleTickerPr
     setState(() => _enemies.add(_Enemy(x, -20, tier, _rng)));
   }
 
+  Future<void> _loadSession() async {
+    _sessionToken = await ApiService.startInvadeSession();
+  }
+
   Future<void> _loadBest() async {
     try {
       final res = await http.get(Uri.parse('/api/invade/leaderboard?userId=${widget.userId}'));
@@ -146,11 +153,9 @@ class _InvadeGameScreenState extends State<InvadeGameScreen> with SingleTickerPr
   }
 
   Future<void> _submitScore() async {
-    if (_score <= _bestScore) return;
+    if (_score <= _bestScore || _sessionToken == null) return;
     try {
-      await http.post(Uri.parse('/api/invade/score'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'userId': widget.userId, 'nickname': widget.nickname, 'score': _score, 'level': _level}));
+      await ApiService.submitInvadeScore(widget.nickname, _score, _level, _sessionToken!);
     } catch (_) {}
   }
 
@@ -278,9 +283,10 @@ class _InvadeGameScreenState extends State<InvadeGameScreen> with SingleTickerPr
     _enemies.clear(); _playerBullets.clear(); _enemyBullets.clear();
     _aimBullets.clear(); _explosions.clear();
     _score = 0; _level = 1; _lives = 2; _gameOver = false;
-    _enemiesKilled = 0;
+    _enemiesKilled = 0; _sessionToken = null;
     _px = W / 2; _py = H - 60;
     _startSpawnTimer();
+    _loadSession();
   }
 
   @override
