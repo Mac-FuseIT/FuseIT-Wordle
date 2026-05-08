@@ -120,12 +120,22 @@ class ApiService {
     return data['sessionToken'] as String?;
   }
 
+  static Future<bool> invadeCheckpoint(String sessionToken, int score, int level) async {
+    await _loadToken();
+    final res = await http.post(
+      Uri.parse('$baseUrl/api/invade/checkpoint'),
+      headers: _authHeaders,
+      body: jsonEncode({'sessionToken': sessionToken, 'score': score, 'level': level}),
+    );
+    return res.statusCode == 200;
+  }
+
   static Future<void> submitInvadeScore(int score, int level, String sessionToken) async {
     await _loadToken();
     await http.post(
       Uri.parse('$baseUrl/api/invade/score'),
       headers: _authHeaders,
-      body: jsonEncode({'score': score, 'level': level, 'sessionToken': sessionToken}),
+      body: jsonEncode({'sessionToken': sessionToken}),
     );
   }
 

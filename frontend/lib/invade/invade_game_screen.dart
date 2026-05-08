@@ -76,6 +76,7 @@ class _InvadeGameScreenState extends State<InvadeGameScreen> with SingleTickerPr
   bool _gameOver = false;
   String? _levelMessage;
   String? _sessionToken;
+  int _lastCheckpointScore = 0;
 
   final List<_Enemy> _enemies = [];
   final List<_Bullet> _playerBullets = [];
@@ -153,6 +154,12 @@ class _InvadeGameScreenState extends State<InvadeGameScreen> with SingleTickerPr
     }
     final x = 30 + _rng.nextDouble() * (W - 60);
     setState(() => _enemies.add(_Enemy(x, -20, tier, _rng)));
+  }
+
+  Future<void> _sendCheckpoint() async {
+    if (_sessionToken == null) return;
+    _lastCheckpointScore = _score;
+    ApiService.invadeCheckpoint(_sessionToken!, _score, _level);
   }
 
   Future<void> _loadSession() async {
@@ -253,6 +260,8 @@ class _InvadeGameScreenState extends State<InvadeGameScreen> with SingleTickerPr
               _score += e.points;
               _explosions.add(_Explosion(e.x, e.y, 25));
               _enemiesKilled++;
+              // Checkpoint every 100 points
+              if (_score - _lastCheckpointScore >= 100) _sendCheckpoint();
               // Level up
               if (_enemiesKilled >= _killsToNextLevel) {
                 _enemiesKilled = 0;
@@ -261,6 +270,7 @@ class _InvadeGameScreenState extends State<InvadeGameScreen> with SingleTickerPr
                 _score += 100;
                 _startSpawnTimer();
                 _levelMessage = 'LEVEL $_level';
+                _sendCheckpoint(); // always checkpoint on level-up
                 Future.delayed(const Duration(seconds: 2), () {
                   if (mounted) setState(() => _levelMessage = null);
                 });
@@ -306,7 +316,7 @@ class _InvadeGameScreenState extends State<InvadeGameScreen> with SingleTickerPr
     _enemies.clear(); _playerBullets.clear(); _enemyBullets.clear();
     _aimBullets.clear(); _explosions.clear(); _healthPacks.clear();
     _score = 0; _level = 1; _lives = 2; _gameOver = false;
-    _enemiesKilled = 0; _sessionToken = null;
+    _enemiesKilled = 0; _sessionToken = null; _lastCheckpointScore = 0;
     _px = W / 2; _py = H - 60;
     _startSpawnTimer();
     _startHealthPackTimer();

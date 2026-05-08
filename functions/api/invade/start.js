@@ -6,8 +6,8 @@ export async function onRequestPost({ request, env }) {
 
   const sessionToken = crypto.randomUUID();
   await env.DB.prepare(
-    'INSERT INTO invade_sessions (user_id, session_token, started_at) VALUES (?, ?, ?)'
-  ).bind(auth.userId, sessionToken, new Date().toISOString()).run();
+    'INSERT INTO invade_sessions (user_id, session_token, started_at, last_updated_at, validated_score, validated_level) VALUES (?, ?, ?, ?, 0, 1)'
+  ).bind(auth.userId, sessionToken, new Date().toISOString(), new Date().toISOString()).run();
 
   return new Response(JSON.stringify({ sessionToken }), { headers: { 'Content-Type': 'application/json' } });
 }
