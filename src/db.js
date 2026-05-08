@@ -12,6 +12,10 @@ export function getGameDate(date) {
   return date.toISOString().split('T')[0];
 }
 
+export function isValidDate(dateStr) {
+  return typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr) && !isNaN(Date.parse(dateStr));
+}
+
 export function jsonResponse(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,

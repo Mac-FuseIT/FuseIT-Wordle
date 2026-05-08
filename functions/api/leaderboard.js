@@ -1,4 +1,4 @@
-import { getToday, jsonResponse, errorResponse, requireAuth } from '../../src/db.js';
+import { getToday, jsonResponse, errorResponse, requireAuth, isValidDate } from '../../src/db.js';
 import { getOrCreateDailyWord } from '../../src/word-selection.js';
 
 function getPrevMonth(month) {
@@ -33,7 +33,8 @@ async function getMonthlyLeaderboard(env, monthStart, monthEnd) {
 
 export async function onRequestGet({ request, env }) {
   const url = new URL(request.url);
-  const date = url.searchParams.get('date') || getToday();
+  const rawDate = url.searchParams.get('date');
+  const date = (rawDate && isValidDate(rawDate)) ? rawDate : getToday();
 
   // Daily leaderboard
   const daily = await env.DB.prepare(
