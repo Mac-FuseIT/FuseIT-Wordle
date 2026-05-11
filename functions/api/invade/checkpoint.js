@@ -10,7 +10,7 @@ export async function onRequestPost({ request, env }) {
   if (!sessionToken || score == null || level == null) return errorResponse('Missing fields', 400);
 
   const session = await env.DB.prepare(
-    'SELECT validated_score, validated_level, last_updated_at FROM invade_sessions WHERE session_token = ? AND user_id = ?'
+    'SELECT validated_score, validated_level, last_updated_at, checkpoint_count FROM invade_sessions WHERE session_token = ? AND user_id = ?'
   ).bind(sessionToken, auth.userId).first();
 
   if (!session) return errorResponse('Invalid session', 403);
@@ -23,7 +23,7 @@ export async function onRequestPost({ request, env }) {
   if (delta > Math.ceil(elapsed * MAX_POINTS_PER_SECOND)) return errorResponse('Score delta not achievable', 403);
 
   await env.DB.prepare(
-    'UPDATE invade_sessions SET validated_score = ?, validated_level = ?, last_updated_at = ? WHERE session_token = ?'
+    'UPDATE invade_sessions SET validated_score = ?, validated_level = ?, last_updated_at = ?, checkpoint_count = checkpoint_count + 1 WHERE session_token = ?'
   ).bind(score, level, new Date().toISOString(), sessionToken).run();
 
   return new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json' } });

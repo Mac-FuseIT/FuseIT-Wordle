@@ -135,7 +135,7 @@ class ApiService {
     await http.post(
       Uri.parse('$baseUrl/api/invade/score'),
       headers: _authHeaders,
-      body: jsonEncode({'sessionToken': sessionToken}),
+      body: jsonEncode({'sessionToken': sessionToken, 'score': score, 'level': level}),
     );
   }
 
