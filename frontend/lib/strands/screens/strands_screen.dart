@@ -245,6 +245,7 @@ class _StrandsScreenState extends State<StrandsScreen> {
                       theme: widget.theme,
                       completed: _completed,
                       checking: _checking,
+                      foundTargetPaths: _foundWords.where((f) => f['type'] == 'target').toList(),
                     ),
 
                     const SizedBox(height: 16),

@@ -10,6 +10,7 @@ class StrandGrid extends StatefulWidget {
   final AppTheme theme;
   final bool completed;
   final bool checking;
+  final List<Map<String, dynamic>> foundTargetPaths;
 
   const StrandGrid({
     super.key,
@@ -21,6 +22,7 @@ class StrandGrid extends StatefulWidget {
     required this.theme,
     this.completed = false,
     this.checking = false,
+    this.foundTargetPaths = const [],
   });
 
   @override
@@ -31,7 +33,7 @@ class _StrandGridState extends State<StrandGrid> {
   List<List<int>> _currentPath = [];
   final _gridKey = GlobalKey();
   static const _cellSize = 46.0;
-  static const _gap = 4.0;
+  static const _gap = 8.0;
   static const _cols = 6;
   static const _rows = 8;
 
@@ -117,7 +119,18 @@ class _StrandGridState extends State<StrandGrid> {
             height: gridHeight,
             child: Stack(
               children: [
-                // Draw path line
+                // Draw found target paths (persistent)
+                for (final fw in widget.foundTargetPaths)
+                  CustomPaint(
+                    size: Size(gridWidth, gridHeight),
+                    painter: _PathPainter(
+                      path: (fw['path'] as List).map<List<int>>((p) => [p[0] as int, p[1] as int]).toList(),
+                      cellSize: _cellSize,
+                      gap: _gap,
+                      color: (fw['isSpangram'] == true ? widget.theme.present : widget.theme.correct).withAlpha(160),
+                    ),
+                  ),
+                // Draw active drag path line
                 if (_currentPath.length >= 2)
                   CustomPaint(
                     size: Size(gridWidth, gridHeight),
@@ -179,7 +192,7 @@ class _PathPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final step = cellSize + gap;
-    final paint = Paint()..color = color..strokeWidth = cellSize * 0.5..strokeCap = StrokeCap.round..style = PaintingStyle.stroke;
+    final paint = Paint()..color = color..strokeWidth = cellSize * 0.3..strokeCap = StrokeCap.round..style = PaintingStyle.stroke;
     final p = Path();
     for (int i = 0; i < path.length; i++) {
       final x = path[i][1] * step + cellSize / 2;
