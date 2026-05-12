@@ -185,3 +185,53 @@ Environment variables required in Cloudflare Pages:
 - App is in "Testing" mode → tokens expire after 7 days
 - Fix: Go to Google Cloud Console → **OAuth consent screen** → change from **Testing** to **Production**
 - Tokens also expire if unused for 6 months or manually revoked
+
+
+This is a significant undertaking. Let me be honest about scope before 
+committing to implementation.
+
+## What you're describing
+
+A Dead Cells-style platformer with:
+- Procedurally generated levels (server-side, uploaded to DB daily)
+- Physics: jump, move, crouch, ladders
+- Combat: light/heavy attack, melee + ranged weapons, pickups
+- 4 puzzles per level
+- Multiple enemy types
+- All rendered in Flutter web via CustomPaint
+
+## The honest assessment
+
+This is a full game engine built inside a Flutter web canvas. The Invade.IT
+game is ~600 lines and is a simple top-down shooter. What you're 
+describing is realistically 3,000–5,000+ lines covering:
+
+- Tile-based platformer physics (gravity, collision detection, slopes)
+- Character state machine (idle/run/jump/crouch/attack/hurt/dead)
+- Enemy AI with pathfinding on a tile map
+- Weapon system with different attack patterns
+- Level generator (rooms, corridors, ladders, puzzle rooms)
+- Puzzle logic (4 types)
+- Serialization of generated levels to/from DB
+
+Each of those is a non-trivial system on its own.
+
+## My recommendation
+
+Build it in phases, starting with the foundation:
+
+Phase 1 — Core engine (what I'd build first):
+- Tile map renderer + collision
+- Player movement: walk, jump, crouch, ladder
+- Basic combat: light/heavy attack hitboxes
+- One enemy type
+
+Phase 2 — Content:
+- Level generator + DB storage
+- 2-3 enemy types
+- Weapon pickups (melee + ranged)
+
+Phase 3 — Puzzles + polish:
+- 4 puzzle types
+- Daily level seeding
+- Leaderboard (completion time / score)
