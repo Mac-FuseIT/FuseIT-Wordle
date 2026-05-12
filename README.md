@@ -176,7 +176,7 @@ Environment variables required in Cloudflare Pages:
 **2. Get Refresh Token** (repeat this when the token expires/is revoked):
 1. Go to [OAuth Playground](https://developers.google.com/oauthplayground)
 2. Click ⚙️ gear icon → check **"Use your own OAuth credentials"** → enter your Client ID and Secret → close
-3. In the left panel, find **Gmail API v1** → select `https://mail.google.com/` → click **"Authorize APIs"**
+3. In the left panel, find **Gmail API v1** → select `https://www.googleapis.com/auth/gmail.send` → click **"Authorize APIs"**
 4. Sign in with your Gmail account and grant access
 5. **Immediately** click **"Exchange authorization code for tokens"** (codes expire in ~10 minutes)
 6. Copy the **Refresh token** → update `GMAIL_REFRESH_TOKEN` in Cloudflare Pages environment variables
