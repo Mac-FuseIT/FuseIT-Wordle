@@ -46,13 +46,16 @@ class ChessBoardWidget extends StatelessWidget {
     return LayoutBuilder(builder: (context, constraints) {
       final size = (constraints.maxWidth.clamp(0, 400)).toDouble();
       final squareSize = size / 8;
+      final isWhiteTurn = game.turn == chess.Color.WHITE;
 
-      return SizedBox(
-        width: size, height: size,
-        child: Column(
-          children: List.generate(8, (row) {
-            return Row(
-              children: List.generate(8, (col) {
+      return Stack(
+        children: [
+          SizedBox(
+            width: size, height: size,
+            child: Column(
+              children: List.generate(8, (row) {
+                return Row(
+                  children: List.generate(8, (col) {
                 final square = '${_files[col]}${_ranks[row]}';
                 final isLight = (row + col) % 2 == 0;
                 final isSelected = square == selectedSquare;
@@ -102,6 +105,31 @@ class ChessBoardWidget extends StatelessWidget {
             );
           }),
         ),
+          ),
+          // Turn indicator: thin glow on the edge of whose turn it is
+          Positioned(
+            left: 0, right: 0,
+            top: isWhiteTurn ? null : 0,
+            bottom: isWhiteTurn ? 0 : null,
+            height: 3,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: isWhiteTurn ? Alignment.bottomCenter : Alignment.topCenter,
+                  end: isWhiteTurn ? Alignment.topCenter : Alignment.bottomCenter,
+                  colors: [theme.correct, theme.correct.withValues(alpha: 0)],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: theme.correct.withValues(alpha: 0.8),
+                    blurRadius: 6,
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       );
     });
   }
