@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import '../models/app_theme.dart';
 
 class MainMenuScreen extends StatelessWidget {
@@ -9,6 +10,7 @@ class MainMenuScreen extends StatelessWidget {
   final VoidCallback onGramIT;
   final VoidCallback onPongIT;
   final VoidCallback onInvadeIT;
+  final VoidCallback onChessIT;
   final VoidCallback onProfile;
   final VoidCallback onLogout;
 
@@ -21,6 +23,7 @@ class MainMenuScreen extends StatelessWidget {
     required this.onGramIT,
     required this.onPongIT,
     required this.onInvadeIT,
+    required this.onChessIT,
     required this.onProfile,
     required this.onLogout,
   });
@@ -75,9 +78,11 @@ class MainMenuScreen extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _GameCard(title: 'Pong.IT', subtitle: 'Classic pong', icon: Icons.sports_esports, color: theme.present, onTap: onPongIT),
-                const SizedBox(width: 16),
+                // _GameCard(title: 'Pong.IT', subtitle: 'Classic pong', icon: Icons.sports_esports, color: theme.present, onTap: onPongIT),
+                // const SizedBox(width: 16),
                 _GameCard(title: 'Invade.IT', subtitle: 'Space invaders', icon: Icons.rocket_launch, color: theme.correct, onTap: onInvadeIT),
+                const SizedBox(width: 16),
+                _GameCard(title: 'Chess.IT', subtitle: 'Daily chess bot', icon: Symbols.chess_knight_rounded, color: theme.present, fill: 1, onTap: onChessIT),
               ],
             ),
             const SizedBox(height: 48),
@@ -116,9 +121,10 @@ class _GameCard extends StatelessWidget {
   final String subtitle;
   final IconData icon;
   final Color color;
+  final double? fill;
   final VoidCallback onTap;
 
-  const _GameCard({required this.title, required this.subtitle, required this.icon, required this.color, required this.onTap});
+  const _GameCard({required this.title, required this.subtitle, required this.icon, required this.color, this.fill, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -134,7 +140,7 @@ class _GameCard extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: color, size: 40),
+            Icon(icon, color: color, size: 40, fill: fill),
             const SizedBox(height: 12),
             Text(title, style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),

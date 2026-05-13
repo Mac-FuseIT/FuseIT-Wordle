@@ -139,6 +139,39 @@ class ApiService {
     );
   }
 
+  // Chess.IT
+  static Future<Map<String, dynamic>> getChessToday() async {
+    await _loadToken();
+    final res = await http.get(Uri.parse('$baseUrl/api/chess/today'), headers: _authHeaders);
+    return jsonDecode(res.body);
+  }
+
+  static Future<bool> submitChessResult(bool won, int moves, int redosUsed, List<String> moveHistory, String fen) async {
+    await _loadToken();
+    final res = await http.post(
+      Uri.parse('$baseUrl/api/chess/submit'),
+      headers: _authHeaders,
+      body: jsonEncode({'won': won, 'moves': moves, 'redosUsed': redosUsed, 'moveHistory': moveHistory, 'fen': fen}),
+    );
+    return res.statusCode == 200;
+  }
+
+  static Future<bool> saveChessSession(String fen, List<String> moveHistory, int moveCount, int redosUsed) async {
+    await _loadToken();
+    final res = await http.post(
+      Uri.parse('$baseUrl/api/chess/save'),
+      headers: _authHeaders,
+      body: jsonEncode({'fen': fen, 'moveHistory': moveHistory, 'moveCount': moveCount, 'redosUsed': redosUsed}),
+    );
+    return res.statusCode == 200;
+  }
+
+  static Future<Map<String, dynamic>> getChessLeaderboard() async {
+    await _loadToken();
+    final res = await http.get(Uri.parse('$baseUrl/api/chess/leaderboard'), headers: _authHeaders);
+    return jsonDecode(res.body);
+  }
+
   static List<GuessResult> parseGuesses(List<dynamic> raw) {
     return raw.map((g) => GuessResult.fromJson(g as Map<String, dynamic>)).toList();
   }

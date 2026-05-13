@@ -38,6 +38,8 @@ dependencies:
   shared_preferences: ^2.5.5
   flutter_svg: ^2.2.4
   web_socket_channel: ^3.0.1
+  chess: ^0.8.1
+  material_symbols_icons: ^4.2815.0
 
 dev_dependencies:
   flutter_test:

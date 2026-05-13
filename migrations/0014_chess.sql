@@ -1,0 +1,11 @@
+CREATE TABLE IF NOT EXISTS chess_games (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  date TEXT NOT NULL,
+  bot_level INTEGER NOT NULL,
+  won INTEGER NOT NULL DEFAULT 0,
+  moves INTEGER,
+  redos_used INTEGER NOT NULL DEFAULT 0,
+  completed_at TEXT,
+  UNIQUE(user_id, date)
+);
