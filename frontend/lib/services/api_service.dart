@@ -172,6 +172,39 @@ class ApiService {
     return jsonDecode(res.body);
   }
 
+  // Phantom Chess.IT
+  static Future<Map<String, dynamic>> getPhantomChessToday() async {
+    await _loadToken();
+    final res = await http.get(Uri.parse('$baseUrl/api/phantom-chess/today'), headers: _authHeaders);
+    return jsonDecode(res.body);
+  }
+
+  static Future<bool> submitPhantomChessResult(bool won, int moves, int redosUsed, List<String> moveHistory) async {
+    await _loadToken();
+    final res = await http.post(
+      Uri.parse('$baseUrl/api/phantom-chess/submit'),
+      headers: _authHeaders,
+      body: jsonEncode({'won': won, 'moves': moves, 'redosUsed': redosUsed, 'moveHistory': moveHistory}),
+    );
+    return res.statusCode == 200;
+  }
+
+  static Future<bool> savePhantomChessSession(String fen, List<String> moveHistory, int moveCount, int redosUsed) async {
+    await _loadToken();
+    final res = await http.post(
+      Uri.parse('$baseUrl/api/phantom-chess/save'),
+      headers: _authHeaders,
+      body: jsonEncode({'fen': fen, 'moveHistory': moveHistory, 'moveCount': moveCount, 'redosUsed': redosUsed}),
+    );
+    return res.statusCode == 200;
+  }
+
+  static Future<Map<String, dynamic>> getPhantomChessLeaderboard() async {
+    await _loadToken();
+    final res = await http.get(Uri.parse('$baseUrl/api/phantom-chess/leaderboard'), headers: _authHeaders);
+    return jsonDecode(res.body);
+  }
+
   static List<GuessResult> parseGuesses(List<dynamic> raw) {
     return raw.map((g) => GuessResult.fromJson(g as Map<String, dynamic>)).toList();
   }

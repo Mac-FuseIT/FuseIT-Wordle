@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:chess/chess.dart' as chess;
 import 'package:material_symbols_icons/symbols.dart';
 import '../models/app_theme.dart';
+import '../services/api_service.dart';
 import '../widgets/help_dialog.dart';
 import 'chess_ai.dart';
 import 'chess_board_widget.dart';
@@ -29,9 +30,11 @@ List<String> _getDailyPhantomSquares(String dateStr) {
 class PhantomGameScreen extends StatefulWidget {
   final int botLevel;
   final AppTheme theme;
+  final Map<String, dynamic>? session;
+  final Future<void> Function(bool won, int moves, int redosUsed, List<String> moveHistory) onFinish;
   final VoidCallback onBack;
 
-  const PhantomGameScreen({super.key, required this.botLevel, required this.theme, required this.onBack});
+  const PhantomGameScreen({super.key, required this.botLevel, required this.theme, this.session, required this.onFinish, required this.onBack});
 
   @override
   State<PhantomGameScreen> createState() => _PhantomGameScreenState();
@@ -63,7 +66,6 @@ class _PhantomGameScreenState extends State<PhantomGameScreen> {
   @override
   void initState() {
     super.initState();
-    _game = chess.Chess();
     _ai = ChessAI(widget.botLevel);
 
     // Determine today's phantom pieces
@@ -71,8 +73,23 @@ class _PhantomGameScreenState extends State<PhantomGameScreen> {
     final dateStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
     _phantomTypes = _getDailyPhantomSquares(dateStr);
 
-    // Show help on first frame
-    WidgetsBinding.instance.addPostFrameCallback((_) => _showPhantomHelp());
+    if (widget.session != null) {
+      final fen = widget.session!['fen'] as String;
+      _game = chess.Chess.fromFEN(fen);
+      _moveHistory = List<String>.from(widget.session!['moveHistory'] ?? []);
+      _moveCount = widget.session!['moveCount'] ?? 0;
+      _redosUsed = widget.session!['redosUsed'] ?? 0;
+      _redosLeft = 4 - _redosUsed;
+      _rebuildPhantomState();
+    } else {
+      _game = chess.Chess();
+    }
+    _checkGameEnd();
+
+    // Show help on first frame only for new games
+    if (widget.session == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _showPhantomHelp());
+    }
   }
 
   void _showPhantomHelp() {
@@ -296,6 +313,8 @@ class _PhantomGameScreenState extends State<PhantomGameScreen> {
     _checkGameEnd();
     if (!_gameOver) {
       Future.delayed(const Duration(milliseconds: 300), _makeBotMove);
+    } else {
+      _saveSession();
     }
   }
 
@@ -337,6 +356,8 @@ class _PhantomGameScreenState extends State<PhantomGameScreen> {
     _checkGameEnd();
     if (!_gameOver) {
       Future.delayed(const Duration(milliseconds: 300), _makeBotMove);
+    } else {
+      _saveSession();
     }
   }
 
@@ -396,6 +417,7 @@ class _PhantomGameScreenState extends State<PhantomGameScreen> {
 
       setState(() {});
       _checkGameEnd();
+      _saveSession();
     }
   }
 
@@ -512,6 +534,23 @@ class _PhantomGameScreenState extends State<PhantomGameScreen> {
     return false;
   }
 
+  bool _submitting = false;
+
+  Future<void> _saveSession() async {
+    if (_gameOver) return;
+    await ApiService.savePhantomChessSession(_game.fen, _moveHistory, _moveCount, _redosUsed);
+  }
+
+  Future<void> _submit() async {
+    setState(() => _submitting = true);
+    await widget.onFinish(_playerWon, _moveCount, _redosUsed, _moveHistory);
+  }
+
+  void _handleBack() {
+    if (!_gameOver) _saveSession();
+    widget.onBack();
+  }
+
   @override
   Widget build(BuildContext context) {
     final displayGame = _displayGame;
@@ -521,7 +560,7 @@ class _PhantomGameScreenState extends State<PhantomGameScreen> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(children: [
-            IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: widget.onBack),
+            IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: _handleBack),
             const Text('Phantom Chess', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
             const Spacer(),
             IconButton(icon: const Icon(Icons.help_outline, color: Colors.white70), onPressed: _showPhantomHelp),
@@ -671,6 +710,17 @@ class _PhantomGameScreenState extends State<PhantomGameScreen> {
                         _playerWon ? 'You won in $_moveCount moves! ✓' : 'You lost ✗',
                         style: TextStyle(color: _playerWon ? widget.theme.correct : Colors.redAccent, fontSize: 18, fontWeight: FontWeight.bold),
                       ),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _submitting ? null : _submit,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: widget.theme.correct,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: _submitting
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : const Text('Submit Result', style: TextStyle(color: Colors.white)),
                     ),
                   const SizedBox(height: 16),
                 ],

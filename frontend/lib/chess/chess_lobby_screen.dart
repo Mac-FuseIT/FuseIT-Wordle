@@ -26,8 +26,16 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
   int? _moves;
   int _botLevel = 800;
   Map<String, dynamic>? _session;
+  bool _phantomPlayed = false;
+  bool? _phantomWon;
+  int? _phantomMoves;
+  int _phantomBotLevel = 400;
+  Map<String, dynamic>? _phantomSession;
+  bool _showPhantomLb = false;
   List<Map<String, dynamic>> _daily = [];
   List<Map<String, dynamic>> _history = [];
+  List<Map<String, dynamic>> _phantomDaily = [];
+  List<Map<String, dynamic>> _phantomHistory = [];
 
   @override
   void initState() {
@@ -39,6 +47,10 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
     try {
       final today = await ApiService.getChessToday();
       final lb = await ApiService.getChessLeaderboard();
+      Map<String, dynamic> pToday = {};
+      Map<String, dynamic> pLb = {};
+      try { pToday = await ApiService.getPhantomChessToday(); } catch (_) {}
+      try { pLb = await ApiService.getPhantomChessLeaderboard(); } catch (_) {}
       if (mounted) setState(() {
         _botLevel = today['botLevel'] ?? 800;
         _played = today['played'] ?? false;
@@ -47,6 +59,13 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
         _session = today['session'];
         _daily = List<Map<String, dynamic>>.from(lb['daily'] ?? []);
         _history = List<Map<String, dynamic>>.from(lb['history'] ?? []);
+        _phantomBotLevel = pToday['botLevel'] ?? (_botLevel ~/ 2);
+        _phantomPlayed = pToday['played'] ?? false;
+        _phantomWon = pToday['won'] == null ? null : (pToday['won'] == 1 || pToday['won'] == true);
+        _phantomMoves = pToday['moves'];
+        _phantomSession = pToday['session'];
+        _phantomDaily = List<Map<String, dynamic>>.from(pLb['daily'] ?? []);
+        _phantomHistory = List<Map<String, dynamic>>.from(pLb['history'] ?? []);
         _loading = false;
       });
     } catch (_) {
@@ -58,9 +77,15 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
   Widget build(BuildContext context) {
     if (_playingPhantom) {
       return PhantomGameScreen(
-        botLevel: (_botLevel / 2).round(),
+        botLevel: _phantomBotLevel,
         theme: widget.theme,
-        onBack: () => setState(() => _playingPhantom = false),
+        session: _phantomSession,
+        onFinish: (won, moves, redos, moveHistory) async {
+          await ApiService.submitPhantomChessResult(won, moves, redos, moveHistory);
+          setState(() { _playingPhantom = false; });
+          _load();
+        },
+        onBack: () => setState(() { _playingPhantom = false; _load(); }),
       );
     }
 
@@ -165,27 +190,65 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
                             ),
                           ),
                           const SizedBox(height: 12),
-                          SizedBox(
-                            width: double.infinity, height: 44,
-                            child: ElevatedButton.icon(
-                              onPressed: () => setState(() => _playingPhantom = true),
-                              icon: const Icon(Icons.visibility_off, size: 18),
-                              label: Text('Phantom Chess (${(_botLevel / 2).round()} ELO)', style: const TextStyle(fontSize: 16, color: Colors.white)),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: widget.theme.present,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          if (_phantomPlayed)
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1A1A1B),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: _phantomWon == true ? widget.theme.correct : Colors.redAccent),
+                              ),
+                              child: Row(children: [
+                                const Icon(Icons.visibility_off, size: 18, color: Colors.white70),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _phantomWon == true ? 'Phantom: Won in $_phantomMoves moves ✓' : 'Phantom: Lost ✗',
+                                  style: TextStyle(color: _phantomWon == true ? widget.theme.correct : Colors.redAccent, fontWeight: FontWeight.bold),
+                                ),
+                              ]),
+                            )
+                          else
+                            SizedBox(
+                              width: double.infinity, height: 44,
+                              child: ElevatedButton.icon(
+                                onPressed: () => setState(() => _playingPhantom = true),
+                                icon: const Icon(Icons.visibility_off, size: 18),
+                                label: Text(_phantomSession != null ? 'Continue Phantom ($_phantomBotLevel ELO)' : 'Phantom Chess ($_phantomBotLevel ELO)', style: const TextStyle(fontSize: 16, color: Colors.white)),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: widget.theme.present,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
                               ),
                             ),
-                          ),
                           const SizedBox(height: 32),
                           const Divider(color: Color(0xFF3A3A3C)),
                           const SizedBox(height: 16),
-                          const Text('Today\'s Leaderboard', style: TextStyle(color: Colors.grey, fontSize: 14)),
+                          // Toggle between normal and phantom leaderboard
+                          Row(children: [
+                            GestureDetector(
+                              onTap: () => setState(() => _showPhantomLb = false),
+                              child: Text('Normal', style: TextStyle(
+                                color: !_showPhantomLb ? widget.theme.correct : Colors.grey,
+                                fontWeight: !_showPhantomLb ? FontWeight.bold : FontWeight.normal, fontSize: 14,
+                              )),
+                            ),
+                            const SizedBox(width: 16),
+                            GestureDetector(
+                              onTap: () => setState(() => _showPhantomLb = true),
+                              child: Text('Phantom', style: TextStyle(
+                                color: _showPhantomLb ? widget.theme.present : Colors.grey,
+                                fontWeight: _showPhantomLb ? FontWeight.bold : FontWeight.normal, fontSize: 14,
+                              )),
+                            ),
+                          ]),
                           const SizedBox(height: 12),
-                          if (_daily.isEmpty)
+                          Text("Today's Leaderboard", style: TextStyle(color: Colors.grey, fontSize: 14)),
+                          const SizedBox(height: 12),
+                          if ((_showPhantomLb ? _phantomDaily : _daily).isEmpty)
                             const Text('No games yet today.', style: TextStyle(color: Colors.grey, fontSize: 14))
                           else
-                            ..._daily.asMap().entries.map((entry) {
+                            ...(_showPhantomLb ? _phantomDaily : _daily).asMap().entries.map((entry) {
                               final i = entry.key;
                               final row = entry.value;
                               final won = row['won'] == true;
@@ -209,13 +272,13 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
                                 ]),
                               );
                             }),
-                          if (_history.isNotEmpty) ...[
+                          if ((_showPhantomLb ? _phantomHistory : _history).isNotEmpty) ...[
                             const SizedBox(height: 24),
                             const Divider(color: Color(0xFF3A3A3C)),
                             const SizedBox(height: 16),
                             const Text('Your History', style: TextStyle(color: Colors.grey, fontSize: 14)),
                             const SizedBox(height: 12),
-                            ..._history.map((row) {
+                            ...(_showPhantomLb ? _phantomHistory : _history).map((row) {
                               final won = row['won'] == 1 || row['won'] == true;
                               return Container(
                                 margin: const EdgeInsets.only(bottom: 6),
