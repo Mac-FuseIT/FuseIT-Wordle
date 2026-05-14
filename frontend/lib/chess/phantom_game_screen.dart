@@ -888,20 +888,23 @@ class _PhantomBoardWidget extends StatelessWidget {
           Positioned(
             left: 0, right: 0,
             top: isBottomTurn ? null : 0,
-            bottom: isWhiteTurn ? 0 : null,
+            bottom: isBottomTurn ? 0 : null,
             height: 3,
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: isBottomTurn ? Alignment.bottomCenter : Alignment.topCenter,
-                  end: isWhiteTurn ? Alignment.topCenter : Alignment.bottomCenter,
-                  colors: [theme.correct, theme.correct.withValues(alpha: 0)],
+            child: Builder(builder: (_) {
+              final glowColor = game.in_check ? Colors.redAccent : theme.correct;
+              return Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: isBottomTurn ? Alignment.bottomCenter : Alignment.topCenter,
+                    end: isBottomTurn ? Alignment.topCenter : Alignment.bottomCenter,
+                    colors: [glowColor, glowColor.withValues(alpha: 0)],
+                  ),
+                  boxShadow: [
+                    BoxShadow(color: glowColor.withValues(alpha: 0.8), blurRadius: 6, spreadRadius: 1),
+                  ],
                 ),
-                boxShadow: [
-                  BoxShadow(color: theme.correct.withValues(alpha: 0.8), blurRadius: 6, spreadRadius: 1),
-                ],
-              ),
-            ),
+              );
+            }),
           ),
         ],
       );
