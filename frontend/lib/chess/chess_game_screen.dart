@@ -10,10 +10,11 @@ class ChessGameScreen extends StatefulWidget {
   final int botLevel;
   final AppTheme theme;
   final Map<String, dynamic>? session;
+  final String playerColor; // 'white' or 'black'
   final Future<void> Function(bool won, int moves, int redosUsed, List<String> moveHistory, String fen) onFinish;
   final VoidCallback onBack;
 
-  const ChessGameScreen({super.key, required this.botLevel, required this.theme, this.session, required this.onFinish, required this.onBack});
+  const ChessGameScreen({super.key, required this.botLevel, required this.theme, this.session, this.playerColor = 'white', required this.onFinish, required this.onBack});
 
   @override
   State<ChessGameScreen> createState() => _ChessGameScreenState();
@@ -34,10 +35,13 @@ class _ChessGameScreenState extends State<ChessGameScreen> {
   // History viewing: null means viewing current (latest) position
   int? _viewingIndex;
 
+  late chess.Color _playerSide;
+
   @override
   void initState() {
     super.initState();
     _ai = ChessAI(widget.botLevel);
+    _playerSide = widget.playerColor == 'black' ? chess.Color.BLACK : chess.Color.WHITE;
 
     if (widget.session != null) {
       final fen = widget.session!['fen'] as String;
@@ -48,6 +52,10 @@ class _ChessGameScreenState extends State<ChessGameScreen> {
       _redosLeft = 2 - _redosUsed;
     } else {
       _game = chess.Chess();
+      // If player is black, bot moves first
+      if (_playerSide == chess.Color.BLACK) {
+        Future.delayed(const Duration(milliseconds: 300), _makeBotMove);
+      }
     }
     _checkGameEnd();
   }
@@ -78,18 +86,18 @@ class _ChessGameScreenState extends State<ChessGameScreen> {
   }
 
   void _onSquareTap(String square) {
-    if (_gameOver || _game.turn != chess.Color.WHITE) return;
+    if (_gameOver || _game.turn != _playerSide) return;
 
     // If viewing history with redos available, allow playing from that point
     if (_isViewingHistory) {
       if (_redosLeft <= 0) return; // can't play from history without redos
       // Select piece at the viewed position
       final viewGame = _displayGame;
-      if (viewGame.turn != chess.Color.WHITE) return;
+      if (viewGame.turn != _playerSide) return;
 
       if (_selectedSquare == null) {
         final piece = viewGame.get(square);
-        if (piece != null && piece.color == chess.Color.WHITE) {
+        if (piece != null && piece.color == _playerSide) {
           final moves = viewGame.moves({'square': square, 'verbose': true});
           setState(() {
             _selectedSquare = square;
@@ -102,7 +110,7 @@ class _ChessGameScreenState extends State<ChessGameScreen> {
         _playFromHistory(_selectedSquare!, square);
       } else {
         final piece = viewGame.get(square);
-        if (piece != null && piece.color == chess.Color.WHITE) {
+        if (piece != null && piece.color == _playerSide) {
           final moves = viewGame.moves({'square': square, 'verbose': true});
           setState(() {
             _selectedSquare = square;
@@ -117,7 +125,7 @@ class _ChessGameScreenState extends State<ChessGameScreen> {
 
     if (_selectedSquare == null) {
       final piece = _game.get(square);
-      if (piece != null && piece.color == chess.Color.WHITE) {
+      if (piece != null && piece.color == _playerSide) {
         final moves = _game.moves({'square': square, 'verbose': true});
         setState(() {
           _selectedSquare = square;
@@ -130,7 +138,7 @@ class _ChessGameScreenState extends State<ChessGameScreen> {
       _makePlayerMove(_selectedSquare!, square);
     } else {
       final piece = _game.get(square);
-      if (piece != null && piece.color == chess.Color.WHITE) {
+      if (piece != null && piece.color == _playerSide) {
         final moves = _game.moves({'square': square, 'verbose': true});
         setState(() {
           _selectedSquare = square;
@@ -269,7 +277,7 @@ class _ChessGameScreenState extends State<ChessGameScreen> {
   }
 
   bool get _playerWon {
-    if (_game.in_checkmate) return _game.turn == chess.Color.BLACK;
+    if (_game.in_checkmate) return _game.turn != _playerSide;
     return false;
   }
 
@@ -335,19 +343,21 @@ class _ChessGameScreenState extends State<ChessGameScreen> {
                     constraints: const BoxConstraints(maxWidth: 400),
                     child: Builder(builder: (context) {
                       final captured = _getCapturedPieces(displayGame);
+                      final isFlipped = _playerSide == chess.Color.BLACK;
                       return Column(
                         children: [
-                          // Black pieces captured by bot (shown on bot's side, top)
-                          _CapturedRow(pieces: captured.whiteCaptured, theme: widget.theme, isWhite: true),
+                          // Top: opponent's captured pieces
+                          _CapturedRow(pieces: isFlipped ? captured.blackCaptured : captured.whiteCaptured, theme: widget.theme, isWhite: !isFlipped),
                           ChessBoardWidget(
                           game: displayGame,
                           selectedSquare: _selectedSquare,
                           legalDestinations: _isViewingHistory && _redosLeft > 0 ? _legalDestinations : (_isViewingHistory ? [] : _legalDestinations),
                           onSquareTap: _onSquareTap,
                           theme: widget.theme,
+                          flipped: isFlipped,
                         ),
-                        // White pieces captured by player (shown on player's side, bottom)
-                        _CapturedRow(pieces: captured.blackCaptured, theme: widget.theme, isWhite: false),
+                        // Bottom: player's captured pieces
+                        _CapturedRow(pieces: isFlipped ? captured.whiteCaptured : captured.blackCaptured, theme: widget.theme, isWhite: isFlipped),
                         const SizedBox(height: 8),
                         // Move history bar
                         if (_moveHistory.isNotEmpty)

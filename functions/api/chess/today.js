@@ -13,12 +13,24 @@ function getDailyBotLevel(dateStr) {
   return 100 + (h % 1401);
 }
 
+function getDailyPlayerColor(dateStr) {
+  let h = 0xbaadf00d;
+  const s = 'color:' + dateStr;
+  for (let i = 0; i < s.length; i++) {
+    h = Math.imul(h ^ s.charCodeAt(i), 2654435761);
+    h = (h << 13) | (h >>> 19);
+  }
+  h = (h ^ (h >>> 16)) >>> 0;
+  return h % 2 === 0 ? 'white' : 'black';
+}
+
 export async function onRequestGet({ request, env }) {
   const auth = await requireAuth(request, env);
   if (!auth) return errorResponse('Unauthorized', 401);
 
   const date = getToday();
   const botLevel = getDailyBotLevel(date);
+  const playerColor = getDailyPlayerColor(date);
 
   const completed = await env.DB.prepare(
     'SELECT won, moves, redos_used FROM chess_games WHERE user_id = ? AND date = ?'
@@ -31,6 +43,7 @@ export async function onRequestGet({ request, env }) {
   return new Response(JSON.stringify({
     date,
     botLevel,
+    playerColor,
     played: !!completed,
     won: completed?.won ?? null,
     moves: completed?.moves ?? null,

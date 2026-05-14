@@ -9,6 +9,7 @@ class ChessBoardWidget extends StatelessWidget {
   final List<String> legalDestinations;
   final void Function(String square) onSquareTap;
   final AppTheme theme;
+  final bool flipped;
 
   const ChessBoardWidget({
     super.key,
@@ -17,10 +18,13 @@ class ChessBoardWidget extends StatelessWidget {
     required this.legalDestinations,
     required this.onSquareTap,
     required this.theme,
+    this.flipped = false,
   });
 
   static const _files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
   static const _ranks = ['8', '7', '6', '5', '4', '3', '2', '1'];
+  static const _filesFlipped = ['h', 'g', 'f', 'e', 'd', 'c', 'b', 'a'];
+  static const _ranksFlipped = ['1', '2', '3', '4', '5', '6', '7', '8'];
 
   // These need fill: 1
   static const _pawnIcon = Symbols.chess_pawn;
@@ -47,6 +51,7 @@ class ChessBoardWidget extends StatelessWidget {
       final size = (constraints.maxWidth.clamp(0, 400)).toDouble();
       final squareSize = size / 8;
       final isWhiteTurn = game.turn == chess.Color.WHITE;
+      final isBottomTurn = flipped ? !isWhiteTurn : isWhiteTurn;
 
       return Stack(
         children: [
@@ -56,7 +61,9 @@ class ChessBoardWidget extends StatelessWidget {
               children: List.generate(8, (row) {
                 return Row(
                   children: List.generate(8, (col) {
-                final square = '${_files[col]}${_ranks[row]}';
+                final files = flipped ? _filesFlipped : _files;
+                final ranks = flipped ? _ranksFlipped : _ranks;
+                final square = '${files[col]}${ranks[row]}';
                 final isLight = (row + col) % 2 == 0;
                 final isSelected = square == selectedSquare;
                 final isLegal = legalDestinations.contains(square);
@@ -109,14 +116,14 @@ class ChessBoardWidget extends StatelessWidget {
           // Turn indicator: thin glow on the edge of whose turn it is
           Positioned(
             left: 0, right: 0,
-            top: isWhiteTurn ? null : 0,
-            bottom: isWhiteTurn ? 0 : null,
+            top: isBottomTurn ? null : 0,
+            bottom: isBottomTurn ? 0 : null,
             height: 3,
             child: Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  begin: isWhiteTurn ? Alignment.bottomCenter : Alignment.topCenter,
-                  end: isWhiteTurn ? Alignment.topCenter : Alignment.bottomCenter,
+                  begin: isBottomTurn ? Alignment.bottomCenter : Alignment.topCenter,
+                  end: isBottomTurn ? Alignment.topCenter : Alignment.bottomCenter,
                   colors: [theme.correct, theme.correct.withValues(alpha: 0)],
                 ),
                 boxShadow: [

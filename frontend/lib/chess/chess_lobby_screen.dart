@@ -26,11 +26,13 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
   int? _moves;
   int _botLevel = 800;
   Map<String, dynamic>? _session;
+  String _playerColor = 'white';
   bool _phantomPlayed = false;
   bool? _phantomWon;
   int? _phantomMoves;
   int _phantomBotLevel = 400;
   Map<String, dynamic>? _phantomSession;
+  String _phantomPlayerColor = 'white';
   bool _showPhantomLb = false;
   List<Map<String, dynamic>> _daily = [];
   List<Map<String, dynamic>> _history = [];
@@ -57,6 +59,7 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
         _won = today['won'] == null ? null : (today['won'] == 1 || today['won'] == true);
         _moves = today['moves'];
         _session = today['session'];
+        _playerColor = today['playerColor'] ?? 'white';
         _daily = List<Map<String, dynamic>>.from(lb['daily'] ?? []);
         _history = List<Map<String, dynamic>>.from(lb['history'] ?? []);
         _phantomBotLevel = pToday['botLevel'] ?? (_botLevel ~/ 2);
@@ -64,6 +67,7 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
         _phantomWon = pToday['won'] == null ? null : (pToday['won'] == 1 || pToday['won'] == true);
         _phantomMoves = pToday['moves'];
         _phantomSession = pToday['session'];
+        _phantomPlayerColor = pToday['playerColor'] ?? 'white';
         _phantomDaily = List<Map<String, dynamic>>.from(pLb['daily'] ?? []);
         _phantomHistory = List<Map<String, dynamic>>.from(pLb['history'] ?? []);
         _loading = false;
@@ -80,6 +84,7 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
         botLevel: _phantomBotLevel,
         theme: widget.theme,
         session: _phantomSession,
+        playerColor: _phantomPlayerColor,
         onFinish: (won, moves, redos, moveHistory) async {
           await ApiService.submitPhantomChessResult(won, moves, redos, moveHistory);
           setState(() { _playingPhantom = false; });
@@ -94,6 +99,7 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
         botLevel: _botLevel,
         theme: widget.theme,
         session: _session,
+        playerColor: _playerColor,
         onFinish: (won, moves, redos, moveHistory, fen) async {
           await ApiService.submitChessResult(won, moves, redos, moveHistory, fen);
           setState(() { _playing = false; });

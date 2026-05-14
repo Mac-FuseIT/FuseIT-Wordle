@@ -31,10 +31,11 @@ class PhantomGameScreen extends StatefulWidget {
   final int botLevel;
   final AppTheme theme;
   final Map<String, dynamic>? session;
+  final String playerColor;
   final Future<void> Function(bool won, int moves, int redosUsed, List<String> moveHistory) onFinish;
   final VoidCallback onBack;
 
-  const PhantomGameScreen({super.key, required this.botLevel, required this.theme, this.session, required this.onFinish, required this.onBack});
+  const PhantomGameScreen({super.key, required this.botLevel, required this.theme, this.session, this.playerColor = 'white', required this.onFinish, required this.onBack});
 
   @override
   State<PhantomGameScreen> createState() => _PhantomGameScreenState();
@@ -63,10 +64,13 @@ class _PhantomGameScreenState extends State<PhantomGameScreen> {
   int? _blackGhostSquare;
   chess.PieceType? _blackGhostType;
 
+  late chess.Color _playerSide;
+
   @override
   void initState() {
     super.initState();
     _ai = ChessAI(widget.botLevel);
+    _playerSide = widget.playerColor == 'black' ? chess.Color.BLACK : chess.Color.WHITE;
 
     // Determine today's phantom pieces
     final now = DateTime.now();
@@ -83,6 +87,9 @@ class _PhantomGameScreenState extends State<PhantomGameScreen> {
       _rebuildPhantomState();
     } else {
       _game = chess.Chess();
+      if (_playerSide == chess.Color.BLACK) {
+        Future.delayed(const Duration(milliseconds: 300), _makeBotMove);
+      }
     }
     _checkGameEnd();
 
@@ -169,17 +176,17 @@ class _PhantomGameScreenState extends State<PhantomGameScreen> {
   }
 
   void _onSquareTap(String square) {
-    if (_gameOver || _game.turn != chess.Color.WHITE) return;
+    if (_gameOver || _game.turn != _playerSide) return;
 
     // If viewing history, allow playing from that point if undos available
     if (_isViewingHistory) {
       if (_redosLeft <= 0) return;
       final viewGame = _displayGame;
-      if (viewGame.turn != chess.Color.WHITE) return;
+      if (viewGame.turn != _playerSide) return;
 
       if (_selectedSquare == null) {
         final piece = viewGame.get(square);
-        if (piece != null && piece.color == chess.Color.WHITE) {
+        if (piece != null && piece.color == _playerSide) {
           final moves = viewGame.moves({'square': square, 'verbose': true});
           setState(() {
             _selectedSquare = square;
@@ -192,7 +199,7 @@ class _PhantomGameScreenState extends State<PhantomGameScreen> {
         _playFromHistory(_selectedSquare!, square);
       } else {
         final piece = viewGame.get(square);
-        if (piece != null && piece.color == chess.Color.WHITE) {
+        if (piece != null && piece.color == _playerSide) {
           final moves = viewGame.moves({'square': square, 'verbose': true});
           setState(() {
             _selectedSquare = square;
@@ -207,7 +214,7 @@ class _PhantomGameScreenState extends State<PhantomGameScreen> {
 
     if (_selectedSquare == null) {
       final piece = _game.get(square);
-      if (piece != null && piece.color == chess.Color.WHITE) {
+      if (piece != null && piece.color == _playerSide) {
         final moves = _game.moves({'square': square, 'verbose': true});
         setState(() {
           _selectedSquare = square;
@@ -220,7 +227,7 @@ class _PhantomGameScreenState extends State<PhantomGameScreen> {
       _makePlayerMove(_selectedSquare!, square);
     } else {
       final piece = _game.get(square);
-      if (piece != null && piece.color == chess.Color.WHITE) {
+      if (piece != null && piece.color == _playerSide) {
         final moves = _game.moves({'square': square, 'verbose': true});
         setState(() {
           _selectedSquare = square;
@@ -530,7 +537,7 @@ class _PhantomGameScreenState extends State<PhantomGameScreen> {
   }
 
   bool get _playerWon {
-    if (_game.in_checkmate) return _game.turn == chess.Color.BLACK;
+    if (_game.in_checkmate) return _game.turn != _playerSide;
     return false;
   }
 
@@ -620,6 +627,8 @@ class _PhantomGameScreenState extends State<PhantomGameScreen> {
                             if (_whiteGhostSquare != null) _whiteGhostSquare!: _whiteGhostType!,
                             if (_blackGhostSquare != null) _blackGhostSquare!: _blackGhostType!,
                           },
+                          flipped: _playerSide == chess.Color.BLACK,
+                          playerSide: _playerSide,
                         ),
                         _buildCapturedRow(captured.blackCaptured, false),
                         const SizedBox(height: 8),
@@ -744,6 +753,8 @@ class _PhantomBoardWidget extends StatelessWidget {
   final List<String> phantomTypes;
   final bool isViewingHistory;
   final Map<int, chess.PieceType> ghostSquares;
+  final bool flipped;
+  final chess.Color playerSide;
 
   const _PhantomBoardWidget({
     required this.game,
@@ -755,10 +766,14 @@ class _PhantomBoardWidget extends StatelessWidget {
     required this.phantomTypes,
     required this.isViewingHistory,
     required this.ghostSquares,
+    this.flipped = false,
+    required this.playerSide,
   });
 
   static const _files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
   static const _ranks = ['8', '7', '6', '5', '4', '3', '2', '1'];
+  static const _filesFlipped = ['h', 'g', 'f', 'e', 'd', 'c', 'b', 'a'];
+  static const _ranksFlipped = ['1', '2', '3', '4', '5', '6', '7', '8'];
 
   static final _pieceIcons = {
     chess.PieceType.KING: Symbols.chess_king_sharp,
@@ -781,6 +796,7 @@ class _PhantomBoardWidget extends StatelessWidget {
       final size = (constraints.maxWidth.clamp(0, 400)).toDouble();
       final squareSize = size / 8;
       final isWhiteTurn = game.turn == chess.Color.WHITE;
+      final isBottomTurn = flipped ? !isWhiteTurn : isWhiteTurn;
 
       return Stack(
         children: [
@@ -790,7 +806,9 @@ class _PhantomBoardWidget extends StatelessWidget {
               children: List.generate(8, (row) {
                 return Row(
                   children: List.generate(8, (col) {
-                    final square = '${_files[col]}${_ranks[row]}';
+                    final files = flipped ? _filesFlipped : _files;
+                    final ranks = flipped ? _ranksFlipped : _ranks;
+                    final square = '${files[col]}${ranks[row]}';
                     final sqIdx = _squareToIndex(square);
                     final isLight = (row + col) % 2 == 0;
                     final isSelected = square == selectedSquare;
@@ -813,7 +831,7 @@ class _PhantomBoardWidget extends StatelessWidget {
 
                     // Is this a phantom-type piece that's still visible on the board?
                     final isPhantomType = piece != null && !isPhantom &&
-                        piece.color == chess.Color.WHITE &&
+                        piece.color == playerSide &&
                         phantomTypes.contains(piece.type.name);
 
                     return GestureDetector(
@@ -869,13 +887,13 @@ class _PhantomBoardWidget extends StatelessWidget {
           ),
           Positioned(
             left: 0, right: 0,
-            top: isWhiteTurn ? null : 0,
+            top: isBottomTurn ? null : 0,
             bottom: isWhiteTurn ? 0 : null,
             height: 3,
             child: Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  begin: isWhiteTurn ? Alignment.bottomCenter : Alignment.topCenter,
+                  begin: isBottomTurn ? Alignment.bottomCenter : Alignment.topCenter,
                   end: isWhiteTurn ? Alignment.topCenter : Alignment.bottomCenter,
                   colors: [theme.correct, theme.correct.withValues(alpha: 0)],
                 ),
