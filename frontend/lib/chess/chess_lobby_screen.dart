@@ -124,54 +124,32 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Today's bot info
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF1A1A1B),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: const Color(0xFF3A3A3C)),
-                            ),
-                            child: Row(children: [
-                              const Icon(Icons.smart_toy, color: Colors.white70, size: 20),
-                              const SizedBox(width: 8),
-                              Text("Today's Bot: $_botLevel ELO", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                            ]),
+                          // Game cards side by side
+                          Row(
+                            children: [
+                              Expanded(child: _buildGameCard(
+                                title: 'Normal',
+                                elo: _botLevel,
+                                played: _played,
+                                won: _won,
+                                moves: _moves,
+                                hasSession: _session != null,
+                                color: widget.theme.correct,
+                                onPlay: () => setState(() => _playing = true),
+                              )),
+                              const SizedBox(width: 12),
+                              Expanded(child: _buildGameCard(
+                                title: 'Phantom',
+                                elo: _phantomBotLevel,
+                                played: _phantomPlayed,
+                                won: _phantomWon,
+                                moves: _phantomMoves,
+                                hasSession: _phantomSession != null,
+                                color: widget.theme.present,
+                                onPlay: () => setState(() => _playingPhantom = true),
+                              )),
+                            ],
                           ),
-                          const SizedBox(height: 16),
-                          if (_played) ...[
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF1A1A1B),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: _won == true ? widget.theme.correct : Colors.redAccent),
-                              ),
-                              child: Row(children: [
-                                Icon(_won == true ? Icons.check_circle : Icons.cancel,
-                                    color: _won == true ? widget.theme.correct : Colors.redAccent, size: 20),
-                                const SizedBox(width: 8),
-                                Text(
-                                  _won == true ? 'Won in $_moves moves ✓' : 'Lost ✗',
-                                  style: TextStyle(color: _won == true ? widget.theme.correct : Colors.redAccent, fontWeight: FontWeight.bold),
-                                ),
-                              ]),
-                            ),
-                          ] else ...[
-                            SizedBox(
-                              width: double.infinity, height: 44,
-                              child: ElevatedButton(
-                                onPressed: () => setState(() => _playing = true),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: widget.theme.correct,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                ),
-                                child: Text(_session != null ? 'Continue' : 'Play', style: const TextStyle(fontSize: 16, color: Colors.white)),
-                              ),
-                            ),
-                          ],
                           const SizedBox(height: 12),
                           SizedBox(
                             width: double.infinity, height: 44,
@@ -189,61 +167,51 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
                               child: const Text('How to Play', style: TextStyle(fontSize: 16, color: Colors.white)),
                             ),
                           ),
-                          const SizedBox(height: 12),
-                          if (_phantomPlayed)
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF1A1A1B),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: _phantomWon == true ? widget.theme.correct : Colors.redAccent),
-                              ),
-                              child: Row(children: [
-                                const Icon(Icons.visibility_off, size: 18, color: Colors.white70),
-                                const SizedBox(width: 8),
-                                Text(
-                                  _phantomWon == true ? 'Phantom: Won in $_phantomMoves moves ✓' : 'Phantom: Lost ✗',
-                                  style: TextStyle(color: _phantomWon == true ? widget.theme.correct : Colors.redAccent, fontWeight: FontWeight.bold),
-                                ),
-                              ]),
-                            )
-                          else
-                            SizedBox(
-                              width: double.infinity, height: 44,
-                              child: ElevatedButton.icon(
-                                onPressed: () => setState(() => _playingPhantom = true),
-                                icon: const Icon(Icons.visibility_off, size: 18),
-                                label: Text(_phantomSession != null ? 'Continue Phantom ($_phantomBotLevel ELO)' : 'Phantom Chess ($_phantomBotLevel ELO)', style: const TextStyle(fontSize: 16, color: Colors.white)),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: widget.theme.present,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                ),
-                              ),
-                            ),
                           const SizedBox(height: 32),
                           const Divider(color: Color(0xFF3A3A3C)),
                           const SizedBox(height: 16),
-                          // Toggle between normal and phantom leaderboard
+                          // Leaderboard toggle buttons
                           Row(children: [
-                            GestureDetector(
-                              onTap: () => setState(() => _showPhantomLb = false),
-                              child: Text('Normal', style: TextStyle(
-                                color: !_showPhantomLb ? widget.theme.correct : Colors.grey,
-                                fontWeight: !_showPhantomLb ? FontWeight.bold : FontWeight.normal, fontSize: 14,
-                              )),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => setState(() => _showPhantomLb = false),
+                                child: Container(
+                                  height: 38,
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: !_showPhantomLb ? widget.theme.present : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: widget.theme.present.withValues(alpha: 0.5)),
+                                  ),
+                                  child: Text('Normal', style: TextStyle(
+                                    color: !_showPhantomLb ? Colors.white : widget.theme.present,
+                                    fontWeight: FontWeight.bold, fontSize: 14,
+                                  )),
+                                ),
+                              ),
                             ),
-                            const SizedBox(width: 16),
-                            GestureDetector(
-                              onTap: () => setState(() => _showPhantomLb = true),
-                              child: Text('Phantom', style: TextStyle(
-                                color: _showPhantomLb ? widget.theme.present : Colors.grey,
-                                fontWeight: _showPhantomLb ? FontWeight.bold : FontWeight.normal, fontSize: 14,
-                              )),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => setState(() => _showPhantomLb = true),
+                                child: Container(
+                                  height: 38,
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: _showPhantomLb ? widget.theme.present : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: widget.theme.present.withValues(alpha: 0.5)),
+                                  ),
+                                  child: Text('Phantom', style: TextStyle(
+                                    color: _showPhantomLb ? Colors.white : widget.theme.present,
+                                    fontWeight: FontWeight.bold, fontSize: 14,
+                                  )),
+                                ),
+                              ),
                             ),
                           ]),
-                          const SizedBox(height: 12),
-                          Text("Today's Leaderboard", style: TextStyle(color: Colors.grey, fontSize: 14)),
+                          const SizedBox(height: 16),
+                          const Text("Today's Leaderboard", style: TextStyle(color: Colors.grey, fontSize: 14)),
                           const SizedBox(height: 12),
                           if ((_showPhantomLb ? _phantomDaily : _daily).isEmpty)
                             const Text('No games yet today.', style: TextStyle(color: Colors.grey, fontSize: 14))
@@ -303,6 +271,64 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
                         ],
                       ),
                     ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGameCard({
+    required String title,
+    required int elo,
+    required bool played,
+    required bool? won,
+    required int? moves,
+    required bool hasSession,
+    required Color color,
+    required VoidCallback onPlay,
+  }) {
+    return Column(
+      children: [
+        // ELO bar above card
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.2),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+          ),
+          child: Text('Bot: $elo ELO', textAlign: TextAlign.center, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold)),
+        ),
+        // Card
+        GestureDetector(
+          onTap: played ? null : onPlay,
+          child: Container(
+            width: double.infinity,
+            height: 120,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+              border: Border.all(color: color.withValues(alpha: 0.4), width: 1.5),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(title == 'Phantom' ? Icons.visibility_off : Icons.smart_toy, color: color, size: 30),
+                const SizedBox(height: 8),
+                Text(title, style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 6),
+                if (played)
+                  Text(
+                    won == true ? '$moves moves ✓' : '✗',
+                    style: TextStyle(color: won == true ? widget.theme.correct : Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 13),
+                  )
+                else
+                  Text(
+                    hasSession ? 'Continue' : 'Play',
+                    style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.bold),
+                  ),
+              ],
             ),
           ),
         ),
