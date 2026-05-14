@@ -8,17 +8,20 @@ class ChessAI {
   ChessAI(this.level);
 
   int get _depth {
-    if (level < 300) return 1;
-    if (level < 600) return 2;
-    return 3;
+    if (level < 400) return 2;
+    if (level < 800) return 3;
+    if (level < 1200) return 4;
+    return 5;
   }
 
+  // Chance of picking a suboptimal (not worst, not best) move
   double get _blunderChance {
-    if (level < 200) return 0.5;
-    if (level < 400) return 0.35;
-    if (level < 700) return 0.2;
-    if (level < 1000) return 0.1;
-    if (level < 1300) return 0.05;
+    if (level < 200) return 0.6;
+    if (level < 400) return 0.4;
+    if (level < 600) return 0.25;
+    if (level < 800) return 0.15;
+    if (level < 1000) return 0.08;
+    if (level < 1200) return 0.04;
     return 0.02;
   }
 
@@ -26,15 +29,22 @@ class ChessAI {
     final moves = game.moves();
     if (moves.isEmpty) return null;
 
+    // Pure random for very low ELO
+    if (level < 150) return moves[_rng.nextInt(moves.length)];
+
+    // Blunder: pick a random move (not necessarily the worst)
     if (_rng.nextDouble() < _blunderChance) {
       return moves[_rng.nextInt(moves.length)];
     }
 
-    // Order moves: captures first for better pruning
+    // Order moves: captures and checks first for better pruning
     moves.sort((a, b) {
-      final aCapture = a.contains('x') ? 0 : 1;
-      final bCapture = b.contains('x') ? 0 : 1;
-      return aCapture.compareTo(bCapture);
+      int aScore = 0, bScore = 0;
+      if (a.contains('x')) aScore += 2;
+      if (a.contains('+')) aScore += 1;
+      if (b.contains('x')) bScore += 2;
+      if (b.contains('+')) bScore += 1;
+      return bScore.compareTo(aScore);
     });
 
     String? bestMove;
@@ -52,7 +62,6 @@ class ChessAI {
     return bestMove;
   }
 
-  // Negamax: always evaluates from the perspective of the side to move
   int _negamax(chess.Chess game, int depth, int alpha, int beta) {
     if (depth == 0 || game.game_over) return _evaluate(game);
 
@@ -67,26 +76,26 @@ class ChessAI {
     return alpha;
   }
 
-  // Evaluate from the perspective of the side to move
   int _evaluate(chess.Chess game) {
-    if (game.in_checkmate) return -90000; // side to move is checkmated
+    if (game.in_checkmate) return -90000;
     if (game.in_draw || game.in_stalemate) return 0;
 
-    int white = 0, black = 0;
+    int score = 0;
+
     for (int i = 0; i < 128; i++) {
       if (i & 0x88 != 0) continue;
       final piece = game.board[i];
       if (piece == null) continue;
+
       final val = _pieceValue(piece.type);
-      if (piece.color == chess.Color.WHITE) {
-        white += val;
-      } else {
-        black += val;
-      }
+      final positional = _positionalBonus(piece, i);
+      final total = val + positional;
+
+      score += piece.color == chess.Color.WHITE ? total : -total;
     }
 
-    final material = white - black;
-    return game.turn == chess.Color.WHITE ? material : -material;
+    // Mobility is too expensive to compute at every node
+    return game.turn == chess.Color.WHITE ? score : -score;
   }
 
   int _pieceValue(chess.PieceType type) {
@@ -95,6 +104,40 @@ class ChessAI {
     if (type == chess.PieceType.BISHOP) return 330;
     if (type == chess.PieceType.ROOK) return 500;
     if (type == chess.PieceType.QUEEN) return 900;
+    return 0;
+  }
+
+  // Simple positional bonuses: center control, development
+  int _positionalBonus(chess.Piece piece, int sq) {
+    final rank = sq >> 4; // 0-7 (0=rank8, 7=rank1)
+    final file = sq & 7;  // 0-7 (0=a, 7=h)
+
+    // Center bonus for knights and bishops
+    if (piece.type == chess.PieceType.KNIGHT || piece.type == chess.PieceType.BISHOP) {
+      final centerDist = (3.5 - file).abs() + (3.5 - rank).abs();
+      return (7 - centerDist.toInt()) * 5;
+    }
+
+    // Pawns: advance bonus (especially center pawns)
+    if (piece.type == chess.PieceType.PAWN) {
+      final advance = piece.color == chess.Color.WHITE ? (7 - rank) : rank;
+      int bonus = advance * 5;
+      if (file >= 2 && file <= 5) bonus += 10; // center pawns
+      return bonus;
+    }
+
+    // Rooks: bonus for open files (7th rank)
+    if (piece.type == chess.PieceType.ROOK) {
+      final seventhRank = piece.color == chess.Color.WHITE ? 1 : 6;
+      if (rank == seventhRank) return 20;
+    }
+
+    // King: stay safe in early game (stay on back rank near corners)
+    if (piece.type == chess.PieceType.KING) {
+      final backRank = piece.color == chess.Color.WHITE ? 7 : 0;
+      if (rank == backRank && (file <= 2 || file >= 5)) return 15;
+    }
+
     return 0;
   }
 }

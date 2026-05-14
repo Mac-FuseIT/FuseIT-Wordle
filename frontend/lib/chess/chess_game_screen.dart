@@ -10,7 +10,7 @@ class ChessGameScreen extends StatefulWidget {
   final int botLevel;
   final AppTheme theme;
   final Map<String, dynamic>? session;
-  final Future<void> Function(bool won, int moves, int redosUsed) onFinish;
+  final Future<void> Function(bool won, int moves, int redosUsed, List<String> moveHistory, String fen) onFinish;
   final VoidCallback onBack;
 
   const ChessGameScreen({super.key, required this.botLevel, required this.theme, this.session, required this.onFinish, required this.onBack});
@@ -275,7 +275,7 @@ class _ChessGameScreenState extends State<ChessGameScreen> {
 
   Future<void> _submit() async {
     setState(() => _submitting = true);
-    await widget.onFinish(_playerWon, _moveCount, _redosUsed);
+    await widget.onFinish(_playerWon, _moveCount, _redosUsed, _moveHistory, _game.fen);
   }
 
   void _handleBack() {
@@ -530,7 +530,8 @@ class _CapturedRow extends StatelessWidget {
           _icons[type] ?? Symbols.chess_pawn,
           size: 16,
           fill: 1,
-          color: isWhite ? Colors.white70 : const Color(0xFF4A4A4A),
+          color: theme.present,
+          shadows: [Shadow(color: theme.present, blurRadius: 3)],
         )).toList(),
       ),
     );

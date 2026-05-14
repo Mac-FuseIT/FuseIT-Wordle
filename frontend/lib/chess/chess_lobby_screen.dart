@@ -3,6 +3,7 @@ import '../models/app_theme.dart';
 import '../services/api_service.dart';
 import '../widgets/help_dialog.dart';
 import 'chess_game_screen.dart';
+import 'phantom_game_screen.dart';
 
 class ChessLobbyScreen extends StatefulWidget {
   final String nickname;
@@ -19,6 +20,7 @@ class ChessLobbyScreen extends StatefulWidget {
 class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
   bool _loading = true;
   bool _playing = false;
+  bool _playingPhantom = false;
   bool _played = false;
   bool? _won;
   int? _moves;
@@ -54,13 +56,21 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_playingPhantom) {
+      return PhantomGameScreen(
+        botLevel: (_botLevel / 2).round(),
+        theme: widget.theme,
+        onBack: () => setState(() => _playingPhantom = false),
+      );
+    }
+
     if (_playing) {
       return ChessGameScreen(
         botLevel: _botLevel,
         theme: widget.theme,
         session: _session,
-        onFinish: (won, moves, redos) async {
-          await ApiService.submitChessResult(won, moves, redos, [], '');
+        onFinish: (won, moves, redos, moveHistory, fen) async {
+          await ApiService.submitChessResult(won, moves, redos, moveHistory, fen);
           setState(() { _playing = false; });
           _load();
         },
@@ -152,6 +162,19 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                               ),
                               child: const Text('How to Play', style: TextStyle(fontSize: 16, color: Colors.white)),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity, height: 44,
+                            child: ElevatedButton.icon(
+                              onPressed: () => setState(() => _playingPhantom = true),
+                              icon: const Icon(Icons.visibility_off, size: 18),
+                              label: Text('Phantom Chess (${(_botLevel / 2).round()} ELO)', style: const TextStyle(fontSize: 16, color: Colors.white)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: widget.theme.present,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
                             ),
                           ),
                           const SizedBox(height: 32),

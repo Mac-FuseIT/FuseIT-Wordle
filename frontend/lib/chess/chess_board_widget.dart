@@ -93,7 +93,7 @@ class ChessBoardWidget extends StatelessWidget {
                               fill: data.fill,
                               color: piece.color == chess.Color.WHITE ? Colors.white : const Color(0xFF2D2D2D),
                               shadows: piece.color == chess.Color.BLACK
-                                  ? const [Shadow(color: Colors.white54, blurRadius: 2)]
+                                  ? [Shadow(color: theme.correct, blurRadius: 4)]
                                   : null,
                             );
                           }),
