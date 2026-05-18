@@ -1,0 +1,16 @@
+name = "fuseit-chess-worker"
+main = "src/chess-game-worker.js"
+compatibility_date = "2024-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "fuseit-wordle-db"
+database_id = "b9d40390-9784-44c1-a05c-ded1ede17ba5"
+
+[[durable_objects.bindings]]
+name = "CHESS_GAME"
+class_name = "ChessGameSession"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ChessGameSession"]
