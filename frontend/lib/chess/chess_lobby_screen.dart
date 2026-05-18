@@ -4,6 +4,7 @@ import '../services/api_service.dart';
 import '../widgets/help_dialog.dart';
 import 'chess_game_screen.dart';
 import 'phantom_game_screen.dart';
+import 'pvp_lobby_screen.dart';
 
 class ChessLobbyScreen extends StatefulWidget {
   final String nickname;
@@ -21,6 +22,7 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
   bool _loading = true;
   bool _playing = false;
   bool _playingPhantom = false;
+  bool _playingPvp = false;
   bool _played = false;
   bool? _won;
   int? _moves;
@@ -34,10 +36,13 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
   Map<String, dynamic>? _phantomSession;
   String _phantomPlayerColor = 'white';
   bool _showPhantomLb = false;
+  int _lbTab = 0; // 0=normal, 1=phantom, 2=pvp
   List<Map<String, dynamic>> _daily = [];
   List<Map<String, dynamic>> _history = [];
   List<Map<String, dynamic>> _phantomDaily = [];
   List<Map<String, dynamic>> _phantomHistory = [];
+  List<Map<String, dynamic>> _pvpLeaderboard = [];
+  Map<String, dynamic>? _pvpRecord;
 
   @override
   void initState() {
@@ -53,6 +58,8 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
       Map<String, dynamic> pLb = {};
       try { pToday = await ApiService.getPhantomChessToday(); } catch (_) {}
       try { pLb = await ApiService.getPhantomChessLeaderboard(); } catch (_) {}
+      Map<String, dynamic> pvpLb = {};
+      try { pvpLb = await ApiService.getChessPvpLeaderboard(); } catch (_) {}
       if (mounted) setState(() {
         _botLevel = today['botLevel'] ?? 800;
         _played = today['played'] ?? false;
@@ -70,6 +77,8 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
         _phantomPlayerColor = pToday['playerColor'] ?? 'white';
         _phantomDaily = List<Map<String, dynamic>>.from(pLb['daily'] ?? []);
         _phantomHistory = List<Map<String, dynamic>>.from(pLb['history'] ?? []);
+        _pvpLeaderboard = List<Map<String, dynamic>>.from(pvpLb['leaderboard'] ?? []);
+        _pvpRecord = pvpLb['myRecord'];
         _loading = false;
       });
     } catch (_) {
@@ -79,6 +88,15 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_playingPvp) {
+      return PvpLobbyScreen(
+        nickname: widget.nickname,
+        userId: widget.userId,
+        theme: widget.theme,
+        onBack: () => setState(() { _playingPvp = false; _load(); }),
+      );
+    }
+
     if (_playingPhantom) {
       return PhantomGameScreen(
         botLevel: _phantomBotLevel,
@@ -154,6 +172,36 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
                                 color: widget.theme.present,
                                 onPlay: () => setState(() => _playingPhantom = true),
                               )),
+                              const SizedBox(width: 12),
+                              Expanded(child: GestureDetector(
+                                onTap: () => setState(() => _playingPvp = true),
+                                child: Column(children: [
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.symmetric(vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: widget.theme.correct.withValues(alpha: 0.2),
+                                      borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                                    ),
+                                    child: Text('PvP', textAlign: TextAlign.center, style: TextStyle(color: widget.theme.correct, fontSize: 11, fontWeight: FontWeight.bold)),
+                                  ),
+                                  Container(
+                                    width: double.infinity, height: 120,
+                                    decoration: BoxDecoration(
+                                      color: widget.theme.correct.withValues(alpha: 0.1),
+                                      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+                                      border: Border.all(color: widget.theme.correct.withValues(alpha: 0.4), width: 1.5),
+                                    ),
+                                    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                                      Icon(Icons.people, color: widget.theme.correct, size: 30),
+                                      const SizedBox(height: 8),
+                                      const Text('Challenge', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                                      const SizedBox(height: 6),
+                                      Text('Play', style: TextStyle(color: widget.theme.correct, fontSize: 13, fontWeight: FontWeight.bold)),
+                                    ]),
+                                  ),
+                                ]),
+                              )),
                             ],
                           ),
                           const SizedBox(height: 12),
@@ -178,101 +226,101 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
                           const SizedBox(height: 16),
                           // Leaderboard toggle buttons
                           Row(children: [
-                            Expanded(
-                              child: GestureDetector(
-                                onTap: () => setState(() => _showPhantomLb = false),
-                                child: Container(
-                                  height: 38,
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    color: !_showPhantomLb ? widget.theme.present : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: widget.theme.present.withValues(alpha: 0.5)),
-                                  ),
-                                  child: Text('Normal', style: TextStyle(
-                                    color: !_showPhantomLb ? Colors.white : widget.theme.present,
-                                    fontWeight: FontWeight.bold, fontSize: 14,
-                                  )),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: GestureDetector(
-                                onTap: () => setState(() => _showPhantomLb = true),
-                                child: Container(
-                                  height: 38,
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    color: _showPhantomLb ? widget.theme.present : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: widget.theme.present.withValues(alpha: 0.5)),
-                                  ),
-                                  child: Text('Phantom', style: TextStyle(
-                                    color: _showPhantomLb ? Colors.white : widget.theme.present,
-                                    fontWeight: FontWeight.bold, fontSize: 14,
-                                  )),
-                                ),
-                              ),
-                            ),
+                            Expanded(child: _lbTabBtn('Normal', 0)),
+                            const SizedBox(width: 8),
+                            Expanded(child: _lbTabBtn('Phantom', 1)),
+                            const SizedBox(width: 8),
+                            Expanded(child: _lbTabBtn('PvP', 2)),
                           ]),
                           const SizedBox(height: 16),
-                          const Text("Today's Leaderboard", style: TextStyle(color: Colors.grey, fontSize: 14)),
-                          const SizedBox(height: 12),
-                          if ((_showPhantomLb ? _phantomDaily : _daily).isEmpty)
-                            const Text('No games yet today.', style: TextStyle(color: Colors.grey, fontSize: 14))
-                          else
-                            ...(_showPhantomLb ? _phantomDaily : _daily).asMap().entries.map((entry) {
-                              final i = entry.key;
-                              final row = entry.value;
-                              final won = row['won'] == true;
-                              return Container(
-                                margin: const EdgeInsets.only(bottom: 8),
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF1A1A1B),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: const Color(0xFF3A3A3C)),
-                                ),
-                                child: Row(children: [
-                                  SizedBox(width: 28, child: Text('#${i + 1}', style: TextStyle(
-                                    color: i == 0 ? widget.theme.correct : Colors.grey, fontWeight: FontWeight.bold,
-                                  ))),
-                                  Expanded(child: Text(row['nickname'] ?? '', style: const TextStyle(color: Colors.white))),
-                                  Text(
-                                    won ? '${row['moves']} moves ✓' : '✗',
-                                    style: TextStyle(color: won ? widget.theme.correct : Colors.redAccent, fontWeight: FontWeight.bold),
-                                  ),
-                                ]),
-                              );
-                            }),
-                          if ((_showPhantomLb ? _phantomHistory : _history).isNotEmpty) ...[
-                            const SizedBox(height: 24),
-                            const Divider(color: Color(0xFF3A3A3C)),
-                            const SizedBox(height: 16),
-                            const Text('Your History', style: TextStyle(color: Colors.grey, fontSize: 14)),
+                          if (_lbTab < 2) ...[
+                            const Text("Today's Leaderboard", style: TextStyle(color: Colors.grey, fontSize: 14)),
                             const SizedBox(height: 12),
-                            ...(_showPhantomLb ? _phantomHistory : _history).map((row) {
-                              final won = row['won'] == 1 || row['won'] == true;
-                              return Container(
-                                margin: const EdgeInsets.only(bottom: 6),
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF1A1A1B),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: const Color(0xFF3A3A3C)),
-                                ),
-                                child: Row(children: [
-                                  SizedBox(width: 90, child: Text(row['date'] ?? '', style: const TextStyle(color: Colors.grey, fontSize: 12))),
-                                  Text('Bot ${row['bot_level']}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                                  const Spacer(),
-                                  Text(
-                                    won ? '${row['moves']} moves ✓' : '✗',
-                                    style: TextStyle(color: won ? widget.theme.correct : Colors.redAccent, fontWeight: FontWeight.bold),
+                            if ((_lbTab == 1 ? _phantomDaily : _daily).isEmpty)
+                              const Text('No games yet today.', style: TextStyle(color: Colors.grey, fontSize: 14))
+                            else
+                              ...(_lbTab == 1 ? _phantomDaily : _daily).asMap().entries.map((entry) {
+                                final i = entry.key;
+                                final row = entry.value;
+                                final won = row['won'] == true;
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF1A1A1B),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: const Color(0xFF3A3A3C)),
                                   ),
-                                ]),
-                              );
-                            }),
+                                  child: Row(children: [
+                                    SizedBox(width: 28, child: Text('#${i + 1}', style: TextStyle(
+                                      color: i == 0 ? widget.theme.correct : Colors.grey, fontWeight: FontWeight.bold,
+                                    ))),
+                                    Expanded(child: Text(row['nickname'] ?? '', style: const TextStyle(color: Colors.white))),
+                                    Text(
+                                      won ? '${row['moves']} moves ✓' : '✗',
+                                      style: TextStyle(color: won ? widget.theme.correct : Colors.redAccent, fontWeight: FontWeight.bold),
+                                    ),
+                                  ]),
+                                );
+                              }),
+                            if ((_lbTab == 1 ? _phantomHistory : _history).isNotEmpty) ...[
+                              const SizedBox(height: 24),
+                              const Divider(color: Color(0xFF3A3A3C)),
+                              const SizedBox(height: 16),
+                              const Text('Your History', style: TextStyle(color: Colors.grey, fontSize: 14)),
+                              const SizedBox(height: 12),
+                              ...(_lbTab == 1 ? _phantomHistory : _history).map((row) {
+                                final won = row['won'] == 1 || row['won'] == true;
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 6),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF1A1A1B),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: const Color(0xFF3A3A3C)),
+                                  ),
+                                  child: Row(children: [
+                                    SizedBox(width: 90, child: Text(row['date'] ?? '', style: const TextStyle(color: Colors.grey, fontSize: 12))),
+                                    Text('Bot ${row['bot_level']}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                                    const Spacer(),
+                                    Text(
+                                      won ? '${row['moves']} moves ✓' : '✗',
+                                      style: TextStyle(color: won ? widget.theme.correct : Colors.redAccent, fontWeight: FontWeight.bold),
+                                    ),
+                                  ]),
+                                );
+                              }),
+                            ],
+                          ] else ...[
+                            // PvP Leaderboard
+                            if (_pvpRecord != null) ...[
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                decoration: BoxDecoration(color: const Color(0xFF1A1A1B), borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFF3A3A3C))),
+                                child: Text('Your record: ${_pvpRecord!['wins']}W - ${_pvpRecord!['losses']}L', style: TextStyle(color: widget.theme.correct, fontWeight: FontWeight.bold)),
+                              ),
+                              const SizedBox(height: 12),
+                            ],
+                            const Text('PvP Wins Leaderboard', style: TextStyle(color: Colors.grey, fontSize: 14)),
+                            const SizedBox(height: 12),
+                            if (_pvpLeaderboard.isEmpty)
+                              const Text('No PvP games yet.', style: TextStyle(color: Colors.grey, fontSize: 14))
+                            else
+                              ..._pvpLeaderboard.asMap().entries.map((entry) {
+                                final i = entry.key;
+                                final row = entry.value;
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  decoration: BoxDecoration(color: const Color(0xFF1A1A1B), borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFF3A3A3C))),
+                                  child: Row(children: [
+                                    SizedBox(width: 28, child: Text('#${i + 1}', style: TextStyle(color: i == 0 ? widget.theme.correct : Colors.grey, fontWeight: FontWeight.bold))),
+                                    Expanded(child: Text(row['name'] ?? '', style: const TextStyle(color: Colors.white))),
+                                    Text('${row['wins']} wins', style: TextStyle(color: widget.theme.correct, fontWeight: FontWeight.bold)),
+                                  ]),
+                                );
+                              }),
                           ],
                         ],
                       ),
@@ -281,6 +329,26 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _lbTabBtn(String label, int tab) {
+    final selected = _lbTab == tab;
+    return GestureDetector(
+      onTap: () => setState(() => _lbTab = tab),
+      child: Container(
+        height: 38,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: selected ? widget.theme.present : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: widget.theme.present.withValues(alpha: 0.5)),
+        ),
+        child: Text(label, style: TextStyle(
+          color: selected ? Colors.white : widget.theme.present,
+          fontWeight: FontWeight.bold, fontSize: 13,
+        )),
+      ),
     );
   }
 

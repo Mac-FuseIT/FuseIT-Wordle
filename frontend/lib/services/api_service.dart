@@ -205,6 +205,41 @@ class ApiService {
     return jsonDecode(res.body);
   }
 
+  // Chess PvP
+  static Future<Map<String, dynamic>> getChessPvpLobby() async {
+    await _loadToken();
+    final res = await http.get(Uri.parse('$baseUrl/api/chess-pvp/lobby'), headers: _authHeaders);
+    return jsonDecode(res.body);
+  }
+
+  static Future<String?> createChessPvpChallenge(int opponentId, String colorChoice, String timeControl) async {
+    await _loadToken();
+    final res = await http.post(Uri.parse('$baseUrl/api/chess-pvp/challenge'), headers: _authHeaders,
+      body: jsonEncode({'opponentId': opponentId, 'colorChoice': colorChoice, 'timeControl': timeControl}));
+    final data = jsonDecode(res.body);
+    return data['challengeId'];
+  }
+
+  static Future<String?> acceptChessPvpChallenge(String challengeId) async {
+    await _loadToken();
+    final res = await http.post(Uri.parse('$baseUrl/api/chess-pvp/accept'), headers: _authHeaders,
+      body: jsonEncode({'challengeId': challengeId}));
+    final data = jsonDecode(res.body);
+    return data['sessionId'];
+  }
+
+  static Future<void> declineChessPvpChallenge(String challengeId) async {
+    await _loadToken();
+    await http.post(Uri.parse('$baseUrl/api/chess-pvp/decline'), headers: _authHeaders,
+      body: jsonEncode({'challengeId': challengeId}));
+  }
+
+  static Future<Map<String, dynamic>> getChessPvpLeaderboard() async {
+    await _loadToken();
+    final res = await http.get(Uri.parse('$baseUrl/api/chess-pvp/leaderboard'), headers: _authHeaders);
+    return jsonDecode(res.body);
+  }
+
   static List<GuessResult> parseGuesses(List<dynamic> raw) {
     return raw.map((g) => GuessResult.fromJson(g as Map<String, dynamic>)).toList();
   }
