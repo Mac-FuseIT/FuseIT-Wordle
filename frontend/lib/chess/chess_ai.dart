@@ -8,10 +8,9 @@ class ChessAI {
   ChessAI(this.level);
 
   int get _depth {
-    if (level < 400) return 2;
-    if (level < 800) return 3;
-    if (level < 1200) return 4;
-    return 5;
+    if (level < 400) return 1;
+    if (level < 800) return 2;
+    return 3;
   }
 
   // Chance of picking a suboptimal (not worst, not best) move
