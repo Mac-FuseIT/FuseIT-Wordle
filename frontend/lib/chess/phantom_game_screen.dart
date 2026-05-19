@@ -46,7 +46,7 @@ class _PhantomGameScreenState extends State<PhantomGameScreen> {
   late ChessAI _ai;
   List<String> _moveHistory = [];
   int _moveCount = 0;
-  int _redosLeft = 4;
+  int _redosLeft = 0;
   int _redosUsed = 0;
   bool _gameOver = false;
   String? _selectedSquare;
@@ -83,7 +83,7 @@ class _PhantomGameScreenState extends State<PhantomGameScreen> {
       _moveHistory = List<String>.from(widget.session!['moveHistory'] ?? []);
       _moveCount = widget.session!['moveCount'] ?? 0;
       _redosUsed = widget.session!['redosUsed'] ?? 0;
-      _redosLeft = 4 - _redosUsed;
+      _redosLeft = _calculateRedosFromHistory();
       _rebuildPhantomState();
     } else {
       _game = chess.Chess();
@@ -104,7 +104,7 @@ class _PhantomGameScreenState extends State<PhantomGameScreen> {
       const HelpSection(body: 'Some of your pieces are PHANTOM — they turn invisible after you move them!'),
       HelpSection(heading: '👻 Phantom Pieces', body: 'Today\'s phantom types: ${_phantomTypes.map(_typeName).join(", ")}. These pieces have a glowing border on the board. When you move one, it becomes invisible to your opponent!'),
       const HelpSection(heading: '👁️ Revealing', body: 'A phantom piece becomes visible again when:\n• You move it a second time\n• It captures an opponent\'s piece\n• An opponent\'s piece lands on its square'),
-      const HelpSection(heading: '↩️ 4 Undos', body: 'You get 4 undo attempts in Phantom Chess.'),
+      const HelpSection(heading: '↩️ Earn Undos', body: 'You start with 0 undos. Capture a Queen, Rook, Bishop, or Knight to earn 1 undo (max 7).'),
       const HelpSection(heading: '🤖 Easier Bot', body: 'The bot is half the ELO of the normal daily game.'),
     ]);
   }
@@ -156,6 +156,29 @@ class _PhantomGameScreenState extends State<PhantomGameScreen> {
   }
 
   bool get _isViewingHistory => _viewingIndex != null;
+
+  int _calculateRedosFromHistory() {
+    int earned = 0;
+    final tempGame = chess.Chess();
+    for (int i = 0; i < _moveHistory.length; i++) {
+      final isPlayerMove = (_playerSide == chess.Color.WHITE) ? (i % 2 == 0) : (i % 2 == 1);
+      if (isPlayerMove && _moveHistory[i].contains('x')) {
+        // Check what was captured by looking at destination before move
+        final verboseMoves = tempGame.moves({'verbose': true});
+        for (final m in verboseMoves) {
+          if (m['san'] == _moveHistory[i]) {
+            final captured = tempGame.get(m['to'] as String);
+            if (captured != null && captured.type != chess.PieceType.PAWN && captured.type != chess.PieceType.KING) {
+              earned++;
+            }
+            break;
+          }
+        }
+      }
+      tempGame.move(_moveHistory[i]);
+    }
+    return earned - _redosUsed;
+  }
 
   chess.Chess _boardAtIndex(int index) {
     final temp = chess.Chess();
@@ -288,6 +311,7 @@ class _PhantomGameScreenState extends State<PhantomGameScreen> {
 
     // Now make the new move
     final piece = _game.get(from);
+    final capturedPiece = _game.get(to);
     String? promotion;
     if (piece?.type == chess.PieceType.PAWN) {
       final rank = to[1];
@@ -300,6 +324,11 @@ class _PhantomGameScreenState extends State<PhantomGameScreen> {
 
     _moveCount++;
     if (san != null) _moveHistory.add(san);
+
+    // Grant undo for capturing Q/R/B/N
+    if (capturedPiece != null && capturedPiece.type != chess.PieceType.PAWN && capturedPiece.type != chess.PieceType.KING) {
+      _redosLeft++;
+    }
 
     // Apply phantom logic
     final fromIdx = _squareToIndex(from);
@@ -327,6 +356,7 @@ class _PhantomGameScreenState extends State<PhantomGameScreen> {
 
   void _makePlayerMove(String from, String to) {
     final piece = _game.get(from);
+    final capturedPiece = _game.get(to); // piece on destination before move
     String? promotion;
     if (piece?.type == chess.PieceType.PAWN) {
       final rank = to[1];
@@ -339,6 +369,11 @@ class _PhantomGameScreenState extends State<PhantomGameScreen> {
 
     _moveCount++;
     if (san != null) _moveHistory.add(san);
+
+    // Grant undo for capturing Q/R/B/N
+    if (capturedPiece != null && capturedPiece.type != chess.PieceType.PAWN && capturedPiece.type != chess.PieceType.KING) {
+      _redosLeft++;
+    }
 
     // Handle phantom logic for player's piece
     final fromIdx = _squareToIndex(from);

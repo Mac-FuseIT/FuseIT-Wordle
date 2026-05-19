@@ -6,6 +6,7 @@ import '../models/game_state.dart';
 class ApiService {
   static const String baseUrl = '';
   static String? _token;
+  static void Function()? onUnauthorized;
 
   static Future<void> _loadToken() async {
     if (_token != null) return;
@@ -25,10 +26,31 @@ class ApiService {
     await prefs.remove('authToken');
   }
 
+  static void _checkUnauthorized(http.Response res) {
+    if (res.statusCode == 401 && onUnauthorized != null) {
+      clearToken();
+      onUnauthorized!();
+    }
+  }
+
   static Map<String, String> get _authHeaders => {
     'Content-Type': 'application/json',
     if (_token != null) 'Authorization': 'Bearer $_token',
   };
+
+  static Future<http.Response> _authGet(String path) async {
+    await _loadToken();
+    final res = await http.get(Uri.parse('$baseUrl$path'), headers: _authHeaders);
+    _checkUnauthorized(res);
+    return res;
+  }
+
+  static Future<http.Response> _authPost(String path, {Object? body}) async {
+    await _loadToken();
+    final res = await http.post(Uri.parse('$baseUrl$path'), headers: _authHeaders, body: body != null ? jsonEncode(body) : null);
+    _checkUnauthorized(res);
+    return res;
+  }
 
   static Future<Map<String, dynamic>> register(String email) async {
     final res = await http.post(
@@ -141,8 +163,7 @@ class ApiService {
 
   // Chess.IT
   static Future<Map<String, dynamic>> getChessToday() async {
-    await _loadToken();
-    final res = await http.get(Uri.parse('$baseUrl/api/chess/today'), headers: _authHeaders);
+    final res = await _authGet('/api/chess/today');
     return jsonDecode(res.body);
   }
 

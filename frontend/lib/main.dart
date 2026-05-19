@@ -50,7 +50,7 @@ class _AppShellState extends State<AppShell> {
   bool _checkingSession = true;
 
   @override
-  void initState() { super.initState(); _restoreSession(); }
+  void initState() { super.initState(); _restoreSession(); ApiService.onUnauthorized = _logout; }
 
   Future<void> _restoreSession() async {
     final prefs = await SharedPreferences.getInstance();
