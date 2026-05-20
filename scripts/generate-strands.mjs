@@ -130,31 +130,36 @@ function backtrack(grid, words, idx, remaining, rng) {
 
 // Check if a word can be spelled via ANY path other than its canonical one
 function canSpellWithOtherCells(grid, word, ownPath) {
-  const ownKey = ownPath.map(([r, c]) => `${r}:${c}`).join(',');
+  const ownSet = new Set(ownPath.map(([r, c]) => r * COLS + c));
   const letters = word.toUpperCase().split('');
+  let altFound = false;
 
-  function dfs(idx, r, c, visited) {
-    if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return false;
-    const key = `${r}:${c}`;
-    if (visited.has(key)) return false;
-    if (grid[r][c] !== letters[idx]) return false;
+  function dfs(idx, r, c, visited, usedOwn) {
+    if (altFound) return;
+    if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return;
+    const key = r * COLS + c;
+    if (visited.has(key)) return;
+    if (grid[r][c] !== letters[idx]) return;
+    const isOwnCell = ownSet.has(key);
+    const newUsedOwn = usedOwn + (isOwnCell ? 0 : 1); // count cells NOT in own path
     if (idx === letters.length - 1) {
-      // Found a complete path - check it's not the same as ownPath
-      const pathKey = [...visited, key].join(',');
-      return pathKey !== ownKey;
+      // If at least one cell differs from the canonical path, it's an alternate
+      if (newUsedOwn > 0) altFound = true;
+      return;
     }
     visited.add(key);
     for (const [dr, dc] of DIRS) {
-      if (dfs(idx + 1, r + dr, c + dc, visited)) { visited.delete(key); return true; }
+      dfs(idx + 1, r + dr, c + dc, visited, newUsedOwn);
+      if (altFound) break;
     }
     visited.delete(key);
-    return false;
   }
 
-  for (let r = 0; r < ROWS; r++)
-    for (let c = 0; c < COLS; c++)
-      if (dfs(0, r, c, new Set())) return true;
-  return false;
+  for (let r = 0; r < ROWS && !altFound; r++)
+    for (let c = 0; c < COLS && !altFound; c++)
+      if (grid[r][c] === letters[0]) dfs(0, r, c, new Set(), 0);
+
+  return altFound;
 }
 
 // Word-length plans summing to 48
@@ -196,47 +201,36 @@ async function generatePuzzle(dateStr, themeWords, themeName, rng) {
     }
     if (!feasible) continue;
 
-    for (let spanIdx = 0; spanIdx < Math.min(byLength[8].length, 3); spanIdx++) {
+    for (let spanIdx = 0; spanIdx < Math.min(byLength[8].length, 5); spanIdx++) {
       const spangram = byLength[8][spanIdx];
-      const usedIdx = { 4: 0, 5: 0, 6: 0, 7: 0, 8: 0 };
 
-      for (let combo = 0; combo < 5; combo++) {
+      for (let combo = 0; combo < 20; combo++) {
         const otherWords = [];
-        const tempIdx = { ...usedIdx };
+        const used = new Set([spangram]);
         let ok = true;
+
+        // Pick random words of each needed length
         for (const len of otherLengths) {
-          while (tempIdx[len] < byLength[len].length && byLength[len][tempIdx[len]] === spangram) tempIdx[len]++;
-          if (tempIdx[len] >= byLength[len].length) { ok = false; break; }
-          otherWords.push(byLength[len][tempIdx[len]++]);
+          const candidates = byLength[len].filter(w => !used.has(w));
+          if (candidates.length === 0) { ok = false; break; }
+          const pick = candidates[Math.floor(rng() * candidates.length)];
+          otherWords.push(pick);
+          used.add(pick);
         }
-        if (!ok) break;
-        if (new Set([spangram, ...otherWords]).size !== otherWords.length + 1) continue;
+        if (!ok) continue;
 
         const allWords = [spangram, ...otherWords];
-        let bestPlacement = null;
 
-        for (let attempt = 0; attempt < 3; attempt++) {
+        for (let attempt = 0; attempt < 5; attempt++) {
           const grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
           const placed = backtrack(grid, allWords, 0, TOTAL, rng);
           if (placed) {
-            // Shuffle placed words so spangram is in a random position for hints
-            const shuffled = shuffle(placed, rng);
-            if (placed.every(({ word, path }) => !canSpellWithOtherCells(grid, word, path))) {
-              return { theme: themeName, spangram: spangram.toUpperCase(), grid, words: shuffled };
+            // Strict validation: no word can be spelled via alternate cells
+            const valid = placed.every(({ word, path }) => !canSpellWithOtherCells(grid, word, path));
+            if (valid) {
+              return { theme: themeName, spangram: spangram.toUpperCase(), grid, words: shuffle(placed, rng) };
             }
-            if (!bestPlacement) bestPlacement = { grid, placed: shuffled };
           }
-        }
-
-        // Use fallback placement if strict check never passed
-        if (bestPlacement) {
-          return { theme: themeName, spangram: spangram.toUpperCase(), grid: bestPlacement.grid, words: bestPlacement.placed };
-        }
-
-        for (const len of [...new Set(otherLengths)].reverse()) {
-          usedIdx[len]++;
-          if (usedIdx[len] < byLength[len].length) break;
-          usedIdx[len] = 0;
         }
       }
     }
@@ -280,20 +274,26 @@ for (let i = 0; i < days; i++) {
   const dateStr = localDateStr(d);
 
   const rng = seededRng(hashStr('spanit:' + dateStr));
-  const theme = THEMES[Math.floor(rng() * THEMES.length)];
-  const words = themeCache[theme.name] || [];
+  const themeOrder = shuffle([...THEMES], rng);
 
-  process.stdout.write(`${dateStr} [${theme.name}] ... `);
+  let puzzle = null;
+  let usedTheme = null;
 
-  if (words.length < 10) {
-    console.log('SKIPPED (not enough words)');
-    fail++;
-    continue;
+  for (const theme of themeOrder) {
+    const words = themeCache[theme.name] || [];
+    if (words.length < 10) continue;
+
+    process.stdout.write(`${dateStr} [${theme.name}] ... `);
+    puzzle = await generatePuzzle(dateStr, words, theme.name, rng);
+    if (puzzle) {
+      usedTheme = theme.name;
+      break;
+    }
+    console.log('no valid grid, trying next theme...');
   }
 
-  const puzzle = await generatePuzzle(dateStr, words, theme.name, rng);
   if (!puzzle) {
-    console.log('FAILED (could not place words)');
+    console.log(`${dateStr} FAILED (no theme produced a valid grid)`);
     fail++;
     continue;
   }
