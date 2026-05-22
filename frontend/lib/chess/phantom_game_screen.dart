@@ -893,15 +893,20 @@ class _PhantomBoardWidget extends StatelessWidget {
                                   boxShadow: [BoxShadow(color: theme.correct.withValues(alpha: 0.5), blurRadius: 4)],
                                 ) : null,
                                 padding: isPhantomType ? const EdgeInsets.all(2) : null,
-                                child: Icon(
-                                  _pieceIcons[piece.type] ?? Symbols.chess_pawn,
-                                  size: squareSize * (isPhantomType ? 0.6 : 0.75),
-                                  fill: 1,
-                                  color: piece.color == chess.Color.WHITE ? Colors.white : const Color(0xFF2D2D2D),
-                                  shadows: piece.color == chess.Color.BLACK
-                                      ? [Shadow(color: theme.correct, blurRadius: 4)]
-                                      : null,
-                                ),
+                              child: piece.color == chess.Color.BLACK
+                                ? Icon(
+                                    _pieceIcons[piece.type] ?? Symbols.chess_pawn,
+                                    size: squareSize * (isPhantomType ? 0.6 : 0.75),
+                                    fill: 1,
+                                    color: const Color(0xFF2D2D2D),
+                                    shadows: [Shadow(color: theme.present, blurRadius: 3), Shadow(color: theme.present, blurRadius: 1)],
+                                  )
+                                : Icon(
+                                    _pieceIcons[piece.type] ?? Symbols.chess_pawn,
+                                    size: squareSize * (isPhantomType ? 0.6 : 0.75),
+                                    fill: 1,
+                                    color: Colors.white,
+                                  ),
                               ),
                             // Ghost: show faded piece where a phantom moved from
                             if (ghostSquares.containsKey(sqIdx))

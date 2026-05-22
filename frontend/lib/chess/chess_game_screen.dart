@@ -31,6 +31,8 @@ class _ChessGameScreenState extends State<ChessGameScreen> {
   bool _submitting = false;
   String? _selectedSquare;
   List<String> _legalDestinations = [];
+  String? _lastMoveFrom;
+  String? _lastMoveTo;
 
   // History viewing: null means viewing current (latest) position
   int? _viewingIndex;
@@ -213,7 +215,7 @@ class _ChessGameScreenState extends State<ChessGameScreen> {
 
     _moveCount++;
     if (san != null) _moveHistory.add(san);
-    setState(() { _selectedSquare = null; _legalDestinations = []; });
+    setState(() { _selectedSquare = null; _legalDestinations = []; _lastMoveFrom = from; _lastMoveTo = to; });
 
     _checkGameEnd();
     if (!_gameOver) {
@@ -239,6 +241,11 @@ class _ChessGameScreenState extends State<ChessGameScreen> {
     await Future.delayed(const Duration(milliseconds: 50));
     final move = _ai.getMove(_game);
     if (move != null) {
+      // Get from/to before making the move
+      final verbose = _game.moves({'verbose': true});
+      for (final m in verbose) {
+        if (m['san'] == move) { _lastMoveFrom = m['from']; _lastMoveTo = m['to']; break; }
+      }
       _moveHistory.add(move);
       _game.move(move);
       setState(() {});
@@ -355,6 +362,8 @@ class _ChessGameScreenState extends State<ChessGameScreen> {
                           onSquareTap: _onSquareTap,
                           theme: widget.theme,
                           flipped: isFlipped,
+                          lastMoveFrom: _lastMoveFrom,
+                          lastMoveTo: _lastMoveTo,
                         ),
                         // Bottom: player's captured pieces
                         _CapturedRow(pieces: isFlipped ? captured.whiteCaptured : captured.blackCaptured, theme: widget.theme, isWhite: isFlipped),

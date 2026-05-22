@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:chess/chess.dart' as chess;
+import 'package:material_symbols_icons/symbols.dart';
 import '../models/app_theme.dart';
 import 'chess_board_widget.dart';
 import 'pvp_websocket.dart';
@@ -24,6 +25,7 @@ class _PvpGameScreenState extends State<PvpGameScreen> {
   final ChessPvpWebSocket _ws = ChessPvpWebSocket();
   chess.Chess _game = chess.Chess();
   List<Map<String, dynamic>> _players = [];
+  List<String> _moveHistory = [];
   bool _started = false;
   bool _gameOver = false;
   bool _ready = false;
@@ -33,9 +35,12 @@ class _PvpGameScreenState extends State<PvpGameScreen> {
   String? _reason;
   String? _selectedSquare;
   List<String> _legalDestinations = [];
+  String? _lastMoveFrom;
+  String? _lastMoveTo;
   Map<String, int> _timers = {'white': 0, 'black': 0};
   String _timeControl = 'unlimited';
   Timer? _clockTimer;
+  int? _viewingIndex;
 
   @override
   void initState() {
@@ -83,18 +88,27 @@ class _PvpGameScreenState extends State<PvpGameScreen> {
         break;
       case 'move':
         final move = data['move'] as String;
+        final serverMoves = List<String>.from(data['moves'] ?? []);
+        // Skip if we already have this move applied (we sent it)
+        if (serverMoves.length <= _moveHistory.length) break;
+        // Get from/to before applying
+        final verbose = _game.moves({'verbose': true});
+        for (final m in verbose) {
+          if (m['san'] == move) { _lastMoveFrom = m['from']; _lastMoveTo = m['to']; break; }
+        }
         _game.move(move);
+        _moveHistory.add(move);
         if (data['timers'] != null) {
           _timers = Map<String, int>.from((data['timers'] as Map).map((k, v) => MapEntry(k.toString(), (v as num).toInt())));
         }
         _lastTickMs = DateTime.now().millisecondsSinceEpoch;
-        setState(() { _selectedSquare = null; _legalDestinations = []; });
+        setState(() { _selectedSquare = null; _legalDestinations = []; _viewingIndex = null; });
         break;
       case 'sync':
-        // Reconnect: replay all moves to catch up
         _game = chess.Chess();
         final moves = List<String>.from(data['moves'] ?? []);
-        for (final m in moves) { _game.move(m); }
+        _moveHistory = [];
+        for (final m in moves) { _game.move(m); _moveHistory.add(m); }
         if (data['timers'] != null) {
           _timers = Map<String, int>.from((data['timers'] as Map).map((k, v) => MapEntry(k.toString(), (v as num).toInt())));
         }
@@ -153,7 +167,7 @@ class _PvpGameScreenState extends State<PvpGameScreen> {
   }
 
   void _onSquareTap(String square) {
-    if (!_isMyTurn) return;
+    if (!_isMyTurn || _isViewingHistory) return;
 
     final myChessColor = _myColor == 'white' ? chess.Color.WHITE : chess.Color.BLACK;
 
@@ -199,7 +213,7 @@ class _PvpGameScreenState extends State<PvpGameScreen> {
     final success = _game.move({'from': from, 'to': to, if (promotion != null) 'promotion': promotion});
     if (!success) return;
 
-    setState(() { _selectedSquare = null; _legalDestinations = []; });
+    setState(() { _selectedSquare = null; _legalDestinations = []; _lastMoveFrom = from; _lastMoveTo = to; });
 
     final isGameOver = _game.game_over;
     String? winner;
@@ -216,9 +230,29 @@ class _PvpGameScreenState extends State<PvpGameScreen> {
     return '${s ~/ 60}:${(s % 60).toString().padLeft(2, '0')}';
   }
 
+  bool get _isViewingHistory => _viewingIndex != null;
+
+  chess.Chess get _displayGame {
+    if (!_isViewingHistory) return _game;
+    final temp = chess.Chess();
+    for (int i = 0; i <= _viewingIndex!; i++) {
+      temp.move(_moveHistory[i]);
+    }
+    return temp;
+  }
+
+  void _onMoveTap(int index) {
+    setState(() {
+      _viewingIndex = index == _moveHistory.length - 1 ? null : index;
+      _selectedSquare = null;
+      _legalDestinations = [];
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final isFlipped = _myColor == 'black';
+    final displayGame = _displayGame;
 
     return Column(children: [
       Padding(
@@ -261,13 +295,70 @@ class _PvpGameScreenState extends State<PvpGameScreen> {
                 style: const TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.bold)),
             ),
           const SizedBox(height: 8),
-          ChessBoardWidget(
-            game: _game,
-            selectedSquare: _selectedSquare,
-            legalDestinations: _legalDestinations,
-            onSquareTap: _onSquareTap,
-            theme: widget.theme,
-            flipped: isFlipped,
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: Builder(builder: (context) {
+              final captured = _getCapturedPieces(displayGame);
+              return Column(children: [
+                // Top: opponent's captured pieces
+                _buildCapturedRow(isFlipped ? captured.blackCaptured : captured.whiteCaptured),
+                ChessBoardWidget(
+                  game: displayGame,
+                  selectedSquare: _selectedSquare,
+                  legalDestinations: _isViewingHistory ? [] : _legalDestinations,
+                  onSquareTap: _onSquareTap,
+                  theme: widget.theme,
+                  flipped: isFlipped,
+                  lastMoveFrom: _lastMoveFrom,
+                  lastMoveTo: _lastMoveTo,
+                ),
+                // Bottom: my captured pieces
+                _buildCapturedRow(isFlipped ? captured.whiteCaptured : captured.blackCaptured),
+                const SizedBox(height: 8),
+                // Move history bar
+                if (_moveHistory.isNotEmpty)
+                  Container(
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1A1A1B),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFF3A3A3C)),
+                    ),
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      itemCount: _moveHistory.length,
+                      itemBuilder: (context, i) {
+                        final isWhiteMove = i % 2 == 0;
+                        final moveNum = (i ~/ 2) + 1;
+                        final isViewing = _viewingIndex == i || (!_isViewingHistory && i == _moveHistory.length - 1);
+                        return Row(mainAxisSize: MainAxisSize.min, children: [
+                          if (isWhiteMove)
+                            Padding(padding: const EdgeInsets.only(left: 6), child: Text('$moveNum.', style: const TextStyle(color: Colors.grey, fontSize: 12))),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            child: GestureDetector(
+                              onTap: () => _onMoveTap(i),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: isViewing ? widget.theme.correct.withValues(alpha: 0.4) : (isWhiteMove ? Colors.white12 : Colors.white.withValues(alpha: 0.05)),
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: isViewing ? Border.all(color: widget.theme.correct, width: 1.5) : null,
+                                ),
+                                child: Text(_moveHistory[i], style: TextStyle(
+                                  color: isViewing ? Colors.white : (isWhiteMove ? Colors.white : Colors.white70),
+                                  fontSize: 12, fontWeight: isViewing ? FontWeight.bold : FontWeight.normal,
+                                )),
+                              ),
+                            ),
+                          ),
+                        ]);
+                      },
+                    ),
+                  ),
+              ]);
+            }),
           ),
           const SizedBox(height: 8),
           // My timer (bottom)
@@ -277,6 +368,14 @@ class _PvpGameScreenState extends State<PvpGameScreen> {
               child: Text(_formatTime(_timers[_myColor ?? 'white'] ?? 0),
                 style: TextStyle(color: widget.theme.correct, fontSize: 16, fontWeight: FontWeight.bold)),
             ),
+          if (_isViewingHistory) ...[
+            const SizedBox(height: 8),
+            ElevatedButton(
+              onPressed: () => setState(() { _viewingIndex = null; _selectedSquare = null; _legalDestinations = []; }),
+              style: ElevatedButton.styleFrom(backgroundColor: widget.theme.correct, foregroundColor: Colors.white),
+              child: const Text('Back to current'),
+            ),
+          ],
           if (_gameOver) ...[
             const SizedBox(height: 16),
             Container(
@@ -295,5 +394,46 @@ class _PvpGameScreenState extends State<PvpGameScreen> {
         const SizedBox(height: 16),
       ])))),
     ]);
+  }
+
+  ({List<chess.PieceType> whiteCaptured, List<chess.PieceType> blackCaptured}) _getCapturedPieces(chess.Chess board) {
+    final startCounts = {chess.PieceType.PAWN: 8, chess.PieceType.KNIGHT: 2, chess.PieceType.BISHOP: 2, chess.PieceType.ROOK: 2, chess.PieceType.QUEEN: 1};
+    final whiteOnBoard = <chess.PieceType, int>{};
+    final blackOnBoard = <chess.PieceType, int>{};
+    for (int i = 0; i < 128; i++) {
+      if (i & 0x88 != 0) continue;
+      final piece = board.board[i];
+      if (piece == null || piece.type == chess.PieceType.KING) continue;
+      final map = piece.color == chess.Color.WHITE ? whiteOnBoard : blackOnBoard;
+      map[piece.type] = (map[piece.type] ?? 0) + 1;
+    }
+    final whiteCaptured = <chess.PieceType>[];
+    final blackCaptured = <chess.PieceType>[];
+    for (final entry in startCounts.entries) {
+      for (int i = 0; i < entry.value - (whiteOnBoard[entry.key] ?? 0); i++) whiteCaptured.add(entry.key);
+      for (int i = 0; i < entry.value - (blackOnBoard[entry.key] ?? 0); i++) blackCaptured.add(entry.key);
+    }
+    return (whiteCaptured: whiteCaptured, blackCaptured: blackCaptured);
+  }
+
+  static final _capturedIcons = {
+    chess.PieceType.QUEEN: Symbols.chess_queen_sharp,
+    chess.PieceType.ROOK: Symbols.chess_rook_rounded,
+    chess.PieceType.BISHOP: Symbols.chess_bishop_rounded,
+    chess.PieceType.KNIGHT: Symbols.chess_knight_rounded,
+    chess.PieceType.PAWN: Symbols.chess_pawn,
+  };
+
+  Widget _buildCapturedRow(List<chess.PieceType> pieces) {
+    if (pieces.isEmpty) return const SizedBox(height: 20);
+    return SizedBox(
+      height: 20,
+      child: Row(children: pieces.map((type) => Icon(
+        _capturedIcons[type] ?? Symbols.chess_pawn,
+        size: 16, fill: 1,
+        color: widget.theme.present,
+        shadows: [Shadow(color: widget.theme.present, blurRadius: 3)],
+      )).toList()),
+    );
   }
 }

@@ -10,6 +10,8 @@ class ChessBoardWidget extends StatelessWidget {
   final void Function(String square) onSquareTap;
   final AppTheme theme;
   final bool flipped;
+  final String? lastMoveFrom;
+  final String? lastMoveTo;
 
   const ChessBoardWidget({
     super.key,
@@ -19,6 +21,8 @@ class ChessBoardWidget extends StatelessWidget {
     required this.onSquareTap,
     required this.theme,
     this.flipped = false,
+    this.lastMoveFrom,
+    this.lastMoveTo,
   });
 
   static const _files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
@@ -68,10 +72,12 @@ class ChessBoardWidget extends StatelessWidget {
                 final isSelected = square == selectedSquare;
                 final isLegal = legalDestinations.contains(square);
                 final piece = game.get(square);
+                final isLastMove = square == lastMoveFrom || square == lastMoveTo;
 
                 Color bgColor = isLight
                     ? theme.correct.withValues(alpha: 0.15)
                     : theme.correct.withValues(alpha: 0.4);
+                if (isLastMove) bgColor = theme.present.withValues(alpha: 0.45);
                 if (isSelected) bgColor = theme.present.withValues(alpha: 0.6);
                 if (isLegal) bgColor = bgColor.withValues(alpha: 0.5);
 
@@ -100,7 +106,7 @@ class ChessBoardWidget extends StatelessWidget {
                               fill: data.fill,
                               color: piece.color == chess.Color.WHITE ? Colors.white : const Color(0xFF2D2D2D),
                               shadows: piece.color == chess.Color.BLACK
-                                  ? [Shadow(color: theme.correct, blurRadius: 4)]
+                                  ? [Shadow(color: theme.present, blurRadius: 2), Shadow(color: theme.present, blurRadius: 2)]
                                   : null,
                             );
                           }),
