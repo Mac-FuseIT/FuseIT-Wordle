@@ -47,35 +47,45 @@ function shuffle(arr, rng) {
 
 async function fetchThemeWords(topics) {
   const keywords = topics.split(',').map(k => k.trim());
-  const results = await Promise.all(
+
+  // Primary: "means like" — strongest semantic connection
+  const mlResults = await Promise.all(
     keywords.map(kw =>
-      fetch(`https://api.datamuse.com/words?rel_trg=${encodeURIComponent(kw)}&max=200`)
+      fetch(`https://api.datamuse.com/words?ml=${encodeURIComponent(kw)}&max=200`)
         .then(r => r.json())
         .catch(() => [])
     )
   );
-  let words = results.flat()
-    .filter(w => w.score > 500)
-    .map(w => w.word.toLowerCase())
-    .filter(w => /^[a-z]+$/.test(w) && w.length >= 4 && w.length <= 8);
 
-  // If too few words, try ml= (means like) with lower threshold
-  if (words.length < 20) {
-    const fallback = await Promise.all(
-      keywords.slice(0, 2).map(kw =>
-        fetch(`https://api.datamuse.com/words?ml=${encodeURIComponent(kw)}&max=200`)
-          .then(r => r.json())
-          .catch(() => [])
-      )
-    );
-    const extra = fallback.flat()
-      .filter(w => w.score > 1000)
-      .map(w => w.word.toLowerCase())
-      .filter(w => /^[a-z]+$/.test(w) && w.length >= 4 && w.length <= 8);
-    words = [...new Set([...words, ...extra])];
+  // Score words by how many keywords they appear for (multi-hit = more relevant)
+  const scoreMap = {};
+  for (const results of mlResults) {
+    for (const w of results) {
+      const word = w.word.toLowerCase();
+      if (!/^[a-z]+$/.test(word) || word.length < 4 || word.length > 8) continue;
+      if (w.score < 5000) continue; // high threshold for tight relevance
+      scoreMap[word] = (scoreMap[word] || 0) + w.score;
+    }
   }
 
-  return [...new Set(words)];
+  // Sort by combined score — highest relevance first
+  let words = Object.entries(scoreMap)
+    .sort((a, b) => b[1] - a[1])
+    .map(([w]) => w);
+
+  // If not enough, lower threshold
+  if (words.length < 25) {
+    for (const results of mlResults) {
+      for (const w of results) {
+        const word = w.word.toLowerCase();
+        if (!/^[a-z]+$/.test(word) || word.length < 4 || word.length > 8) continue;
+        if (w.score < 2000) continue;
+        if (!words.includes(word)) words.push(word);
+      }
+    }
+  }
+
+  return words;
 }
 
 // ─── Grid Placement ───────────────────────────────────────────────────────────
