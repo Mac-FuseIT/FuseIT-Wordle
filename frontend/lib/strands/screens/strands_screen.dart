@@ -236,77 +236,79 @@ class _StrandsScreenState extends State<StrandsScreen> {
                     ],
 
                     // Grid
-                    StrandGrid(
-                      grid: _grid,
-                      foundThemeCells: _foundThemeCells,
-                      foundSpangramCells: _foundSpangramCells,
-                      hintCells: _hintCells,
-                      onWordSubmit: _onWordSubmit,
-                      theme: widget.theme,
-                      completed: _completed,
-                      checking: _checking,
-                      foundTargetPaths: _foundWords.where((f) => f['type'] == 'target').toList(),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // Hint button centered below grid
-                    GestureDetector(
-                      onTap: _hintCharges > 0 ? _useHint : null,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: _hintCharges > 0 ? widget.theme.present.withValues(alpha: 0.15) : const Color(0xFF2A2A2C),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: _hintCharges > 0 ? widget.theme.present : const Color(0xFF3A3A3C)),
-                        ),
-                        child: Text(
-                          '$_hintCharges Hints (${_nonThemeFound % 3}/3 to hint)',
-                          style: TextStyle(color: _hintCharges > 0 ? widget.theme.present : Colors.grey, fontSize: 14, fontWeight: FontWeight.bold),
-                        ),
+                    if (_grid.isNotEmpty) ...[
+                      StrandGrid(
+                        grid: _grid,
+                        foundThemeCells: _foundThemeCells,
+                        foundSpangramCells: _foundSpangramCells,
+                        hintCells: _hintCells,
+                        onWordSubmit: _onWordSubmit,
+                        theme: widget.theme,
+                        completed: _completed,
+                        checking: _checking,
+                        foundTargetPaths: _foundWords.where((f) => f['type'] == 'target').toList(),
                       ),
-                    ),
 
-                    const SizedBox(height: 12),
-
-                    // Progress
-                    Text('Theme: $_themeFound/$_wordCount',
-                      style: TextStyle(color: widget.theme.textColor.withValues(alpha: 0.5), fontSize: 12)),
-
-                    if (_completed) ...[
-                      const SizedBox(height: 12),
-                      Text('🎉 Puzzle Complete! Hints used: $_hintsUsed', style: TextStyle(color: widget.theme.correct, fontSize: 16, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 8),
-                      ElevatedButton(
-                        onPressed: widget.onLeaderboard,
-                        style: ElevatedButton.styleFrom(backgroundColor: widget.theme.correct),
-                        child: const Text('View Leaderboard', style: TextStyle(color: Colors.white)),
-                      ),
-                    ],
-
-                    // Found words
-                    if (_foundWords.where((f) => f['type'] == 'target').isNotEmpty) ...[
                       const SizedBox(height: 16),
-                      Wrap(
-                        spacing: 8, runSpacing: 6,
-                        children: _foundWords.where((f) => f['type'] == 'target').map((f) {
-                          final isSpangram = f['isSpangram'] == true || f['word'] == _spangram;
-                          return Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: isSpangram ? widget.theme.present : widget.theme.correct,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (isSpangram) const Text('🌟 ', style: TextStyle(fontSize: 12)),
-                                Text(f['word'], style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
-                              ],
-                            ),
-                          );
-                        }).toList(),
+
+                      // Hint button centered below grid
+                      GestureDetector(
+                        onTap: _hintCharges > 0 ? _useHint : null,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: _hintCharges > 0 ? widget.theme.present.withValues(alpha: 0.15) : const Color(0xFF2A2A2C),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: _hintCharges > 0 ? widget.theme.present : const Color(0xFF3A3A3C)),
+                          ),
+                          child: Text(
+                            '$_hintCharges Hints (${_nonThemeFound % 3}/3 to hint)',
+                            style: TextStyle(color: _hintCharges > 0 ? widget.theme.present : Colors.grey, fontSize: 14, fontWeight: FontWeight.bold),
+                          ),
+                        ),
                       ),
+
+                      const SizedBox(height: 12),
+
+                      // Progress
+                      Text('Theme: $_themeFound/$_wordCount',
+                        style: TextStyle(color: widget.theme.textColor.withValues(alpha: 0.5), fontSize: 12)),
+
+                      if (_completed) ...[
+                        const SizedBox(height: 12),
+                        Text('🎉 Puzzle Complete! Hints used: $_hintsUsed', style: TextStyle(color: widget.theme.correct, fontSize: 16, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 8),
+                        ElevatedButton(
+                          onPressed: widget.onLeaderboard,
+                          style: ElevatedButton.styleFrom(backgroundColor: widget.theme.correct),
+                          child: const Text('View Leaderboard', style: TextStyle(color: Colors.white)),
+                        ),
+                      ],
+
+                      // Found words
+                      if (_foundWords.where((f) => f['type'] == 'target').isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        Wrap(
+                          spacing: 8, runSpacing: 6,
+                          children: _foundWords.where((f) => f['type'] == 'target').map((f) {
+                            final isSpangram = f['isSpangram'] == true || f['word'] == _spangram;
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: isSpangram ? widget.theme.present : widget.theme.correct,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (isSpangram) const Text('🌟 ', style: TextStyle(fontSize: 12)),
+                                  Text(f['word'], style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
                     ],
                   ],
                 ),
