@@ -185,3 +185,20 @@ Environment variables required in Cloudflare Pages:
 - App is in "Testing" mode → tokens expire after 7 days
 - Fix: Go to Google Cloud Console → **OAuth consent screen** → change from **Testing** to **Production**
 - Tokens also expire if unused for 6 months or manually revoked
+
+
+
+### Creation of the Span.IT:
+
+ Here's what happens step by step when the script tries to make a grid:
+  
+  1. Pick a spangram (8-letter word from the theme, e.g. "RIPENING")
+  2. Fetch related words — calls Datamuse API for words related to that spangram (this is
+  the new step we added)
+  3. Pick a plan — e.g. [8, 8, 7, 6, 5, 5, 5, 4] (word lengths that sum to 48)
+  4. Select words — picks random words of the required lengths from the related words
+  5. Backtrack placement — tries to physically place all words into the 8×6 grid as
+  connected paths (like a snake, each letter adjacent to the next). This is a recursive
+  brute-force algorithm.
+  6. Validate — checks that no word can be accidentally spelled via a different path in
+  the grid

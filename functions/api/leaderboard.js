@@ -50,7 +50,7 @@ export async function onRequestGet({ request, env }) {
 
   const monthly = await getMonthlyLeaderboard(env, monthStart, monthEnd);
 
-  // Day breakdown for requesting user — only days that exist in daily_words, last 10
+  // Day breakdown for requesting user — only days that exist in daily_words
   const auth = await requireAuth(request, env);
   const userId = auth ? auth.userId : null;
   let dayBreakdown = [];
@@ -65,7 +65,6 @@ export async function onRequestGet({ request, env }) {
       LEFT JOIN attempts a ON a.date = dw.date AND a.user_id = ?
       WHERE dw.date >= ? AND dw.date <= ?
       ORDER BY dw.date DESC
-      LIMIT 10
     `).bind(userId, monthStart, monthEnd).all();
     dayBreakdown = (breakdown.results || []).reverse().map(r => {
       const isToday = r.date === today;

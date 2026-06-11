@@ -49,9 +49,10 @@ async function fetchThemeWords(topics) {
   const keywords = topics.split(',').map(k => k.trim());
 
   // Primary: "means like" — strongest semantic connection
+  // Request frequency metadata to filter out obscure words
   const mlResults = await Promise.all(
     keywords.map(kw =>
-      fetch(`https://api.datamuse.com/words?ml=${encodeURIComponent(kw)}&max=200`)
+      fetch(`https://api.datamuse.com/words?ml=${encodeURIComponent(kw)}&max=200&md=f`)
         .then(r => r.json())
         .catch(() => [])
     )
@@ -59,12 +60,18 @@ async function fetchThemeWords(topics) {
 
   // Score words by how many keywords they appear for (multi-hit = more relevant)
   const scoreMap = {};
+  const freqMap = {};
   for (const results of mlResults) {
     for (const w of results) {
       const word = w.word.toLowerCase();
       if (!/^[a-z]+$/.test(word) || word.length < 4 || word.length > 8) continue;
       if (w.score < 5000) continue; // high threshold for tight relevance
+      // Extract frequency from tags (format: "f:123.456")
+      const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
+      const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
+      if (freq < 1.0) continue; // skip very rare/obscure words
       scoreMap[word] = (scoreMap[word] || 0) + w.score;
+      freqMap[word] = Math.max(freqMap[word] || 0, freq);
     }
   }
 
@@ -73,18 +80,40 @@ async function fetchThemeWords(topics) {
     .sort((a, b) => b[1] - a[1])
     .map(([w]) => w);
 
-  // If not enough, lower threshold
+  // If not enough, lower threshold but still require minimum frequency
   if (words.length < 25) {
     for (const results of mlResults) {
       for (const w of results) {
         const word = w.word.toLowerCase();
         if (!/^[a-z]+$/.test(word) || word.length < 4 || word.length > 8) continue;
         if (w.score < 2000) continue;
+        const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
+        const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
+        if (freq < 0.5) continue; // slightly lower bar for fallback, but still filter obscure
         if (!words.includes(word)) words.push(word);
       }
     }
   }
 
+  return words;
+}
+
+// Fetch words related to a specific spangram word (for tighter puzzle coherence)
+async function fetchSpangramRelatedWords(spangram) {
+  const results = await fetch(`https://api.datamuse.com/words?ml=${encodeURIComponent(spangram)}&max=200&md=f`)
+    .then(r => r.json())
+    .catch(() => []);
+
+  const words = [];
+  for (const w of results) {
+    const word = w.word.toLowerCase();
+    if (!/^[a-z]+$/.test(word) || word.length < 4 || word.length > 8) continue;
+    if (word === spangram) continue;
+    const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
+    const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
+    if (freq < 1.0) continue;
+    words.push(word);
+  }
   return words;
 }
 
@@ -123,7 +152,11 @@ function emptyCells(grid) {
   return cells;
 }
 
+let backtrackIter = 0;
+const BACKTRACK_LIMIT = 50000;
+
 function backtrack(grid, words, idx, remaining, rng) {
+  if (++backtrackIter > BACKTRACK_LIMIT) return null;
   if (idx === words.length) return remaining === 0 ? [] : null;
   const word = words[idx];
   const letters = word.toUpperCase().split('');
@@ -134,6 +167,7 @@ function backtrack(grid, words, idx, remaining, rng) {
     const rest = backtrack(grid, words, idx + 1, remaining - word.length, rng);
     if (rest !== null) return [{ word: word.toUpperCase(), path }, ...rest];
     removeFromGrid(grid, path);
+    if (backtrackIter > BACKTRACK_LIMIT) return null;
   }
   return null;
 }
@@ -174,52 +208,68 @@ function canSpellWithOtherCells(grid, word, ownPath) {
 
 // Word-length plans summing to 48
 const PLANS = [
+  // 6 words
+  [8, 8, 8, 8, 8, 8],
+  [8, 8, 8, 8, 8, 8],
+  // 7 words
+  [8, 8, 8, 8, 6, 5, 5],
+  [8, 8, 7, 7, 6, 6, 6],
+  // 8 words
   [8, 8, 7, 6, 5, 5, 5, 4],
   [8, 8, 7, 6, 6, 5, 4, 4],
   [8, 8, 7, 7, 5, 5, 4, 4],
   [8, 8, 8, 6, 5, 5, 4, 4],
   [8, 7, 7, 7, 6, 5, 4, 4],
   [8, 7, 7, 6, 6, 6, 4, 4],
-  [8, 8, 8, 8, 6, 5, 5],
-  [8, 8, 7, 7, 6, 6, 6],
+  // 9 words
+  [8, 7, 6, 5, 5, 5, 4, 4, 4],
+  [8, 6, 6, 6, 5, 5, 4, 4, 4],
+  [8, 7, 7, 5, 5, 4, 4, 4, 4],
+  [8, 6, 6, 5, 5, 5, 5, 4, 4],
 ];
 
 // ─── Puzzle Generator ─────────────────────────────────────────────────────────
 
 async function generatePuzzle(dateStr, themeWords, themeName, rng) {
-  const byLength = { 4: [], 5: [], 6: [], 7: [], 8: [] };
-  for (const w of themeWords) {
-    if (byLength[w.length]) byLength[w.length].push(w);
-  }
+  // Get 8-letter words from theme as spangram candidates
+  const spangrams = themeWords.filter(w => w.length === 8);
+  if (spangrams.length === 0) return null;
 
-  if (byLength[8].length === 0) return null;
-
-  for (const len of [4, 5, 6, 7, 8]) byLength[len] = shuffle(byLength[len], rng);
-
+  const shuffledSpangrams = shuffle(spangrams, rng);
   const plans = shuffle([...PLANS], rng);
 
-  for (const plan of plans) {
-    const otherLengths = [...plan];
-    const idx8 = otherLengths.indexOf(8);
-    otherLengths.splice(idx8, 1);
+  for (let spanIdx = 0; spanIdx < Math.min(shuffledSpangrams.length, 5); spanIdx++) {
+    const spangram = shuffledSpangrams[spanIdx];
 
-    const needed = {};
-    for (const l of otherLengths) needed[l] = (needed[l] || 0) + 1;
-    let feasible = true;
-    for (const [l, n] of Object.entries(needed)) {
-      if ((byLength[l]?.length || 0) < n + 1) { feasible = false; break; }
+    // Fetch words related to this specific spangram
+    const relatedWords = await fetchSpangramRelatedWords(spangram);
+    // Also include theme words as fallback
+    const allCandidates = [...new Set([...relatedWords, ...themeWords])].filter(w => w !== spangram);
+
+    const byLength = { 4: [], 5: [], 6: [], 7: [], 8: [] };
+    for (const w of allCandidates) {
+      if (byLength[w.length]) byLength[w.length].push(w);
     }
-    if (!feasible) continue;
+    for (const len of [4, 5, 6, 7, 8]) byLength[len] = shuffle(byLength[len], rng);
 
-    for (let spanIdx = 0; spanIdx < Math.min(byLength[8].length, 5); spanIdx++) {
-      const spangram = byLength[8][spanIdx];
+    for (const plan of plans) {
+      const otherLengths = [...plan];
+      const idx8 = otherLengths.indexOf(8);
+      otherLengths.splice(idx8, 1);
+
+      const needed = {};
+      for (const l of otherLengths) needed[l] = (needed[l] || 0) + 1;
+      let feasible = true;
+      for (const [l, n] of Object.entries(needed)) {
+        if ((byLength[l]?.length || 0) < n) { feasible = false; break; }
+      }
+      if (!feasible) continue;
 
       for (let combo = 0; combo < 20; combo++) {
         const otherWords = [];
         const used = new Set([spangram]);
         let ok = true;
 
-        // Pick random words of each needed length
         for (const len of otherLengths) {
           const candidates = byLength[len].filter(w => !used.has(w));
           if (candidates.length === 0) { ok = false; break; }
@@ -233,9 +283,9 @@ async function generatePuzzle(dateStr, themeWords, themeName, rng) {
 
         for (let attempt = 0; attempt < 5; attempt++) {
           const grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+          backtrackIter = 0;
           const placed = backtrack(grid, allWords, 0, TOTAL, rng);
           if (placed) {
-            // Strict validation: no word can be spelled via alternate cells
             const valid = placed.every(({ word, path }) => !canSpellWithOtherCells(grid, word, path));
             if (valid) {
               return { theme: themeName, spangram: spangram.toUpperCase(), grid, words: shuffle(placed, rng) };
@@ -244,6 +294,8 @@ async function generatePuzzle(dateStr, themeWords, themeName, rng) {
         }
       }
     }
+    // Small delay between spangram attempts to be polite to API
+    await new Promise(r => setTimeout(r, 150));
   }
   return null;
 }
@@ -281,6 +333,8 @@ let ok = 0, fail = 0;
 for (let i = 0; i < days; i++) {
   const d = new Date(today);
   d.setDate(d.getDate() + i);
+  // Skip weekends
+  if (d.getDay() === 0 || d.getDay() === 6) continue;
   const dateStr = localDateStr(d);
 
   const rng = seededRng(hashStr('spanit:' + dateStr));
