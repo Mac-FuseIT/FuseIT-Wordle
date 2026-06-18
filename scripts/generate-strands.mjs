@@ -6,7 +6,7 @@
  * Each puzzle:
  * - Has a theme (e.g. "Ocean Life")
  * - All words fetched from Datamuse API related to that theme
- * - Exactly 1 spangram: an 8-letter word that is the key word for the theme
+ * - Exactly 1 spangram: a 6-8 letter word tightly related to the theme
  */
 
 import { execSync } from 'child_process';
@@ -98,6 +98,55 @@ async function fetchThemeWords(topics) {
   return words;
 }
 
+// Fetch spangram candidates (6-8 letters) tightly related to the theme topics
+// Uses rel_trg (statistically associated words in text) — gives very tight theme relevance
+async function fetchSpangramCandidates(topics) {
+  const keywords = topics.split(',').map(k => k.trim());
+
+  // rel_trg gives tightly associated words (e.g. clock → pendulum, timing, chimes)
+  const trgResults = await Promise.all(
+    keywords.map(kw =>
+      fetch(`https://api.datamuse.com/words?rel_trg=${encodeURIComponent(kw)}&max=100&md=f`)
+        .then(r => r.json())
+        .catch(() => [])
+    )
+  );
+
+  const words = [];
+  const seen = new Set();
+  for (const results of trgResults) {
+    for (const w of results) {
+      const word = w.word.toLowerCase();
+      if (!/^[a-z]+$/.test(word) || word.length < 6 || word.length > 8) continue;
+      if (seen.has(word)) continue;
+      const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
+      const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
+      if (freq < 1.0) continue;
+      seen.add(word);
+      words.push(word);
+    }
+  }
+
+  // Fallback to ml= with primary keyword if rel_trg gave too few
+  if (words.length < 3) {
+    const fallback = await fetch(`https://api.datamuse.com/words?ml=${encodeURIComponent(keywords[0])}&max=50&md=f`)
+      .then(r => r.json())
+      .catch(() => []);
+    for (const w of fallback) {
+      const word = w.word.toLowerCase();
+      if (!/^[a-z]+$/.test(word) || word.length < 6 || word.length > 8) continue;
+      if (seen.has(word)) continue;
+      const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
+      const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
+      if (freq < 1.0) continue;
+      seen.add(word);
+      words.push(word);
+    }
+  }
+
+  return words;
+}
+
 // Fetch words related to a specific spangram word (for tighter puzzle coherence)
 async function fetchSpangramRelatedWords(spangram) {
   const results = await fetch(`https://api.datamuse.com/words?ml=${encodeURIComponent(spangram)}&max=200&md=f`)
@@ -113,6 +162,35 @@ async function fetchSpangramRelatedWords(spangram) {
     const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
     if (freq < 1.0) continue;
     words.push(word);
+  }
+  return words;
+}
+
+// Fetch filler words tightly related to the theme using rel_trg
+async function fetchThemeRelatedWords(topics) {
+  const keywords = topics.split(',').map(k => k.trim());
+
+  const trgResults = await Promise.all(
+    keywords.map(kw =>
+      fetch(`https://api.datamuse.com/words?rel_trg=${encodeURIComponent(kw)}&max=100&md=f`)
+        .then(r => r.json())
+        .catch(() => [])
+    )
+  );
+
+  const words = [];
+  const seen = new Set();
+  for (const results of trgResults) {
+    for (const w of results) {
+      const word = w.word.toLowerCase();
+      if (!/^[a-z]+$/.test(word) || word.length < 4 || word.length > 8) continue;
+      if (seen.has(word)) continue;
+      const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
+      const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
+      if (freq < 1.0) continue;
+      seen.add(word);
+      words.push(word);
+    }
   }
   return words;
 }
@@ -206,56 +284,93 @@ function canSpellWithOtherCells(grid, word, ownPath) {
   return altFound;
 }
 
-// Word-length plans summing to 48
-const PLANS = [
-  // 6 words
-  [8, 8, 8, 8, 8, 8],
-  [8, 8, 8, 8, 8, 8],
-  // 7 words
-  [8, 8, 8, 8, 6, 5, 5],
-  [8, 8, 7, 7, 6, 6, 6],
-  // 8 words
-  [8, 8, 7, 6, 5, 5, 5, 4],
-  [8, 8, 7, 6, 6, 5, 4, 4],
-  [8, 8, 7, 7, 5, 5, 4, 4],
-  [8, 8, 8, 6, 5, 5, 4, 4],
-  [8, 7, 7, 7, 6, 5, 4, 4],
-  [8, 7, 7, 6, 6, 6, 4, 4],
-  // 9 words
-  [8, 7, 6, 5, 5, 5, 4, 4, 4],
-  [8, 6, 6, 6, 5, 5, 4, 4, 4],
-  [8, 7, 7, 5, 5, 4, 4, 4, 4],
-  [8, 6, 6, 5, 5, 5, 5, 4, 4],
-];
+// Word-length plans for remaining words (excluding spangram) summing to (48 - spangramLength)
+// Keyed by spangram length
+const PLANS_BY_SPANGRAM = {
+  8: [
+    // Remaining = 40
+    [8, 8, 8, 8, 8],
+    [8, 8, 8, 6, 5, 5],
+    [8, 7, 7, 6, 6, 6],
+    [8, 7, 6, 5, 5, 5, 4],
+    [8, 7, 6, 6, 5, 4, 4],
+    [8, 7, 7, 5, 5, 4, 4],
+    [8, 8, 6, 5, 5, 4, 4],
+    [7, 7, 7, 6, 5, 4, 4],
+    [7, 7, 6, 6, 6, 4, 4],
+    [7, 6, 5, 5, 5, 4, 4, 4],
+    [6, 6, 6, 5, 5, 4, 4, 4],
+    [7, 7, 5, 5, 4, 4, 4, 4],
+    [6, 6, 5, 5, 5, 5, 4, 4],
+  ],
+  7: [
+    // Remaining = 41
+    [8, 8, 8, 8, 5, 4],
+    [8, 8, 7, 6, 6, 6],
+    [8, 8, 7, 7, 6, 5],
+    [8, 7, 7, 6, 5, 4, 4],
+    [8, 8, 6, 6, 5, 4, 4],
+    [8, 7, 7, 5, 5, 5, 4],
+    [8, 7, 6, 6, 6, 4, 4],
+    [7, 7, 6, 6, 5, 5, 5],
+    [8, 7, 6, 5, 5, 5, 5],
+    [7, 6, 6, 6, 5, 5, 6],
+    [8, 6, 6, 5, 5, 5, 6],
+    [7, 7, 6, 5, 4, 4, 4, 4],
+    [8, 6, 6, 5, 4, 4, 4, 4],
+  ],
+  6: [
+    // Remaining = 42
+    [8, 8, 8, 6, 6, 6],
+    [8, 8, 7, 7, 6, 6],
+    [8, 8, 8, 7, 7, 4],
+    [8, 8, 7, 6, 5, 4, 4],
+    [8, 7, 7, 7, 5, 4, 4],
+    [8, 8, 6, 6, 6, 4, 4],
+    [8, 7, 7, 6, 6, 4, 4],
+    [8, 7, 6, 6, 5, 5, 5],
+    [7, 7, 7, 7, 6, 4, 4],
+    [8, 7, 6, 5, 5, 5, 6],
+    [7, 7, 6, 6, 5, 5, 6],
+    [8, 6, 6, 6, 4, 4, 4, 4],
+    [7, 7, 6, 5, 5, 4, 4, 4],
+  ],
+};
 
 // ─── Puzzle Generator ─────────────────────────────────────────────────────────
 
-async function generatePuzzle(dateStr, themeWords, themeName, rng) {
-  // Get 8-letter words from theme as spangram candidates
-  const spangrams = themeWords.filter(w => w.length === 8);
-  if (spangrams.length === 0) return null;
+async function generatePuzzle(dateStr, themeWords, themeName, themeTopics, rng) {
+  // Fetch spangram candidates directly from theme topics (tighter relation)
+  const spangramCandidates = await fetchSpangramCandidates(themeTopics);
+  if (spangramCandidates.length === 0) return null;
 
-  const shuffledSpangrams = shuffle(spangrams, rng);
-  const plans = shuffle([...PLANS], rng);
+  // Fetch filler words related to the theme (shared across all spangram attempts)
+  const relatedWords = await fetchThemeRelatedWords(themeTopics);
 
-  for (let spanIdx = 0; spanIdx < Math.min(shuffledSpangrams.length, 5); spanIdx++) {
-    const spangram = shuffledSpangrams[spanIdx];
+  // Don't shuffle — candidates are already ranked by relevance from the API
+  for (let spanIdx = 0; spanIdx < Math.min(spangramCandidates.length, 5); spanIdx++) {
+    const spangram = spangramCandidates[spanIdx];
+    const plans = shuffle([...(PLANS_BY_SPANGRAM[spangram.length] || PLANS_BY_SPANGRAM[8])], rng);
 
-    // Fetch words related to this specific spangram
-    const relatedWords = await fetchSpangramRelatedWords(spangram);
-    // Also include theme words as fallback
+    // Prefer rel_trg words, fall back to theme words for grid filling
+    const relatedSet = new Set(relatedWords);
     const allCandidates = [...new Set([...relatedWords, ...themeWords])].filter(w => w !== spangram);
 
     const byLength = { 4: [], 5: [], 6: [], 7: [], 8: [] };
+    const preferred = { 4: [], 5: [], 6: [], 7: [], 8: [] };
+    const fallback = { 4: [], 5: [], 6: [], 7: [], 8: [] };
     for (const w of allCandidates) {
-      if (byLength[w.length]) byLength[w.length].push(w);
+      if (!byLength[w.length]) continue;
+      if (relatedSet.has(w)) preferred[w.length].push(w);
+      else fallback[w.length].push(w);
     }
-    for (const len of [4, 5, 6, 7, 8]) byLength[len] = shuffle(byLength[len], rng);
+    // Shuffle each group, then put preferred first
+    for (const len of [4, 5, 6, 7, 8]) {
+      byLength[len] = [...shuffle(preferred[len], rng), ...shuffle(fallback[len], rng)];
+    }
 
     for (const plan of plans) {
       const otherLengths = [...plan];
-      const idx8 = otherLengths.indexOf(8);
-      otherLengths.splice(idx8, 1);
 
       const needed = {};
       for (const l of otherLengths) needed[l] = (needed[l] || 0) + 1;
@@ -273,7 +388,7 @@ async function generatePuzzle(dateStr, themeWords, themeName, rng) {
         for (const len of otherLengths) {
           const candidates = byLength[len].filter(w => !used.has(w));
           if (candidates.length === 0) { ok = false; break; }
-          const pick = candidates[Math.floor(rng() * candidates.length)];
+          const pick = candidates[0]; // preferred (rel_trg) words are first
           otherWords.push(pick);
           used.add(pick);
         }
@@ -348,7 +463,7 @@ for (let i = 0; i < days; i++) {
     if (words.length < 10) continue;
 
     process.stdout.write(`${dateStr} [${theme.name}] ... `);
-    puzzle = await generatePuzzle(dateStr, words, theme.name, rng);
+    puzzle = await generatePuzzle(dateStr, words, theme.name, theme.topics, rng);
     if (puzzle) {
       usedTheme = theme.name;
       break;
