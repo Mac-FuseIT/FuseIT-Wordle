@@ -45,154 +45,68 @@ function shuffle(arr, rng) {
 
 // ─── Datamuse API ─────────────────────────────────────────────────────────────
 
-async function fetchThemeWords(topics) {
-  const keywords = topics.split(',').map(k => k.trim());
+// Fetch spangram candidates (6-8 letters) related to the theme topic
+async function fetchSpangramCandidates(topic) {
+  const [mlRes, trgRes] = await Promise.all([
+    fetch(`https://api.datamuse.com/words?ml=${encodeURIComponent(topic)}&max=150&md=f`).then(r => r.json()).catch(() => []),
+    fetch(`https://api.datamuse.com/words?rel_trg=${encodeURIComponent(topic)}&max=80&md=f`).then(r => r.json()).catch(() => []),
+  ]);
 
-  // Primary: "means like" — strongest semantic connection
-  // Request frequency metadata to filter out obscure words
-  const mlResults = await Promise.all(
-    keywords.map(kw =>
-      fetch(`https://api.datamuse.com/words?ml=${encodeURIComponent(kw)}&max=200&md=f`)
-        .then(r => r.json())
-        .catch(() => [])
-    )
-  );
-
-  // Score words by how many keywords they appear for (multi-hit = more relevant)
-  const scoreMap = {};
-  const freqMap = {};
-  for (const results of mlResults) {
-    for (const w of results) {
-      const word = w.word.toLowerCase();
-      if (!/^[a-z]+$/.test(word) || word.length < 4 || word.length > 8) continue;
-      if (w.score < 5000) continue; // high threshold for tight relevance
-      // Extract frequency from tags (format: "f:123.456")
-      const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
-      const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
-      if (freq < 1.0) continue; // skip very rare/obscure words
-      scoreMap[word] = (scoreMap[word] || 0) + w.score;
-      freqMap[word] = Math.max(freqMap[word] || 0, freq);
-    }
+  const scored = {};
+  for (const w of mlRes) {
+    const word = w.word.toLowerCase();
+    if (!/^[a-z]+$/.test(word) || word.length < 6 || word.length > 8) continue;
+    if (word === topic) continue;
+    const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
+    const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
+    if (freq < 2.0) continue;
+    scored[word] = (scored[word] || 0) + (w.score || 0);
+  }
+  for (const w of trgRes) {
+    const word = w.word.toLowerCase();
+    if (!/^[a-z]+$/.test(word) || word.length < 6 || word.length > 8) continue;
+    if (word === topic) continue;
+    const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
+    const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
+    if (freq < 2.0) continue;
+    scored[word] = (scored[word] || 0) + 50000; // boost rel_trg words
   }
 
-  // Sort by combined score — highest relevance first
-  let words = Object.entries(scoreMap)
+  return Object.entries(scored)
     .sort((a, b) => b[1] - a[1])
     .map(([w]) => w);
-
-  // If not enough, lower threshold but still require minimum frequency
-  if (words.length < 25) {
-    for (const results of mlResults) {
-      for (const w of results) {
-        const word = w.word.toLowerCase();
-        if (!/^[a-z]+$/.test(word) || word.length < 4 || word.length > 8) continue;
-        if (w.score < 2000) continue;
-        const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
-        const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
-        if (freq < 0.5) continue; // slightly lower bar for fallback, but still filter obscure
-        if (!words.includes(word)) words.push(word);
-      }
-    }
-  }
-
-  return words;
 }
 
-// Fetch spangram candidates (6-8 letters) tightly related to the theme topics
-// Uses rel_trg (statistically associated words in text) — gives very tight theme relevance
-async function fetchSpangramCandidates(topics) {
-  const keywords = topics.split(',').map(k => k.trim());
+// Fetch fill words (4-8 letters) related to the SPANGRAM word
+async function fetchWordsForSpangram(spangram) {
+  const [mlRes, trgRes] = await Promise.all([
+    fetch(`https://api.datamuse.com/words?ml=${encodeURIComponent(spangram)}&max=200&md=f`).then(r => r.json()).catch(() => []),
+    fetch(`https://api.datamuse.com/words?rel_trg=${encodeURIComponent(spangram)}&max=100&md=f`).then(r => r.json()).catch(() => []),
+  ]);
 
-  // rel_trg gives tightly associated words (e.g. clock → pendulum, timing, chimes)
-  const trgResults = await Promise.all(
-    keywords.map(kw =>
-      fetch(`https://api.datamuse.com/words?rel_trg=${encodeURIComponent(kw)}&max=100&md=f`)
-        .then(r => r.json())
-        .catch(() => [])
-    )
-  );
-
-  const words = [];
-  const seen = new Set();
-  for (const results of trgResults) {
-    for (const w of results) {
-      const word = w.word.toLowerCase();
-      if (!/^[a-z]+$/.test(word) || word.length < 6 || word.length > 8) continue;
-      if (seen.has(word)) continue;
-      const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
-      const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
-      if (freq < 1.0) continue;
-      seen.add(word);
-      words.push(word);
-    }
-  }
-
-  // Fallback to ml= with primary keyword if rel_trg gave too few
-  if (words.length < 3) {
-    const fallback = await fetch(`https://api.datamuse.com/words?ml=${encodeURIComponent(keywords[0])}&max=50&md=f`)
-      .then(r => r.json())
-      .catch(() => []);
-    for (const w of fallback) {
-      const word = w.word.toLowerCase();
-      if (!/^[a-z]+$/.test(word) || word.length < 6 || word.length > 8) continue;
-      if (seen.has(word)) continue;
-      const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
-      const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
-      if (freq < 1.0) continue;
-      seen.add(word);
-      words.push(word);
-    }
-  }
-
-  return words;
-}
-
-// Fetch words related to a specific spangram word (for tighter puzzle coherence)
-async function fetchSpangramRelatedWords(spangram) {
-  const results = await fetch(`https://api.datamuse.com/words?ml=${encodeURIComponent(spangram)}&max=200&md=f`)
-    .then(r => r.json())
-    .catch(() => []);
-
-  const words = [];
-  for (const w of results) {
+  const scored = {};
+  for (const w of mlRes) {
     const word = w.word.toLowerCase();
     if (!/^[a-z]+$/.test(word) || word.length < 4 || word.length > 8) continue;
     if (word === spangram) continue;
     const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
     const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
-    if (freq < 1.0) continue;
-    words.push(word);
+    if (freq < 3.0) continue; // only common, recognizable words
+    scored[word] = (scored[word] || 0) + (w.score || 0);
   }
-  return words;
-}
-
-// Fetch filler words tightly related to the theme using rel_trg
-async function fetchThemeRelatedWords(topics) {
-  const keywords = topics.split(',').map(k => k.trim());
-
-  const trgResults = await Promise.all(
-    keywords.map(kw =>
-      fetch(`https://api.datamuse.com/words?rel_trg=${encodeURIComponent(kw)}&max=100&md=f`)
-        .then(r => r.json())
-        .catch(() => [])
-    )
-  );
-
-  const words = [];
-  const seen = new Set();
-  for (const results of trgResults) {
-    for (const w of results) {
-      const word = w.word.toLowerCase();
-      if (!/^[a-z]+$/.test(word) || word.length < 4 || word.length > 8) continue;
-      if (seen.has(word)) continue;
-      const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
-      const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
-      if (freq < 1.0) continue;
-      seen.add(word);
-      words.push(word);
-    }
+  for (const w of trgRes) {
+    const word = w.word.toLowerCase();
+    if (!/^[a-z]+$/.test(word) || word.length < 4 || word.length > 8) continue;
+    if (word === spangram) continue;
+    const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
+    const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
+    if (freq < 3.0) continue;
+    scored[word] = (scored[word] || 0) + 50000; // boost rel_trg
   }
-  return words;
+
+  return Object.entries(scored)
+    .sort((a, b) => b[1] - a[1])
+    .map(([w]) => w);
 }
 
 // ─── Grid Placement ───────────────────────────────────────────────────────────
@@ -339,39 +253,30 @@ const PLANS_BY_SPANGRAM = {
 
 // ─── Puzzle Generator ─────────────────────────────────────────────────────────
 
-async function generatePuzzle(dateStr, themeWords, themeName, themeTopics, rng) {
-  // Fetch spangram candidates directly from theme topics (tighter relation)
-  const spangramCandidates = await fetchSpangramCandidates(themeTopics);
+async function generatePuzzle(dateStr, themeName, themeTopics, rng) {
+  const topic = themeTopics.split(',')[0].trim();
+
+  // Step 1: Get spangram candidates from theme topic
+  const spangramCandidates = await fetchSpangramCandidates(topic);
   if (spangramCandidates.length === 0) return null;
 
-  // Fetch filler words related to the theme (shared across all spangram attempts)
-  const relatedWords = await fetchThemeRelatedWords(themeTopics);
-
-  // Don't shuffle — candidates are already ranked by relevance from the API
+  // Step 2: For each spangram, fetch fill words based on THAT spangram
   for (let spanIdx = 0; spanIdx < Math.min(spangramCandidates.length, 5); spanIdx++) {
     const spangram = spangramCandidates[spanIdx];
+
+    // Fetch words related to the spangram — this ensures coherence
+    const fillWords = await fetchWordsForSpangram(spangram);
+    if (fillWords.length < 10) continue;
+
     const plans = shuffle([...(PLANS_BY_SPANGRAM[spangram.length] || PLANS_BY_SPANGRAM[8])], rng);
 
-    // Prefer rel_trg words, fall back to theme words for grid filling
-    const relatedSet = new Set(relatedWords);
-    const allCandidates = [...new Set([...relatedWords, ...themeWords])].filter(w => w !== spangram);
-
     const byLength = { 4: [], 5: [], 6: [], 7: [], 8: [] };
-    const preferred = { 4: [], 5: [], 6: [], 7: [], 8: [] };
-    const fallback = { 4: [], 5: [], 6: [], 7: [], 8: [] };
-    for (const w of allCandidates) {
-      if (!byLength[w.length]) continue;
-      if (relatedSet.has(w)) preferred[w.length].push(w);
-      else fallback[w.length].push(w);
-    }
-    // Shuffle each group, then put preferred first
-    for (const len of [4, 5, 6, 7, 8]) {
-      byLength[len] = [...shuffle(preferred[len], rng), ...shuffle(fallback[len], rng)];
+    for (const w of fillWords) {
+      if (byLength[w.length] && w !== spangram) byLength[w.length].push(w);
     }
 
     for (const plan of plans) {
       const otherLengths = [...plan];
-
       const needed = {};
       for (const l of otherLengths) needed[l] = (needed[l] || 0) + 1;
       let feasible = true;
@@ -388,7 +293,8 @@ async function generatePuzzle(dateStr, themeWords, themeName, themeTopics, rng) 
         for (const len of otherLengths) {
           const candidates = byLength[len].filter(w => !used.has(w));
           if (candidates.length === 0) { ok = false; break; }
-          const pick = candidates[0]; // preferred (rel_trg) words are first
+          // Pick from top of list (highest relevance to spangram)
+          const pick = candidates[Math.floor(rng() * Math.min(candidates.length, 3))];
           otherWords.push(pick);
           used.add(pick);
         }
@@ -409,7 +315,6 @@ async function generatePuzzle(dateStr, themeWords, themeName, themeTopics, rng) 
         }
       }
     }
-    // Small delay between spangram attempts to be polite to API
     await new Promise(r => setTimeout(r, 150));
   }
   return null;
@@ -419,29 +324,12 @@ async function generatePuzzle(dateStr, themeWords, themeName, themeTopics, rng) 
 
 const days = parseInt(process.argv[2] ?? '60', 10);
 
-// Use local date to avoid UTC offset issues
 function localDateStr(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 const today = new Date();
 
-// Pre-fetch all theme word lists (cache them)
-console.log('Fetching theme words from Datamuse API...');
-const themeCache = {};
-for (const theme of THEMES) {
-  process.stdout.write(`  ${theme.name} ... `);
-  try {
-    themeCache[theme.name] = await fetchThemeWords(theme.topics);
-    console.log(`${themeCache[theme.name].length} words`);
-  } catch (e) {
-    console.log(`FAILED: ${e.message}`);
-    themeCache[theme.name] = [];
-  }
-  // Small delay to be polite to the API
-  await new Promise(r => setTimeout(r, 200));
-}
-
-console.log('\nGenerating puzzles...');
+console.log('Generating puzzles...');
 const sqlLines = [];
 let ok = 0, fail = 0;
 
@@ -456,18 +344,11 @@ for (let i = 0; i < days; i++) {
   const themeOrder = shuffle([...THEMES], rng);
 
   let puzzle = null;
-  let usedTheme = null;
 
   for (const theme of themeOrder) {
-    const words = themeCache[theme.name] || [];
-    if (words.length < 10) continue;
-
     process.stdout.write(`${dateStr} [${theme.name}] ... `);
-    puzzle = await generatePuzzle(dateStr, words, theme.name, theme.topics, rng);
-    if (puzzle) {
-      usedTheme = theme.name;
-      break;
-    }
+    puzzle = await generatePuzzle(dateStr, theme.name, theme.topics, rng);
+    if (puzzle) break;
     console.log('no valid grid, trying next theme...');
   }
 
