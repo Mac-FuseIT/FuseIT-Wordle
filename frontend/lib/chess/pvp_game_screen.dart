@@ -41,6 +41,9 @@ class _PvpGameScreenState extends State<PvpGameScreen> {
   String _timeControl = 'unlimited';
   Timer? _clockTimer;
   int? _viewingIndex;
+  bool _redoRequested = false;
+  bool _redoPending = false; // someone else requested, waiting for my vote
+  String? _redoRequestedByName;
 
   @override
   void initState() {
@@ -128,6 +131,26 @@ class _PvpGameScreenState extends State<PvpGameScreen> {
         _clockTimer?.cancel();
         setState(() { _gameOver = true; _winner = data['winner']; _reason = data['reason']; });
         break;
+      case 'redo_requested':
+        setState(() {
+          if (data['by'] == widget.userId) {
+            _redoRequested = true;
+          } else {
+            _redoPending = true;
+            _redoRequestedByName = data['byName'];
+          }
+        });
+        break;
+      case 'redo_accepted':
+        final moves = List<String>.from(data['moves'] ?? []);
+        _game = chess.Chess();
+        _moveHistory = [];
+        for (final m in moves) { _game.move(m); _moveHistory.add(m); }
+        setState(() { _redoRequested = false; _redoPending = false; _redoRequestedByName = null; _viewingIndex = null; });
+        break;
+      case 'redo_rejected':
+        setState(() { _redoRequested = false; _redoPending = false; _redoRequestedByName = null; });
+        break;
       case 'disconnected':
         // Legacy — handled by connection_lost + auto-reconnect
         break;
@@ -165,6 +188,13 @@ class _PvpGameScreenState extends State<PvpGameScreen> {
     final whiteToMove = _game.turn == chess.Color.WHITE;
     return (whiteToMove && _myColor == 'white') || (!whiteToMove && _myColor == 'black');
   }
+
+  String get _opponentName {
+    final opp = _players.where((p) => p['id'] != widget.userId).toList();
+    return opp.isNotEmpty ? (opp.first['name'] ?? '?') : '?';
+  }
+
+  String get _myName => widget.nickname;
 
   void _onSquareTap(String square) {
     if (!_isMyTurn || _isViewingHistory) return;
@@ -260,6 +290,13 @@ class _PvpGameScreenState extends State<PvpGameScreen> {
         child: Row(children: [
           IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: widget.onBack),
           const Text('PvP Chess', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+          const Spacer(),
+          if (_started && !_gameOver)
+            IconButton(
+              icon: const Icon(Icons.flag, color: Colors.redAccent),
+              tooltip: 'Forfeit',
+              onPressed: () => _showForfeitDialog(),
+            ),
         ]),
       ),
       const Divider(color: Color(0xFF3A3A3C), height: 1),
@@ -287,14 +324,15 @@ class _PvpGameScreenState extends State<PvpGameScreen> {
         // Game
         if (_started || _gameOver) ...[
           const SizedBox(height: 8),
-          // Opponent timer (top)
+          // Opponent info (top)
+          _buildPlayerIndicator(_opponentName, isOpponent: true),
           if (_timeControl != 'unlimited')
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(_formatTime(_timers[_myColor == 'white' ? 'black' : 'white'] ?? 0),
-                style: const TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.bold)),
+                style: const TextStyle(color: Colors.white70, fontSize: 14)),
             ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 400),
             child: Builder(builder: (context) {
@@ -360,14 +398,65 @@ class _PvpGameScreenState extends State<PvpGameScreen> {
               ]);
             }),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           // My timer (bottom)
           if (_timeControl != 'unlimited')
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(_formatTime(_timers[_myColor ?? 'white'] ?? 0),
-                style: TextStyle(color: widget.theme.correct, fontSize: 16, fontWeight: FontWeight.bold)),
+                style: TextStyle(color: widget.theme.correct, fontSize: 14)),
             ),
+          // My info (bottom)
+          _buildPlayerIndicator(_myName, isOpponent: false),
+          // Redo request UI
+          if (_started && !_gameOver) ...[
+            const SizedBox(height: 8),
+            if (_redoPending)
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(color: widget.theme.present.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(8)),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Text('$_redoRequestedByName wants to undo', style: TextStyle(color: widget.theme.present, fontSize: 13)),
+                  const SizedBox(width: 12),
+                  GestureDetector(
+                    onTap: () { _ws.voteRedo(true); setState(() => _redoPending = false); },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(color: widget.theme.correct, borderRadius: BorderRadius.circular(6)),
+                      child: const Text('Accept', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () { _ws.voteRedo(false); setState(() => _redoPending = false); },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(6)),
+                      child: const Text('Reject', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ]),
+              )
+            else if (_redoRequested)
+              Text('Waiting for opponent to accept undo...', style: TextStyle(color: widget.theme.present, fontSize: 13))
+            else if (_moveHistory.isNotEmpty)
+              GestureDetector(
+                onTap: () => _ws.requestRedo(),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF3A3A3C),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.undo, color: Colors.white70, size: 16),
+                    SizedBox(width: 6),
+                    Text('Request Undo', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                  ]),
+                ),
+              ),
+          ],
           if (_isViewingHistory) ...[
             const SizedBox(height: 8),
             ElevatedButton(
@@ -394,6 +483,53 @@ class _PvpGameScreenState extends State<PvpGameScreen> {
         const SizedBox(height: 16),
       ])))),
     ]);
+  }
+
+  void _showForfeitDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1B),
+        title: const Text('Forfeit?', style: TextStyle(color: Colors.white)),
+        content: const Text('You will lose this game.', style: TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () { Navigator.pop(ctx); _ws.forfeit(); },
+            child: const Text('Forfeit', style: TextStyle(color: Colors.redAccent)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlayerIndicator(String name, {required bool isOpponent}) {
+    final isTheirTurn = isOpponent ? !_isMyTurn : _isMyTurn;
+    final glowColor = widget.theme.correct;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Row(children: [
+        Text(
+          name,
+          style: TextStyle(
+            color: isTheirTurn ? glowColor : Colors.white54,
+            fontSize: 14,
+            fontWeight: isTheirTurn ? FontWeight.bold : FontWeight.normal,
+            shadows: isTheirTurn ? [Shadow(color: glowColor, blurRadius: 8), Shadow(color: glowColor, blurRadius: 16)] : null,
+          ),
+        ),
+        const SizedBox(width: 8),
+        if (isTheirTurn && _started && !_gameOver)
+          Text(
+            isOpponent ? 'their turn' : 'your turn',
+            style: TextStyle(
+              color: glowColor,
+              fontSize: 11,
+              shadows: [Shadow(color: glowColor, blurRadius: 6)],
+            ),
+          ),
+      ]),
+    );
   }
 
   ({List<chess.PieceType> whiteCaptured, List<chess.PieceType> blackCaptured}) _getCapturedPieces(chess.Chess board) {

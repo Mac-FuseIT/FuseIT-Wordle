@@ -125,6 +125,43 @@ export class ChessGameSession extends DurableObject {
         }
         break;
       }
+      case 'forfeit': {
+        if (!state.started) return;
+        const att = ws.deserializeAttachment();
+        if (!att) return;
+        const loserColor = this.getPlayerColor(state, att.userId);
+        const winnerColor = loserColor === 'white' ? 'black' : 'white';
+        await this.endGame(state, winnerColor, 'forfeit');
+        break;
+      }
+      case 'redo_request': {
+        if (!state.started || state.moves.length === 0) return;
+        const att = ws.deserializeAttachment();
+        if (!att) return;
+        state.redoRequestedBy = att.userId;
+        await this.saveState(state);
+        this.broadcast({ type: 'redo_requested', by: att.userId, byName: att.name });
+        break;
+      }
+      case 'redo_vote': {
+        if (!state.started || !state.redoRequestedBy) return;
+        const att = ws.deserializeAttachment();
+        if (!att) return;
+        // Only the OTHER player can accept/reject
+        if (att.userId === state.redoRequestedBy) return;
+        if (data.accept) {
+          // Undo last move
+          state.moves.pop();
+          state.redoRequestedBy = null;
+          await this.saveState(state);
+          this.broadcast({ type: 'redo_accepted', moves: state.moves });
+        } else {
+          state.redoRequestedBy = null;
+          await this.saveState(state);
+          this.broadcast({ type: 'redo_rejected' });
+        }
+        break;
+      }
     }
   }
 

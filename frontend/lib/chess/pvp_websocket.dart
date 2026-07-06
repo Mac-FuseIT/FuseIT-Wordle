@@ -61,6 +61,12 @@ class ChessPvpWebSocket {
     send({'type': 'move', 'move': move, 'gameOver': gameOver, 'winner': winner, 'reason': reason});
   }
 
+  void forfeit() => send({'type': 'forfeit'});
+
+  void requestRedo() => send({'type': 'redo_request'});
+
+  void voteRedo(bool accept) => send({'type': 'redo_vote', 'accept': accept});
+
   void dispose() {
     _intentionallyClosed = true;
     _channel?.sink.close();
