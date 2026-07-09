@@ -11,6 +11,7 @@ class MainMenuScreen extends StatelessWidget {
   final VoidCallback onPongIT;
   final VoidCallback onInvadeIT;
   final VoidCallback onChessIT;
+  final VoidCallback onBlackjackIT;
   final VoidCallback onProfile;
   final VoidCallback onLogout;
 
@@ -24,6 +25,7 @@ class MainMenuScreen extends StatelessWidget {
     required this.onPongIT,
     required this.onInvadeIT,
     required this.onChessIT,
+    required this.onBlackjackIT,
     required this.onProfile,
     required this.onLogout,
   });
@@ -83,6 +85,8 @@ class MainMenuScreen extends StatelessWidget {
                 _GameCard(title: 'Invade.IT', subtitle: 'Space invaders', icon: Icons.rocket_launch, color: theme.correct, onTap: onInvadeIT),
                 const SizedBox(width: 16),
                 _GameCard(title: 'Chess.IT', subtitle: 'Daily chess bot', icon: Symbols.chess_knight_rounded, color: theme.present, fill: 1, onTap: onChessIT),
+                const SizedBox(width: 16),
+                _GameCard(title: 'Jack.IT', subtitle: 'Blackjack', icon: Icons.casino, color: theme.correct, onTap: onBlackjackIT),
               ],
             ),
             const SizedBox(height: 48),

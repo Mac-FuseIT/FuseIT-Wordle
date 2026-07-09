@@ -261,6 +261,42 @@ class ApiService {
     return jsonDecode(res.body);
   }
 
+  // Blackjack (Jack.IT)
+  static Future<Map<String, dynamic>> getBlackjackToday() async {
+    final res = await _authGet('/api/blackjack/today');
+    return jsonDecode(res.body);
+  }
+
+  static Future<Map<String, dynamic>> blackjackBet(int amount) async {
+    final res = await _authPost('/api/blackjack/bet', body: {'amount': amount});
+    return jsonDecode(res.body);
+  }
+
+  static Future<Map<String, dynamic>> blackjackHit() async {
+    final res = await _authPost('/api/blackjack/hit');
+    return jsonDecode(res.body);
+  }
+
+  static Future<Map<String, dynamic>> blackjackStand() async {
+    final res = await _authPost('/api/blackjack/stand');
+    return jsonDecode(res.body);
+  }
+
+  static Future<Map<String, dynamic>> blackjackDouble() async {
+    final res = await _authPost('/api/blackjack/double');
+    return jsonDecode(res.body);
+  }
+
+  static Future<Map<String, dynamic>> blackjackCashout() async {
+    final res = await _authPost('/api/blackjack/cashout');
+    return jsonDecode(res.body);
+  }
+
+  static Future<Map<String, dynamic>> getBlackjackLeaderboard() async {
+    final res = await _authGet('/api/blackjack/leaderboard');
+    return jsonDecode(res.body);
+  }
+
   static List<GuessResult> parseGuesses(List<dynamic> raw) {
     return raw.map((g) => GuessResult.fromJson(g as Map<String, dynamic>)).toList();
   }
