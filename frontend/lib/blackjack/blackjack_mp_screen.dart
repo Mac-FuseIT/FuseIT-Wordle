@@ -37,6 +37,7 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
   int _betAmount = 10;
   List<Map<String, dynamic>>? _roundResults;
   bool _myBetPlaced = false;
+  bool _canDouble = false;
 
   Timer? _errorTimer;
   Timer? _resultsTimer;
@@ -78,9 +79,20 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
 
       case 'player_joined':
         setState(() {
-          final newPlayer = Map<String, dynamic>.from(data['player'] ?? data);
-          final alreadyIn = _players.any((p) => p['userId'] == newPlayer['userId']);
-          if (!alreadyIn) _players.add(newPlayer);
+          final newPlayer = <String, dynamic>{
+            'userId': data['userId'],
+            'name': data['name'],
+            'seatIndex': data['seatIndex'] ?? _players.length,
+            'balance': 0,
+            'bet': 0,
+            'hand': <dynamic>[],
+            'value': 0,
+            'status': 'waiting',
+            'disconnected': false,
+          };
+          if (!_players.any((p) => p['userId'] == newPlayer['userId'])) {
+            _players.add(newPlayer);
+          }
         });
         break;
 
@@ -112,9 +124,16 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
 
       case 'cards_dealt':
         setState(() {
-          final dealtPlayers = data['players'];
-          if (dealtPlayers != null) {
-            _players = List<Map<String, dynamic>>.from(dealtPlayers);
+          final dealtPlayers = data['players'] as List? ?? [];
+          for (final dealt in dealtPlayers) {
+            final dMap = Map<String, dynamic>.from(dealt);
+            final idx = _players.indexWhere((p) => p['userId'] == dMap['userId']);
+            if (idx != -1) {
+              _players[idx] = Map<String, dynamic>.from(_players[idx])
+                ..['hand'] = dMap['hand'] ?? []
+                ..['value'] = dMap['value'] ?? 0
+                ..['status'] = 'playing';
+            }
           }
           if (data['dealer'] != null) {
             _dealer = Map<String, dynamic>.from(data['dealer']);
@@ -128,6 +147,7 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
           final turnUserId = data['userId'];
           final idx = _players.indexWhere((p) => p['userId'] == turnUserId);
           if (idx != -1) _currentTurn = idx;
+          _canDouble = data['canDouble'] ?? false;
         });
         break;
 
@@ -163,15 +183,14 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
 
       case 'player_doubled':
         setState(() {
-          final doubledId = data['userId'];
-          final idx = _players.indexWhere((p) => p['userId'] == doubledId);
+          final pId = data['userId'];
+          final idx = _players.indexWhere((p) => p['userId'] == pId);
           if (idx != -1) {
             final updated = Map<String, dynamic>.from(_players[idx]);
-            if (data['hand'] != null) {
-              updated['hand'] = List<Map<String, dynamic>>.from(data['hand']);
-            }
+            updated['hand'] = data['hand'] ?? updated['hand'];
             updated['value'] = data['value'] ?? updated['value'];
-            updated['bet'] = data['bet'] ?? updated['bet'];
+            updated['bet'] = data['newBet'] ?? data['bet'] ?? updated['bet'];
+            updated['status'] = (updated['value'] ?? 0) > 21 ? 'bust' : 'stood';
             _players[idx] = updated;
           }
         });
@@ -190,12 +209,10 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
 
       case 'dealer_turn':
         setState(() {
-          if (data['dealer'] != null) {
-            _dealer = Map<String, dynamic>.from(data['dealer']);
-          } else {
-            if (data['hand'] != null) _dealer['hand'] = data['hand'];
-            if (data['value'] != null) _dealer['value'] = data['value'];
-          }
+          final hand = data['finalHand'] ?? data['hand'] ?? data['cards'];
+          final value = data['finalValue'] ?? data['value'];
+          if (hand != null) _dealer['hand'] = List<Map<String, dynamic>>.from((hand as List).map((c) => Map<String, dynamic>.from(c)));
+          if (value != null) _dealer['value'] = value;
           _phase = 'dealer_turn';
         });
         break;
@@ -203,18 +220,25 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
       case 'round_result':
         setState(() {
           _phase = 'round_over';
-          _roundResults = List<Map<String, dynamic>>.from(data['results'] ?? []);
-          // Update balances from results
+          final results = data['results'] as List? ?? [];
+          _roundResults = List<Map<String, dynamic>>.from(results.map((r) => Map<String, dynamic>.from(r)));
+          // Update player balances from results
           for (final result in _roundResults!) {
             final rId = result['userId'];
             final idx = _players.indexWhere((p) => p['userId'] == rId);
-            if (idx != -1 && result['balance'] != null) {
-              _players[idx] = Map<String, dynamic>.from(_players[idx])
-                ..['balance'] = result['balance'];
+            if (idx != -1 && result['newBalance'] != null) {
+              _players[idx] = Map<String, dynamic>.from(_players[idx])..['balance'] = result['newBalance'];
             }
-            if (rId == widget.userId && result['balance'] != null) {
-              _myBalance = result['balance'];
+            if (rId == widget.userId && result['newBalance'] != null) {
+              _myBalance = result['newBalance'];
             }
+          }
+          // Update dealer
+          if (data['dealerHand'] != null) {
+            _dealer['hand'] = List<Map<String, dynamic>>.from((data['dealerHand'] as List).map((c) => Map<String, dynamic>.from(c)));
+          }
+          if (data['dealerValue'] != null) {
+            _dealer['value'] = data['dealerValue'];
           }
         });
         _resultsTimer?.cancel();
@@ -853,11 +877,7 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
 
   // --- playing phase ---
   Widget _buildPlayActions() {
-    final me = _getMyPlayer();
-    final hand = me != null
-        ? List<Map<String, dynamic>>.from(me['hand'] ?? [])
-        : <Map<String, dynamic>>[];
-    final canDouble = hand.length == 2;
+    final canDouble = _canDouble && _isMyTurn();
 
     return Row(
       children: [
