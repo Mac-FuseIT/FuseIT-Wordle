@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/app_theme.dart';
+import 'blackjack_mp_screen.dart';
 import 'blackjack_screen.dart';
 
 class BlackjackLobbyScreen extends StatefulWidget {
@@ -39,10 +41,23 @@ class _BlackjackLobbyScreenState extends State<BlackjackLobbyScreen> {
   List<Map<String, dynamic>> _daily = [];
   List<Map<String, dynamic>> _monthly = [];
 
+  // Multiplayer state
+  List<Map<String, dynamic>> _mpGames = [];
+  bool _mpLoading = false;
+  String? _mpGameId; // when non-null, show multiplayer screen
+  Timer? _refreshTimer;
+
   @override
   void initState() {
     super.initState();
     _load();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 5), (_) => _loadGames());
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
   }
 
   Future<Map<String, String>> _getHeaders() async {
@@ -86,10 +101,50 @@ class _BlackjackLobbyScreenState extends State<BlackjackLobbyScreen> {
       }
     } catch (_) {}
     setState(() => _loading = false);
+    await _loadGames();
+  }
+
+  Future<void> _loadGames() async {
+    try {
+      final headers = await _getHeaders();
+      final res = await http.get(Uri.parse('/api/blackjack-mp/games'), headers: headers);
+      if (res.statusCode == 200 && mounted) {
+        final data = jsonDecode(res.body);
+        setState(() {
+          _mpGames = List<Map<String, dynamic>>.from(data['games'] ?? []);
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _createMpGame() async {
+    setState(() => _mpLoading = true);
+    try {
+      final headers = await _getHeaders();
+      final res = await http.post(Uri.parse('/api/blackjack-mp/create'), headers: headers);
+      if (res.statusCode == 200 && mounted) {
+        final data = jsonDecode(res.body);
+        setState(() => _mpGameId = data['gameId']);
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _mpLoading = false);
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_mpGameId != null) {
+      return BlackjackMpScreen(
+        theme: widget.theme,
+        onBack: () => setState(() {
+          _mpGameId = null;
+          _load();
+        }),
+        nickname: widget.nickname,
+        userId: widget.userId,
+        gameId: _mpGameId!,
+      );
+    }
+
     if (_playing) {
       return BlackjackScreen(
         theme: widget.theme,
@@ -134,6 +189,12 @@ class _BlackjackLobbyScreenState extends State<BlackjackLobbyScreen> {
                           _buildStatusCard(),
                           const SizedBox(height: 24),
                           _buildPlayButton(),
+                          const SizedBox(height: 12),
+                          _buildPlayWithFriendsButton(),
+                          if (_mpGames.isNotEmpty) ...[
+                            const SizedBox(height: 24),
+                            _buildOpenTables(),
+                          ],
                           const SizedBox(height: 32),
                           const Divider(color: Color(0xFF3A3A3C)),
                           const SizedBox(height: 16),
@@ -278,6 +339,86 @@ class _BlackjackLobbyScreenState extends State<BlackjackLobbyScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildPlayWithFriendsButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: ElevatedButton.icon(
+        onPressed: _mpLoading ? null : _createMpGame,
+        icon: const Icon(Icons.people, color: Colors.white),
+        label: Text(
+          _mpLoading ? 'Creating...' : 'Play with Friends',
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: widget.theme.present,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOpenTables() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Open Tables',
+          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        ..._mpGames.map((game) {
+          final creatorName = game['creator_name'] ?? 'Unknown';
+          final playerCount = game['player_count'] ?? 1;
+          final maxPlayers = game['max_players'] ?? 4;
+          final status = game['status'] ?? 'waiting';
+          final isFull = playerCount >= maxPlayers;
+          final gameId = game['id'] as String;
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A1A1B),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFF3A3A3C)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "$creatorName's table",
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '$playerCount/$maxPlayers players • $status',
+                        style: const TextStyle(color: Colors.grey, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                if (!isFull)
+                  ElevatedButton(
+                    onPressed: () => setState(() => _mpGameId = gameId),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: widget.theme.correct,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                    ),
+                    child: const Text('Join', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
+              ],
+            ),
+          );
+        }),
+      ],
     );
   }
 
