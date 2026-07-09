@@ -117,6 +117,16 @@ class _BlackjackLobbyScreenState extends State<BlackjackLobbyScreen> {
     } catch (_) {}
   }
 
+  Future<void> _uncashout() async {
+    try {
+      final headers = await _getHeaders();
+      final res = await http.post(Uri.parse('/api/blackjack/uncashout'), headers: headers);
+      if (res.statusCode == 200 && mounted) {
+        _load(); // Reload everything
+      }
+    } catch (_) {}
+  }
+
   Future<void> _createMpGame() async {
     setState(() => _mpLoading = true);
     try {
@@ -246,6 +256,21 @@ class _BlackjackLobbyScreenState extends State<BlackjackLobbyScreen> {
             ),
             const SizedBox(height: 4),
             Text('$_handsPlayed hands played, $_handsWon won', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: _uncashout,
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: widget.theme.present),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: Text(
+                  'Cash Back In',
+                  style: TextStyle(color: widget.theme.present, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
           ],
         ),
       );
