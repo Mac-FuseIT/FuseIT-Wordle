@@ -56,9 +56,14 @@ function drawCard(deck, inPlayCards = []) {
   return deck.pop();
 }
 
-/** Returns YYYY-MM-DD for today in UTC (same logic as src/db.js getToday). */
+/** Returns YYYY-MM-DD for today in UTC (same logic as src/db.js getToday).
+ *  Sat → Fri, Sun → Fri so DO reads/writes the same blackjack_sessions row. */
 function getToday() {
-  return new Date().toISOString().split('T')[0];
+  const date = new Date();
+  const day = date.getUTCDay();
+  if (day === 0) date.setUTCDate(date.getUTCDate() - 2); // Sun → Fri
+  else if (day === 6) date.setUTCDate(date.getUTCDate() - 1); // Sat → Fri
+  return date.toISOString().split('T')[0];
 }
 
 /** Build the default empty session for a new blackjack_sessions row. */
@@ -513,7 +518,7 @@ export class BlackjackMultiplayerSession extends DurableObject {
     this.broadcast({ type: 'player_left', userId, name: player.name });
 
     // If nobody left, close up
-    if (state.players.filter(p => !p.pendingLeave).length === 0 && state.players.length === 0) {
+    if (state.players.filter(p => !p.pendingLeave).length === 0) {
       if (state.gameId) {
         try {
           await this.env.DB.prepare(
@@ -526,12 +531,13 @@ export class BlackjackMultiplayerSession extends DurableObject {
 
     await this.saveState(state);
 
-    // Update D1 player count
+    // Update D1 player count (active players only, excluding pending-leave)
     if (state.gameId) {
       try {
+        const activeCount = state.players.filter(p => !p.pendingLeave).length;
         await this.env.DB.prepare(
           'UPDATE blackjack_mp_games SET player_count = ? WHERE id = ?'
-        ).bind(state.players.length, state.gameId).run();
+        ).bind(activeCount, state.gameId).run();
       } catch (_) {}
     }
   }

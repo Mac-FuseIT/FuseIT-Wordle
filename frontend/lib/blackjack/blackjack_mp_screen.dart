@@ -307,16 +307,22 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
         _buildHeader(),
         const Divider(color: Color(0xFF3A3A3C), height: 1),
         Expanded(
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
-                _buildConnectionBanner(),
-                _buildErrorBanner(),
-                _buildDealerArea(),
-                _buildPlayerSeats(),
-                _buildActionArea(),
-                _buildBalanceBar(),
-              ],
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 500),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    _buildConnectionBanner(),
+                    _buildErrorBanner(),
+                    _buildDealerArea(),
+                    _buildPlayerSeats(),
+                    _buildActionArea(),
+                    _buildBalanceBar(),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
