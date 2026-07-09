@@ -938,6 +938,7 @@ export class BlackjackMultiplayerSession extends DurableObject {
             hand: state.dealer.hand,
             value: state.dealer.value,
           },
+      deckRemaining: state.deck.length,
     };
   }
 

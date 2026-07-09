@@ -33,6 +33,15 @@ export async function onRequestPost({ request, env }) {
     ).bind(userId, today, JSON.stringify(defaultSession)).run();
   }
 
+  // Check if player already has an active multiplayer game
+  const activeGame = await env.DB.prepare(
+    "SELECT id FROM blackjack_mp_games WHERE creator_id = ? AND status != 'finished'"
+  ).bind(userId).first();
+
+  if (activeGame) {
+    return jsonResponse({ gameId: activeGame.id, status: 'existing' });
+  }
+
   // Generate game ID
   const gameId = crypto.randomUUID();
 
