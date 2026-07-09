@@ -189,7 +189,7 @@ export class BlackjackMultiplayerSession extends DurableObject {
       userId,
       name,
       seatIndex: state.players.length,
-      balance: 0,      // fetched from D1 on first bet
+      balance: 0,
       bet: 0,
       hand: [],
       value: 0,
@@ -197,6 +197,29 @@ export class BlackjackMultiplayerSession extends DurableObject {
       hasActed: false,
       pendingLeave: false,
     });
+
+    // Fetch player's current balance from D1
+    const today = getToday();
+    try {
+      const row = await this.env.DB.prepare(
+        'SELECT session_state FROM blackjack_sessions WHERE user_id = ? AND date = ?'
+      ).bind(userId, today).first();
+
+      if (row) {
+        const session = JSON.parse(row.session_state);
+        state.players[state.players.length - 1].balance = session.balance;
+      } else {
+        // Create default session if none exists
+        const session = defaultSession();
+        await this.env.DB.prepare(
+          'INSERT INTO blackjack_sessions (user_id, date, session_state) VALUES (?, ?, ?)'
+        ).bind(userId, today, JSON.stringify(session)).run();
+        state.players[state.players.length - 1].balance = session.balance;
+      }
+    } catch (_) {
+      // If D1 read fails, default to 100
+      state.players[state.players.length - 1].balance = 100;
+    }
 
     ws.serializeAttachment({ userId, name });
     await this.saveState(state);
