@@ -39,6 +39,8 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
   bool _myBetPlaced = false;
   bool _canDouble = false;
 
+  int _deckRemaining = 52;
+
   Timer? _errorTimer;
   Timer? _resultsTimer;
 
@@ -69,6 +71,7 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
           _dealer = Map<String, dynamic>.from(data['dealer'] ?? {'hand': [], 'value': 0});
           _currentTurn = data['currentTurn'] ?? 0;
           _creatorId = data['creatorId'];
+          _deckRemaining = data['deckRemaining'] ?? _deckRemaining;
           final me = _getMyPlayer();
           if (me != null) {
             _myBalance = me['balance'] ?? 0;
@@ -138,6 +141,10 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
           if (data['dealer'] != null) {
             _dealer = Map<String, dynamic>.from(data['dealer']);
           }
+          // Each player gets 2 cards + dealer gets 2 cards
+          final playerCount = dealtPlayers.length;
+          _deckRemaining -= (playerCount * 2 + 2);
+          if (_deckRemaining < 0) _deckRemaining = 0;
           _phase = 'playing';
         });
         break;
@@ -167,6 +174,8 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
             updated['value'] = data['value'] ?? updated['value'];
             _players[idx] = updated;
           }
+          _deckRemaining--;
+          if (_deckRemaining < 0) _deckRemaining = 0;
         });
         break;
 
@@ -193,6 +202,9 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
             updated['status'] = (updated['value'] ?? 0) > 21 ? 'bust' : 'stood';
             _players[idx] = updated;
           }
+          // Double draws exactly one card
+          _deckRemaining--;
+          if (_deckRemaining < 0) _deckRemaining = 0;
         });
         break;
 
@@ -213,6 +225,12 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
           final value = data['finalValue'] ?? data['value'];
           if (hand != null) _dealer['hand'] = List<Map<String, dynamic>>.from((hand as List).map((c) => Map<String, dynamic>.from(c)));
           if (value != null) _dealer['value'] = value;
+          // Dealer draws any cards beyond the initial 2
+          final dealerCardCount = _dealer['hand'] is List ? (_dealer['hand'] as List).length : 0;
+          if (dealerCardCount > 2) {
+            _deckRemaining -= (dealerCardCount - 2);
+            if (_deckRemaining < 0) _deckRemaining = 0;
+          }
           _phase = 'dealer_turn';
         });
         break;
@@ -459,6 +477,11 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
                   ),
                 ),
               ],
+              const Spacer(),
+              Text(
+                'Deck: $_deckRemaining',
+                style: const TextStyle(color: Colors.grey, fontSize: 12),
+              ),
             ],
           ),
           if (dealerHand.isNotEmpty) ...[
