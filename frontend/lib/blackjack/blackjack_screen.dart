@@ -354,7 +354,7 @@ class _BlackjackScreenState extends State<BlackjackScreen> {
             onPressed: widget.onBack,
           ),
           const Text(
-            'Jack.IT',
+            'Stack.IT',
             style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
           ),
           const Spacer(),
