@@ -45,31 +45,74 @@ function shuffle(arr, rng) {
 
 // ─── Datamuse API ─────────────────────────────────────────────────────────────
 
-// Fetch spangram candidates (6-8 letters) related to the theme topic
+// Fetch spangram candidates using multi-signal intersection approach
+// WordNet-backed relations are most reliable; corpus signals provide breadth
 async function fetchSpangramCandidates(topic) {
-  const [mlRes, trgRes] = await Promise.all([
-    fetch(`https://api.datamuse.com/words?ml=${encodeURIComponent(topic)}&max=150&md=f`).then(r => r.json()).catch(() => []),
-    fetch(`https://api.datamuse.com/words?rel_trg=${encodeURIComponent(topic)}&max=80&md=f`).then(r => r.json()).catch(() => []),
+  // Strip trailing 's' for singular form (Datamuse works better with singular)
+  const singular = topic.replace(/s$/, '');
+  
+  const [synRes, spcRes, genRes, comRes, jjbRes, trgRes] = await Promise.all([
+    // Tier 1: WordNet-backed (most reliable)
+    fetch(`https://api.datamuse.com/words?rel_syn=${encodeURIComponent(singular)}&max=30&md=f`).then(r => r.json()).catch(() => []),
+    fetch(`https://api.datamuse.com/words?rel_spc=${encodeURIComponent(singular)}&max=30&md=f`).then(r => r.json()).catch(() => []),
+    fetch(`https://api.datamuse.com/words?rel_gen=${encodeURIComponent(singular)}&max=50&md=f`).then(r => r.json()).catch(() => []),
+    fetch(`https://api.datamuse.com/words?rel_com=${encodeURIComponent(singular)}&max=30&md=f`).then(r => r.json()).catch(() => []),
+    // Tier 2: Corpus-backed with topic hint (moderate reliability)
+    fetch(`https://api.datamuse.com/words?rel_jjb=${encodeURIComponent(singular)}&topics=${encodeURIComponent(topic)}&max=40&md=f`).then(r => r.json()).catch(() => []),
+    fetch(`https://api.datamuse.com/words?rel_trg=${encodeURIComponent(singular)}&topics=${encodeURIComponent(topic)}&max=40&md=f`).then(r => r.json()).catch(() => []),
   ]);
 
   const scored = {};
-  for (const w of mlRes) {
-    const word = w.word.toLowerCase();
-    if (!/^[a-z]+$/.test(word) || word.length < 6 || word.length > 8) continue;
-    if (word === topic) continue;
-    const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
-    const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
-    if (freq < 2.0) continue;
-    scored[word] = (scored[word] || 0) + (w.score || 0);
+  const freqs = {};
+
+  function addScore(results, points) {
+    for (const w of results) {
+      const word = w.word.toLowerCase();
+      if (!/^[a-z]+$/.test(word) || word.length < 6 || word.length > 8) continue;
+      if (word === topic || word === singular) continue;
+      const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
+      const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
+      if (freq < 1.5) continue; // must be a known word
+      scored[word] = (scored[word] || 0) + points;
+      freqs[word] = freq;
+    }
   }
-  for (const w of trgRes) {
-    const word = w.word.toLowerCase();
-    if (!/^[a-z]+$/.test(word) || word.length < 6 || word.length > 8) continue;
-    if (word === topic) continue;
-    const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
-    const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
-    if (freq < 2.0) continue;
-    scored[word] = (scored[word] || 0) + 50000; // boost rel_trg words
+
+  // WordNet signals get high weight — structurally reliable
+  addScore(synRes, 1000);  // synonyms
+  addScore(spcRes, 800);   // hypernyms (category)
+  addScore(genRes, 800);   // hyponyms (types of)
+  addScore(comRes, 600);   // parts/comprises
+
+  // Corpus signals get lower weight — broader but noisier
+  addScore(jjbRes, 400);   // common adjectives
+  addScore(trgRes, 300);   // co-occurrence triggers
+
+  // Bonus: words appearing in 2+ signal sources get a multiplier
+  const signalCounts = {};
+  function countSignal(results) {
+    for (const w of results) {
+      const word = w.word.toLowerCase();
+      if (scored[word]) signalCounts[word] = (signalCounts[word] || 0) + 1;
+    }
+  }
+  countSignal(synRes);
+  countSignal(spcRes);
+  countSignal(genRes);
+  countSignal(comRes);
+  countSignal(jjbRes);
+  countSignal(trgRes);
+
+  for (const [word, count] of Object.entries(signalCounts)) {
+    if (count >= 2 && scored[word]) scored[word] *= 3;
+  }
+
+  // If WordNet signals produced nothing, fall back to ml + topics (constrained)
+  if (Object.keys(scored).length < 3) {
+    const mlRes = await fetch(
+      `https://api.datamuse.com/words?ml=${encodeURIComponent(topic)}&topics=${encodeURIComponent(topic)}&max=50&md=f`
+    ).then(r => r.json()).catch(() => []);
+    addScore(mlRes, 200);
   }
 
   return Object.entries(scored)
@@ -78,10 +121,13 @@ async function fetchSpangramCandidates(topic) {
 }
 
 // Fetch fill words (4-8 letters) related to the SPANGRAM word
-async function fetchWordsForSpangram(spangram) {
-  const [mlRes, trgRes] = await Promise.all([
-    fetch(`https://api.datamuse.com/words?ml=${encodeURIComponent(spangram)}&max=200&md=f`).then(r => r.json()).catch(() => []),
-    fetch(`https://api.datamuse.com/words?rel_trg=${encodeURIComponent(spangram)}&max=100&md=f`).then(r => r.json()).catch(() => []),
+// Uses multiple signals and the spangram itself as a topic hint
+async function fetchWordsForSpangram(spangram, topic) {
+  const [mlRes, trgRes, jjbRes, genRes] = await Promise.all([
+    fetch(`https://api.datamuse.com/words?ml=${encodeURIComponent(spangram)}&topics=${encodeURIComponent(topic)}&max=150&md=f`).then(r => r.json()).catch(() => []),
+    fetch(`https://api.datamuse.com/words?rel_trg=${encodeURIComponent(spangram)}&topics=${encodeURIComponent(topic)}&max=80&md=f`).then(r => r.json()).catch(() => []),
+    fetch(`https://api.datamuse.com/words?rel_jjb=${encodeURIComponent(spangram)}&max=40&md=f`).then(r => r.json()).catch(() => []),
+    fetch(`https://api.datamuse.com/words?rel_gen=${encodeURIComponent(spangram)}&max=40&md=f`).then(r => r.json()).catch(() => []),
   ]);
 
   const scored = {};
@@ -91,7 +137,7 @@ async function fetchWordsForSpangram(spangram) {
     if (word === spangram) continue;
     const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
     const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
-    if (freq < 3.0) continue; // only common, recognizable words
+    if (freq < 3.0) continue;
     scored[word] = (scored[word] || 0) + (w.score || 0);
   }
   for (const w of trgRes) {
@@ -101,7 +147,25 @@ async function fetchWordsForSpangram(spangram) {
     const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
     const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
     if (freq < 3.0) continue;
-    scored[word] = (scored[word] || 0) + 50000; // boost rel_trg
+    scored[word] = (scored[word] || 0) + 50000;
+  }
+  for (const w of jjbRes) {
+    const word = w.word.toLowerCase();
+    if (!/^[a-z]+$/.test(word) || word.length < 4 || word.length > 8) continue;
+    if (word === spangram) continue;
+    const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
+    const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
+    if (freq < 3.0) continue;
+    scored[word] = (scored[word] || 0) + 30000;
+  }
+  for (const w of genRes) {
+    const word = w.word.toLowerCase();
+    if (!/^[a-z]+$/.test(word) || word.length < 4 || word.length > 8) continue;
+    if (word === spangram) continue;
+    const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
+    const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
+    if (freq < 2.0) continue;
+    scored[word] = (scored[word] || 0) + 40000;
   }
 
   return Object.entries(scored)
@@ -265,7 +329,7 @@ async function generatePuzzle(dateStr, themeName, themeTopics, rng) {
     const spangram = spangramCandidates[spanIdx];
 
     // Fetch words related to the spangram — this ensures coherence
-    const fillWords = await fetchWordsForSpangram(spangram);
+    const fillWords = await fetchWordsForSpangram(spangram, topic);
     if (fillWords.length < 10) continue;
 
     const plans = shuffle([...(PLANS_BY_SPANGRAM[spangram.length] || PLANS_BY_SPANGRAM[8])], rng);
@@ -315,7 +379,7 @@ async function generatePuzzle(dateStr, themeName, themeTopics, rng) {
         }
       }
     }
-    await new Promise(r => setTimeout(r, 150));
+    await new Promise(r => setTimeout(r, 250));
   }
   return null;
 }
