@@ -109,39 +109,69 @@ async function fetchSpangramCandidates(topic) {
 }
 
 // Fetch fill words tightly related to the topic (the spangram IS the topic)
-// All these words should make sense as "related to [topic]"
 async function fetchWordsForSpangram(spangram, topic) {
-  // Use the topic for queries since spangram = topic (or close synonym)
   const queryWord = topic;
   const singular = queryWord.replace(/s$/, '');
 
   const [mlRes, trgRes, genRes, comRes, jjbRes] = await Promise.all([
-    fetch(`https://api.datamuse.com/words?ml=${encodeURIComponent(queryWord)}&topics=${encodeURIComponent(queryWord)}&max=150&md=f`).then(r => r.json()).catch(() => []),
-    fetch(`https://api.datamuse.com/words?rel_trg=${encodeURIComponent(singular)}&topics=${encodeURIComponent(queryWord)}&max=80&md=f`).then(r => r.json()).catch(() => []),
-    fetch(`https://api.datamuse.com/words?rel_gen=${encodeURIComponent(singular)}&max=50&md=f`).then(r => r.json()).catch(() => []),
-    fetch(`https://api.datamuse.com/words?rel_com=${encodeURIComponent(singular)}&max=30&md=f`).then(r => r.json()).catch(() => []),
-    fetch(`https://api.datamuse.com/words?rel_jjb=${encodeURIComponent(singular)}&topics=${encodeURIComponent(queryWord)}&max=40&md=f`).then(r => r.json()).catch(() => []),
+    fetch(`https://api.datamuse.com/words?ml=${encodeURIComponent(queryWord)}&topics=${encodeURIComponent(queryWord)}&max=150&md=f,p`).then(r => r.json()).catch(() => []),
+    fetch(`https://api.datamuse.com/words?rel_trg=${encodeURIComponent(singular)}&topics=${encodeURIComponent(queryWord)}&max=80&md=f,p`).then(r => r.json()).catch(() => []),
+    fetch(`https://api.datamuse.com/words?rel_gen=${encodeURIComponent(singular)}&max=50&md=f,p`).then(r => r.json()).catch(() => []),
+    fetch(`https://api.datamuse.com/words?rel_com=${encodeURIComponent(singular)}&max=30&md=f,p`).then(r => r.json()).catch(() => []),
+    fetch(`https://api.datamuse.com/words?rel_jjb=${encodeURIComponent(singular)}&topics=${encodeURIComponent(queryWord)}&max=40&md=f,p`).then(r => r.json()).catch(() => []),
   ]);
 
   const scored = {};
 
+  function isProperNoun(w) {
+    // Check tags for 'prop' (proper noun)
+    const tags = w.tags || [];
+    if (tags.includes('prop')) return true;
+    // If the word as returned starts with uppercase, likely proper noun
+    if (w.word && w.word[0] === w.word[0].toUpperCase() && w.word[0] !== w.word[0].toLowerCase()) return true;
+    return false;
+  }
+
   function processResults(results, bonus) {
     for (const w of results) {
+      if (isProperNoun(w)) continue; // Skip proper nouns
       const word = w.word.toLowerCase();
       if (!/^[a-z]+$/.test(word) || word.length < 4 || word.length > 8) continue;
       if (word === spangram || word === topic || word === singular) continue;
       const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
       const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
       if (freq < 2.0) continue;
-      scored[word] = (scored[word] || 0) + (w.score || 0) + bonus;
+      // Use FIXED bonus only — do NOT use w.score (it's word2vec distance, not relevance)
+      scored[word] = (scored[word] || 0) + bonus;
     }
   }
 
-  processResults(mlRes, 0);       // ml score is already high for relevant words
-  processResults(trgRes, 50000);  // boost co-occurrence (tight)
-  processResults(genRes, 60000);  // boost hyponyms (types of topic - very tight)
-  processResults(comRes, 40000);  // boost parts/comprises
-  processResults(jjbRes, 30000);  // boost descriptive adjectives
+  // Higher bonus = more likely to be picked. Tight relations outrank loose ones.
+  processResults(genRes, 100000);  // hyponyms (types of) — tightest: "fawn", "stag", "elk"
+  processResults(comRes, 90000);   // parts/comprises — very tight: "antler", "hooves"
+  processResults(trgRes, 80000);   // co-occurrence — tight: "hunting", "grazing"
+  processResults(jjbRes, 70000);   // adjectives — tight: "horned", "wild"
+  processResults(mlRes, 10000);    // means-like — loose fallback, flat low score
+
+  // Words that appear in multiple signal sources get a bonus multiplier
+  const signalCounts = {};
+  function countSignal(results) {
+    for (const w of results) {
+      const word = w.word.toLowerCase();
+      if (scored[word]) signalCounts[word] = (signalCounts[word] || 0) + 1;
+    }
+  }
+  countSignal(genRes);
+  countSignal(comRes);
+  countSignal(trgRes);
+  countSignal(jjbRes);
+  countSignal(mlRes);
+
+  // Words in 2+ sources are more reliable — boost them
+  for (const [word, count] of Object.entries(signalCounts)) {
+    if (count >= 2 && scored[word]) scored[word] = Math.floor(scored[word] * 1.5);
+    if (count >= 3 && scored[word]) scored[word] = Math.floor(scored[word] * 2);
+  }
 
   return Object.entries(scored)
     .sort((a, b) => b[1] - a[1])
