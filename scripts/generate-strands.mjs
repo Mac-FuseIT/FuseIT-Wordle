@@ -149,11 +149,44 @@ async function fetchWordsForSpangram(spangram, topic) {
   }
 
   // Higher bonus = more likely to be picked. Tight relations outrank loose ones.
-  processResults(genRes, 100000);  // hyponyms (types of) — tightest: "fawn", "stag", "elk"
-  processResults(comRes, 90000);   // parts/comprises — very tight: "antler", "hooves"
-  processResults(trgRes, 80000);   // co-occurrence — tight: "hunting", "grazing"
-  processResults(jjbRes, 70000);   // adjectives — tight: "horned", "wild"
-  processResults(mlRes, 10000);    // means-like — loose fallback, flat low score
+  // Process tight sources first
+  processResults(genRes, 100000);  // hyponyms (types of)
+  processResults(comRes, 90000);   // parts/comprises
+  processResults(trgRes, 80000);   // co-occurrence
+  processResults(jjbRes, 70000);   // adjectives
+
+  // ml results: only include if they ALSO appear in a tight source
+  // This prevents ml-only junk ("monkeys", "drunken") from entering the pool
+  for (const w of mlRes) {
+    if (isProperNoun(w)) continue;
+    const word = w.word.toLowerCase();
+    if (!/^[a-z]+$/.test(word) || word.length < 4 || word.length > 8) continue;
+    if (word === spangram || word === topic || word === singular) continue;
+    const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
+    const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
+    if (freq < 2.0) continue;
+    // Only boost if already scored from a tight source
+    if (scored[word]) {
+      scored[word] += 10000;
+    }
+    // If NOT already scored, DON'T add it — it's ml-only junk
+  }
+
+  // If tight sources produced too few words (< 15), allow ml as fallback
+  // but with very low score so they only fill gaps
+  if (Object.keys(scored).length < 15) {
+    for (const w of mlRes) {
+      if (isProperNoun(w)) continue;
+      const word = w.word.toLowerCase();
+      if (!/^[a-z]+$/.test(word) || word.length < 4 || word.length > 8) continue;
+      if (word === spangram || word === topic || word === singular) continue;
+      if (scored[word]) continue; // already scored
+      const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
+      const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
+      if (freq < 3.0) continue; // stricter freq for fallback
+      scored[word] = 1000; // very low score — only used if nothing better exists
+    }
+  }
 
   // Words that appear in multiple signal sources get a bonus multiplier
   const signalCounts = {};
@@ -167,7 +200,7 @@ async function fetchWordsForSpangram(spangram, topic) {
   countSignal(comRes);
   countSignal(trgRes);
   countSignal(jjbRes);
-  countSignal(mlRes);
+  // Don't count mlRes as a signal source
 
   // Words in 2+ sources are more reliable — boost them
   for (const [word, count] of Object.entries(signalCounts)) {
