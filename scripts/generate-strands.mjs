@@ -45,66 +45,68 @@ function shuffle(arr, rng) {
 
 // ─── Datamuse API ─────────────────────────────────────────────────────────────
 
-// The spangram should BE the topic word (or a tight synonym/hypernym if wrong length)
+// The spangram should BE the topic word itself.
+// If the topic doesn't fit 6-8 letters, try simple transformations.
+// If nothing works, return empty (theme will be skipped).
 async function fetchSpangramCandidates(topic) {
-  const cleaned = topic.toLowerCase().replace(/s$/, ''); // try singular too
   const candidates = [];
+  const lower = topic.toLowerCase();
+  const singular = lower.replace(/s$/, '');
 
-  // If topic itself is the right length, use it directly
-  if (/^[a-z]+$/.test(topic) && topic.length >= 6 && topic.length <= 8) {
-    candidates.push(topic);
-  }
-  // Also check singular form
-  if (/^[a-z]+$/.test(cleaned) && cleaned.length >= 6 && cleaned.length <= 8 && cleaned !== topic) {
-    candidates.push(cleaned);
+  // Strategy 1: Topic itself fits 6-8 letters
+  if (/^[a-z]+$/.test(lower) && lower.length >= 6 && lower.length <= 8) {
+    candidates.push(lower);
   }
 
-  // If we already have a valid candidate, return it (the topic itself is best)
+  // Strategy 2: Singular form fits
+  if (/^[a-z]+$/.test(singular) && singular.length >= 6 && singular.length <= 8 && singular !== lower) {
+    candidates.push(singular);
+  }
+
+  // Strategy 3: Plural form fits (add 's' to topic)
+  const plural = lower + 's';
+  if (lower.length === 5 && /^[a-z]+$/.test(plural) && !candidates.length) {
+    // Only use plurals that make linguistic sense
+    // (not "chesss" or "icees" — only regular plurals of 5-letter nouns)
+    candidates.push(plural);
+  }
+
+  // If we have candidates, return them — topic itself is always best
   if (candidates.length > 0) return candidates;
 
-  // Topic doesn't fit 6-8 letters — find a close synonym/hypernym/hyponym
-  const [synRes, spcRes, genRes] = await Promise.all([
-    fetch(`https://api.datamuse.com/words?rel_syn=${encodeURIComponent(topic)}&max=20&md=f`).then(r => r.json()).catch(() => []),
-    fetch(`https://api.datamuse.com/words?rel_spc=${encodeURIComponent(topic)}&max=20&md=f`).then(r => r.json()).catch(() => []),
-    fetch(`https://api.datamuse.com/words?rel_gen=${encodeURIComponent(topic)}&max=30&md=f`).then(r => r.json()).catch(() => []),
-  ]);
+  // Strategy 4: For short/long topics, try very tight synonyms only
+  // Use rel_syn (exact synonyms) — NOT rel_spc/rel_gen which can drift
+  const synRes = await fetch(
+    `https://api.datamuse.com/words?rel_syn=${encodeURIComponent(lower)}&max=10&md=f`
+  ).then(r => r.json()).catch(() => []);
 
-  // Also try with singular
-  const [synRes2, spcRes2, genRes2] = cleaned !== topic ? await Promise.all([
-    fetch(`https://api.datamuse.com/words?rel_syn=${encodeURIComponent(cleaned)}&max=20&md=f`).then(r => r.json()).catch(() => []),
-    fetch(`https://api.datamuse.com/words?rel_spc=${encodeURIComponent(cleaned)}&max=20&md=f`).then(r => r.json()).catch(() => []),
-    fetch(`https://api.datamuse.com/words?rel_gen=${encodeURIComponent(cleaned)}&max=30&md=f`).then(r => r.json()).catch(() => []),
-  ]) : [[], [], []];
-
-  const allResults = [...synRes, ...spcRes, ...genRes, ...synRes2, ...spcRes2, ...genRes2];
-
-  for (const w of allResults) {
+  for (const w of synRes) {
     const word = w.word.toLowerCase();
     if (!/^[a-z]+$/.test(word) || word.length < 6 || word.length > 8) continue;
-    if (word === topic || word === cleaned) continue;
     const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
     const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
     if (freq < 1.0) continue;
-    if (!candidates.includes(word)) candidates.push(word);
+    candidates.push(word);
   }
 
-  // Last resort: try ml with very tight max
-  if (candidates.length === 0) {
-    const mlRes = await fetch(
-      `https://api.datamuse.com/words?ml=${encodeURIComponent(topic)}&topics=${encodeURIComponent(topic)}&max=30&md=f`
+  // Also try singular synonym
+  if (singular !== lower) {
+    const synRes2 = await fetch(
+      `https://api.datamuse.com/words?rel_syn=${encodeURIComponent(singular)}&max=10&md=f`
     ).then(r => r.json()).catch(() => []);
-    for (const w of mlRes) {
+    for (const w of synRes2) {
       const word = w.word.toLowerCase();
       if (!/^[a-z]+$/.test(word) || word.length < 6 || word.length > 8) continue;
-      if (word === topic || word === cleaned) continue;
+      if (candidates.includes(word)) continue;
       const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
       const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
-      if (freq < 2.0) continue;
-      if (!candidates.includes(word)) candidates.push(word);
-      if (candidates.length >= 5) break;
+      if (freq < 1.0) continue;
+      candidates.push(word);
     }
   }
 
+  // If still nothing, return empty — this theme will be skipped
+  // (better to skip than generate garbage like "ERUPTION" for "hives")
   return candidates;
 }
 
