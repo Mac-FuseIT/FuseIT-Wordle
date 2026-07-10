@@ -45,128 +45,103 @@ function shuffle(arr, rng) {
 
 // ─── Datamuse API ─────────────────────────────────────────────────────────────
 
-// Fetch spangram candidates using multi-signal intersection approach
-// WordNet-backed relations are most reliable; corpus signals provide breadth
+// The spangram should BE the topic word (or a tight synonym/hypernym if wrong length)
 async function fetchSpangramCandidates(topic) {
-  // Strip trailing 's' for singular form (Datamuse works better with singular)
-  const singular = topic.replace(/s$/, '');
-  
-  const [synRes, spcRes, genRes, comRes, jjbRes, trgRes] = await Promise.all([
-    // Tier 1: WordNet-backed (most reliable)
-    fetch(`https://api.datamuse.com/words?rel_syn=${encodeURIComponent(singular)}&max=30&md=f`).then(r => r.json()).catch(() => []),
-    fetch(`https://api.datamuse.com/words?rel_spc=${encodeURIComponent(singular)}&max=30&md=f`).then(r => r.json()).catch(() => []),
-    fetch(`https://api.datamuse.com/words?rel_gen=${encodeURIComponent(singular)}&max=50&md=f`).then(r => r.json()).catch(() => []),
-    fetch(`https://api.datamuse.com/words?rel_com=${encodeURIComponent(singular)}&max=30&md=f`).then(r => r.json()).catch(() => []),
-    // Tier 2: Corpus-backed with topic hint (moderate reliability)
-    fetch(`https://api.datamuse.com/words?rel_jjb=${encodeURIComponent(singular)}&topics=${encodeURIComponent(topic)}&max=40&md=f`).then(r => r.json()).catch(() => []),
-    fetch(`https://api.datamuse.com/words?rel_trg=${encodeURIComponent(singular)}&topics=${encodeURIComponent(topic)}&max=40&md=f`).then(r => r.json()).catch(() => []),
+  const cleaned = topic.toLowerCase().replace(/s$/, ''); // try singular too
+  const candidates = [];
+
+  // If topic itself is the right length, use it directly
+  if (/^[a-z]+$/.test(topic) && topic.length >= 6 && topic.length <= 8) {
+    candidates.push(topic);
+  }
+  // Also check singular form
+  if (/^[a-z]+$/.test(cleaned) && cleaned.length >= 6 && cleaned.length <= 8 && cleaned !== topic) {
+    candidates.push(cleaned);
+  }
+
+  // If we already have a valid candidate, return it (the topic itself is best)
+  if (candidates.length > 0) return candidates;
+
+  // Topic doesn't fit 6-8 letters — find a close synonym/hypernym/hyponym
+  const [synRes, spcRes, genRes] = await Promise.all([
+    fetch(`https://api.datamuse.com/words?rel_syn=${encodeURIComponent(topic)}&max=20&md=f`).then(r => r.json()).catch(() => []),
+    fetch(`https://api.datamuse.com/words?rel_spc=${encodeURIComponent(topic)}&max=20&md=f`).then(r => r.json()).catch(() => []),
+    fetch(`https://api.datamuse.com/words?rel_gen=${encodeURIComponent(topic)}&max=30&md=f`).then(r => r.json()).catch(() => []),
   ]);
 
-  const scored = {};
-  const freqs = {};
+  // Also try with singular
+  const [synRes2, spcRes2, genRes2] = cleaned !== topic ? await Promise.all([
+    fetch(`https://api.datamuse.com/words?rel_syn=${encodeURIComponent(cleaned)}&max=20&md=f`).then(r => r.json()).catch(() => []),
+    fetch(`https://api.datamuse.com/words?rel_spc=${encodeURIComponent(cleaned)}&max=20&md=f`).then(r => r.json()).catch(() => []),
+    fetch(`https://api.datamuse.com/words?rel_gen=${encodeURIComponent(cleaned)}&max=30&md=f`).then(r => r.json()).catch(() => []),
+  ]) : [[], [], []];
 
-  function addScore(results, points) {
-    for (const w of results) {
+  const allResults = [...synRes, ...spcRes, ...genRes, ...synRes2, ...spcRes2, ...genRes2];
+
+  for (const w of allResults) {
+    const word = w.word.toLowerCase();
+    if (!/^[a-z]+$/.test(word) || word.length < 6 || word.length > 8) continue;
+    if (word === topic || word === cleaned) continue;
+    const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
+    const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
+    if (freq < 1.0) continue;
+    if (!candidates.includes(word)) candidates.push(word);
+  }
+
+  // Last resort: try ml with very tight max
+  if (candidates.length === 0) {
+    const mlRes = await fetch(
+      `https://api.datamuse.com/words?ml=${encodeURIComponent(topic)}&topics=${encodeURIComponent(topic)}&max=30&md=f`
+    ).then(r => r.json()).catch(() => []);
+    for (const w of mlRes) {
       const word = w.word.toLowerCase();
       if (!/^[a-z]+$/.test(word) || word.length < 6 || word.length > 8) continue;
-      if (word === topic || word === singular) continue;
+      if (word === topic || word === cleaned) continue;
       const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
       const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
-      if (freq < 1.5) continue; // must be a known word
-      scored[word] = (scored[word] || 0) + points;
-      freqs[word] = freq;
+      if (freq < 2.0) continue;
+      if (!candidates.includes(word)) candidates.push(word);
+      if (candidates.length >= 5) break;
     }
   }
 
-  // WordNet signals get high weight — structurally reliable
-  addScore(synRes, 1000);  // synonyms
-  addScore(spcRes, 800);   // hypernyms (category)
-  addScore(genRes, 800);   // hyponyms (types of)
-  addScore(comRes, 600);   // parts/comprises
-
-  // Corpus signals get lower weight — broader but noisier
-  addScore(jjbRes, 400);   // common adjectives
-  addScore(trgRes, 300);   // co-occurrence triggers
-
-  // Bonus: words appearing in 2+ signal sources get a multiplier
-  const signalCounts = {};
-  function countSignal(results) {
-    for (const w of results) {
-      const word = w.word.toLowerCase();
-      if (scored[word]) signalCounts[word] = (signalCounts[word] || 0) + 1;
-    }
-  }
-  countSignal(synRes);
-  countSignal(spcRes);
-  countSignal(genRes);
-  countSignal(comRes);
-  countSignal(jjbRes);
-  countSignal(trgRes);
-
-  for (const [word, count] of Object.entries(signalCounts)) {
-    if (count >= 2 && scored[word]) scored[word] *= 3;
-  }
-
-  // If WordNet signals produced nothing, fall back to ml + topics (constrained)
-  if (Object.keys(scored).length < 3) {
-    const mlRes = await fetch(
-      `https://api.datamuse.com/words?ml=${encodeURIComponent(topic)}&topics=${encodeURIComponent(topic)}&max=50&md=f`
-    ).then(r => r.json()).catch(() => []);
-    addScore(mlRes, 200);
-  }
-
-  return Object.entries(scored)
-    .sort((a, b) => b[1] - a[1])
-    .map(([w]) => w);
+  return candidates;
 }
 
-// Fetch fill words (4-8 letters) related to the SPANGRAM word
-// Uses multiple signals and the spangram itself as a topic hint
+// Fetch fill words tightly related to the topic (the spangram IS the topic)
+// All these words should make sense as "related to [topic]"
 async function fetchWordsForSpangram(spangram, topic) {
-  const [mlRes, trgRes, jjbRes, genRes] = await Promise.all([
-    fetch(`https://api.datamuse.com/words?ml=${encodeURIComponent(spangram)}&topics=${encodeURIComponent(topic)}&max=150&md=f`).then(r => r.json()).catch(() => []),
-    fetch(`https://api.datamuse.com/words?rel_trg=${encodeURIComponent(spangram)}&topics=${encodeURIComponent(topic)}&max=80&md=f`).then(r => r.json()).catch(() => []),
-    fetch(`https://api.datamuse.com/words?rel_jjb=${encodeURIComponent(spangram)}&max=40&md=f`).then(r => r.json()).catch(() => []),
-    fetch(`https://api.datamuse.com/words?rel_gen=${encodeURIComponent(spangram)}&max=40&md=f`).then(r => r.json()).catch(() => []),
+  // Use the topic for queries since spangram = topic (or close synonym)
+  const queryWord = topic;
+  const singular = queryWord.replace(/s$/, '');
+
+  const [mlRes, trgRes, genRes, comRes, jjbRes] = await Promise.all([
+    fetch(`https://api.datamuse.com/words?ml=${encodeURIComponent(queryWord)}&topics=${encodeURIComponent(queryWord)}&max=150&md=f`).then(r => r.json()).catch(() => []),
+    fetch(`https://api.datamuse.com/words?rel_trg=${encodeURIComponent(singular)}&topics=${encodeURIComponent(queryWord)}&max=80&md=f`).then(r => r.json()).catch(() => []),
+    fetch(`https://api.datamuse.com/words?rel_gen=${encodeURIComponent(singular)}&max=50&md=f`).then(r => r.json()).catch(() => []),
+    fetch(`https://api.datamuse.com/words?rel_com=${encodeURIComponent(singular)}&max=30&md=f`).then(r => r.json()).catch(() => []),
+    fetch(`https://api.datamuse.com/words?rel_jjb=${encodeURIComponent(singular)}&topics=${encodeURIComponent(queryWord)}&max=40&md=f`).then(r => r.json()).catch(() => []),
   ]);
 
   const scored = {};
-  for (const w of mlRes) {
-    const word = w.word.toLowerCase();
-    if (!/^[a-z]+$/.test(word) || word.length < 4 || word.length > 8) continue;
-    if (word === spangram) continue;
-    const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
-    const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
-    if (freq < 3.0) continue;
-    scored[word] = (scored[word] || 0) + (w.score || 0);
+
+  function processResults(results, bonus) {
+    for (const w of results) {
+      const word = w.word.toLowerCase();
+      if (!/^[a-z]+$/.test(word) || word.length < 4 || word.length > 8) continue;
+      if (word === spangram || word === topic || word === singular) continue;
+      const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
+      const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
+      if (freq < 2.0) continue;
+      scored[word] = (scored[word] || 0) + (w.score || 0) + bonus;
+    }
   }
-  for (const w of trgRes) {
-    const word = w.word.toLowerCase();
-    if (!/^[a-z]+$/.test(word) || word.length < 4 || word.length > 8) continue;
-    if (word === spangram) continue;
-    const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
-    const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
-    if (freq < 3.0) continue;
-    scored[word] = (scored[word] || 0) + 50000;
-  }
-  for (const w of jjbRes) {
-    const word = w.word.toLowerCase();
-    if (!/^[a-z]+$/.test(word) || word.length < 4 || word.length > 8) continue;
-    if (word === spangram) continue;
-    const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
-    const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
-    if (freq < 3.0) continue;
-    scored[word] = (scored[word] || 0) + 30000;
-  }
-  for (const w of genRes) {
-    const word = w.word.toLowerCase();
-    if (!/^[a-z]+$/.test(word) || word.length < 4 || word.length > 8) continue;
-    if (word === spangram) continue;
-    const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
-    const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
-    if (freq < 2.0) continue;
-    scored[word] = (scored[word] || 0) + 40000;
-  }
+
+  processResults(mlRes, 0);       // ml score is already high for relevant words
+  processResults(trgRes, 50000);  // boost co-occurrence (tight)
+  processResults(genRes, 60000);  // boost hyponyms (types of topic - very tight)
+  processResults(comRes, 40000);  // boost parts/comprises
+  processResults(jjbRes, 30000);  // boost descriptive adjectives
 
   return Object.entries(scored)
     .sort((a, b) => b[1] - a[1])
