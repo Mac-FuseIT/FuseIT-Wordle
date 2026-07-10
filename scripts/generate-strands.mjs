@@ -114,14 +114,26 @@ async function fetchSpangramCandidates(topic) {
 async function fetchWordsForSpangram(spangram, topic) {
   const queryWord = topic;
   const singular = queryWord.replace(/s$/, '');
+  // Also try the spangram itself as a query term (may differ from topic for short topics)
+  const queries = [singular];
+  if (queryWord !== singular) queries.push(queryWord);
+  if (spangram !== singular && spangram !== queryWord) queries.push(spangram);
 
-  const [mlRes, trgRes, genRes, comRes, jjbRes] = await Promise.all([
-    fetch(`https://api.datamuse.com/words?ml=${encodeURIComponent(queryWord)}&topics=${encodeURIComponent(queryWord)}&max=150&md=f,p`).then(r => r.json()).catch(() => []),
-    fetch(`https://api.datamuse.com/words?rel_trg=${encodeURIComponent(singular)}&topics=${encodeURIComponent(queryWord)}&max=80&md=f,p`).then(r => r.json()).catch(() => []),
-    fetch(`https://api.datamuse.com/words?rel_gen=${encodeURIComponent(singular)}&max=50&md=f,p`).then(r => r.json()).catch(() => []),
-    fetch(`https://api.datamuse.com/words?rel_com=${encodeURIComponent(singular)}&max=30&md=f,p`).then(r => r.json()).catch(() => []),
-    fetch(`https://api.datamuse.com/words?rel_jjb=${encodeURIComponent(singular)}&topics=${encodeURIComponent(queryWord)}&max=40&md=f,p`).then(r => r.json()).catch(() => []),
-  ]);
+  // Fire tight queries for all query variants
+  const allResults = { gen: [], com: [], trg: [], jjb: [] };
+
+  for (const q of queries) {
+    const [trgRes, genRes, comRes, jjbRes] = await Promise.all([
+      fetch(`https://api.datamuse.com/words?rel_trg=${encodeURIComponent(q)}&topics=${encodeURIComponent(topic)}&max=100&md=f,p`).then(r => r.json()).catch(() => []),
+      fetch(`https://api.datamuse.com/words?rel_gen=${encodeURIComponent(q)}&max=60&md=f,p`).then(r => r.json()).catch(() => []),
+      fetch(`https://api.datamuse.com/words?rel_com=${encodeURIComponent(q)}&max=40&md=f,p`).then(r => r.json()).catch(() => []),
+      fetch(`https://api.datamuse.com/words?rel_jjb=${encodeURIComponent(q)}&topics=${encodeURIComponent(topic)}&max=50&md=f,p`).then(r => r.json()).catch(() => []),
+    ]);
+    allResults.trg.push(...trgRes);
+    allResults.gen.push(...genRes);
+    allResults.com.push(...comRes);
+    allResults.jjb.push(...jjbRes);
+  }
 
   const scored = {};
 
@@ -149,14 +161,16 @@ async function fetchWordsForSpangram(spangram, topic) {
   }
 
   // Higher bonus = more likely to be picked. Tight relations outrank loose ones.
-  // Process tight sources first
-  processResults(genRes, 100000);  // hyponyms (types of)
-  processResults(comRes, 90000);   // parts/comprises
-  processResults(trgRes, 80000);   // co-occurrence
-  processResults(jjbRes, 70000);   // adjectives
+  processResults(allResults.gen, 100000);  // hyponyms (types of)
+  processResults(allResults.com, 90000);   // parts/comprises
+  processResults(allResults.trg, 80000);   // co-occurrence
+  processResults(allResults.jjb, 70000);   // adjectives
 
-  // ml results: only include if they ALSO appear in a tight source
-  // This prevents ml-only junk ("monkeys", "drunken") from entering the pool
+  // ml as amplifier only: boost words already scored from tight sources
+  const mlRes = await fetch(
+    `https://api.datamuse.com/words?ml=${encodeURIComponent(queryWord)}&topics=${encodeURIComponent(queryWord)}&max=150&md=f,p`
+  ).then(r => r.json()).catch(() => []);
+
   for (const w of mlRes) {
     if (isProperNoun(w)) continue;
     const word = w.word.toLowerCase();
@@ -165,15 +179,12 @@ async function fetchWordsForSpangram(spangram, topic) {
     const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
     const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
     if (freq < 2.0) continue;
-    // Only boost if already scored from a tight source
     if (scored[word]) {
-      scored[word] += 10000;
+      scored[word] += 10000; // amplify existing good words
     }
-    // If NOT already scored, DON'T add it — it's ml-only junk
   }
 
-  // If tight sources produced too few words (< 15), allow ml as fallback
-  // but with very low score so they only fill gaps
+  // Fallback: if tight sources produced fewer than 15 words, allow ml (strict freq)
   if (Object.keys(scored).length < 15) {
     for (const w of mlRes) {
       if (isProperNoun(w)) continue;
@@ -196,11 +207,10 @@ async function fetchWordsForSpangram(spangram, topic) {
       if (scored[word]) signalCounts[word] = (signalCounts[word] || 0) + 1;
     }
   }
-  countSignal(genRes);
-  countSignal(comRes);
-  countSignal(trgRes);
-  countSignal(jjbRes);
-  // Don't count mlRes as a signal source
+  countSignal(allResults.gen);
+  countSignal(allResults.com);
+  countSignal(allResults.trg);
+  countSignal(allResults.jjb);
 
   // Words in 2+ sources are more reliable — boost them
   for (const [word, count] of Object.entries(signalCounts)) {
