@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/app_theme.dart';
+import 'widgets/animated_hand.dart';
 
 class BlackjackScreen extends StatefulWidget {
   final AppTheme theme;
@@ -40,6 +41,14 @@ class _BlackjackScreenState extends State<BlackjackScreen> {
   int _deckRemaining = 52;
   bool _shuffling = false;
 
+  // Animation state
+  int _displayedPlayerValue = 0;
+  int _displayedDealerValue = 0;
+  int _previousPlayerCardCount = 0;
+  int _previousDealerCardCount = 0;
+  bool _isInitialLoad = true;
+  bool _isAnimating = false;
+
   @override
   void initState() {
     super.initState();
@@ -63,6 +72,7 @@ class _BlackjackScreenState extends State<BlackjackScreen> {
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         setState(() {
+          _isInitialLoad = true;
           _balance = data['balance'] ?? 100;
           _handsPlayed = data['handsPlayed'] ?? 0;
           _handsWon = data['handsWon'] ?? 0;
@@ -83,17 +93,27 @@ class _BlackjackScreenState extends State<BlackjackScreen> {
             if (inHand && !gameOver) {
               _state = 'playing';
               _dealerTotal = 0;
+              _displayedPlayerValue = _playerTotal;
+              _displayedDealerValue = 0;
             } else if (gameOver) {
               _state = 'result';
               _dealerTotal = _calculateHandValue(_dealerCards);
               _result = 'Hand over';
+              _displayedPlayerValue = _playerTotal;
+              _displayedDealerValue = _dealerTotal;
             }
+            _previousPlayerCardCount = _playerCards.length;
+            _previousDealerCardCount = _dealerCards.length;
           } else {
             _state = 'idle';
             _playerCards = [];
             _dealerCards = [];
             _playerTotal = 0;
             _dealerTotal = 0;
+            _displayedPlayerValue = 0;
+            _displayedDealerValue = 0;
+            _previousPlayerCardCount = 0;
+            _previousDealerCardCount = 0;
           }
         });
       } else {
@@ -117,6 +137,11 @@ class _BlackjackScreenState extends State<BlackjackScreen> {
       });
     }
 
+    // Save previous card counts before updating, so AnimatedHand knows
+    // which cards are "new" vs already visible.
+    final prevPlayerCount = _playerCards.length;
+    final prevDealerCount = _dealerCards.length;
+
     setState(() {
       _balance = data['balance'] ?? _balance;
       _deckRemaining = newDeckRemaining;
@@ -129,6 +154,9 @@ class _BlackjackScreenState extends State<BlackjackScreen> {
       final dealerCards = data['dealerHand'] ?? data['dealer_cards'];
 
       if (playerCards != null && (playerCards as List).isNotEmpty) {
+        _previousPlayerCardCount = prevPlayerCount;
+        _previousDealerCardCount = prevDealerCount;
+
         _playerCards = List<Map<String, dynamic>>.from(playerCards);
         _dealerCards = List<Map<String, dynamic>>.from(dealerCards ?? []);
         _playerTotal = data['playerValue'] ?? data['player_total'] ?? _calculateHandValue(_playerCards);
@@ -145,12 +173,29 @@ class _BlackjackScreenState extends State<BlackjackScreen> {
           _dealerTotal = data['dealerValue'] ?? data['dealer_total'] ?? _calculateHandValue(_dealerCards);
           _result = _resultText(result ?? 'unknown');
         }
+
+        if (_isInitialLoad) {
+          // Initial load: show values immediately, no animation
+          _displayedPlayerValue = _playerTotal;
+          _displayedDealerValue = gameOver ? _dealerTotal : 0;
+        } else {
+          // New cards added: let animation callbacks update displayed values
+          final playerCardsAdded = _playerCards.length > prevPlayerCount;
+          final dealerCardsAdded = _dealerCards.length > prevDealerCount;
+          if (playerCardsAdded || dealerCardsAdded) {
+            _isAnimating = true;
+          }
+        }
       } else if (_currentBet == 0) {
         _state = 'idle';
         _playerCards = [];
         _dealerCards = [];
         _playerTotal = 0;
         _dealerTotal = 0;
+        _previousPlayerCardCount = 0;
+        _previousDealerCardCount = 0;
+        _displayedPlayerValue = 0;
+        _displayedDealerValue = 0;
       }
     });
 
@@ -166,6 +211,22 @@ class _BlackjackScreenState extends State<BlackjackScreen> {
     int total = 0;
     int aces = 0;
     for (final card in hand) {
+      final rank = card['rank'] ?? '';
+      if (rank == 'hidden') continue;
+      if (rank == 'A') { total += 11; aces++; }
+      else if (['J', 'Q', 'K'].contains(rank)) total += 10;
+      else total += int.tryParse(rank) ?? 0;
+    }
+    while (total > 21 && aces > 0) { total -= 10; aces--; }
+    return total;
+  }
+
+  /// Calculates hand value for a partial card list (used by animation callbacks
+  /// to update the displayed value progressively as cards flip).
+  int _calculatePartialValue(List<Map<String, dynamic>> cards) {
+    int total = 0;
+    int aces = 0;
+    for (final card in cards) {
       final rank = card['rank'] ?? '';
       if (rank == 'hidden') continue;
       if (rank == 'A') { total += 11; aces++; }
@@ -208,6 +269,8 @@ class _BlackjackScreenState extends State<BlackjackScreen> {
       );
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
+        // From this point on, cards animate in — no more instant display.
+        _isInitialLoad = false;
         _applyState(data);
       } else {
         final err = jsonDecode(res.body);
@@ -611,15 +674,27 @@ class _BlackjackScreenState extends State<BlackjackScreen> {
                 children: [
                   const Text('Dealer', style: TextStyle(color: Colors.grey, fontSize: 13)),
                   const Spacer(),
-                  if (_state == 'result' || _dealerTotal > 0)
-                    Text('$_dealerTotal', style: TextStyle(color: widget.theme.present, fontWeight: FontWeight.bold)),
+                  if (_state == 'result' || _displayedDealerValue > 0)
+                    Text('$_displayedDealerValue', style: TextStyle(color: widget.theme.present, fontWeight: FontWeight.bold)),
                 ],
               ),
               const SizedBox(height: 8),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: _dealerCards.map((card) => _buildCard(card)).toList(),
+              AnimatedHand(
+                cards: _dealerCards,
+                revealedCount: _isInitialLoad ? _dealerCards.length : _previousDealerCardCount,
+                animateNewCards: !_isInitialLoad,
+                delayBetweenCards: const Duration(milliseconds: 550),
+                onCardFlipped: (index) {
+                  setState(() {
+                    // Only count non-hidden cards toward the displayed value
+                    final visibleCards = _dealerCards
+                        .sublist(0, index + 1)
+                        .where((c) => c['rank'] != 'hidden')
+                        .toList();
+                    _displayedDealerValue = _calculatePartialValue(visibleCards);
+                  });
+                },
+                onAllFlipsComplete: () => setState(() => _isAnimating = false),
               ),
             ],
           ),
@@ -641,14 +716,23 @@ class _BlackjackScreenState extends State<BlackjackScreen> {
                 children: [
                   const Text('You', style: TextStyle(color: Colors.grey, fontSize: 13)),
                   const Spacer(),
-                  Text('$_playerTotal', style: TextStyle(color: widget.theme.correct, fontWeight: FontWeight.bold, fontSize: 16)),
+                  Text('$_displayedPlayerValue', style: TextStyle(color: widget.theme.correct, fontWeight: FontWeight.bold, fontSize: 16)),
                 ],
               ),
               const SizedBox(height: 8),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: _playerCards.map((card) => _buildCard(card)).toList(),
+              AnimatedHand(
+                cards: _playerCards,
+                revealedCount: _isInitialLoad ? _playerCards.length : _previousPlayerCardCount,
+                animateNewCards: !_isInitialLoad,
+                delayBetweenCards: const Duration(milliseconds: 550),
+                onCardFlipped: (index) {
+                  setState(() {
+                    _displayedPlayerValue = _calculatePartialValue(
+                      _playerCards.sublist(0, index + 1),
+                    );
+                  });
+                },
+                onAllFlipsComplete: () => setState(() => _isAnimating = false),
               ),
             ],
           ),
@@ -738,7 +822,7 @@ class _BlackjackScreenState extends State<BlackjackScreen> {
           child: SizedBox(
             height: 44,
             child: ElevatedButton(
-              onPressed: _loading ? null : _hit,
+              onPressed: (_loading || _isAnimating) ? null : _hit,
               style: ElevatedButton.styleFrom(
                 backgroundColor: widget.theme.present,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -752,7 +836,7 @@ class _BlackjackScreenState extends State<BlackjackScreen> {
           child: SizedBox(
             height: 44,
             child: ElevatedButton(
-              onPressed: _loading ? null : _stand,
+              onPressed: (_loading || _isAnimating) ? null : _stand,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF3A3A3C),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -767,7 +851,7 @@ class _BlackjackScreenState extends State<BlackjackScreen> {
             child: SizedBox(
               height: 44,
               child: ElevatedButton(
-                onPressed: _loading ? null : _double,
+                onPressed: (_loading || _isAnimating) ? null : _double,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: widget.theme.correct,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
