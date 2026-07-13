@@ -79,7 +79,12 @@ class _AnimatedHandState extends State<AnimatedHand> {
     if (widget.animateNewCards) {
       // Cards before revealedCount are already visible — animate the rest.
       _animateFromIndex = widget.revealedCount;
-      _previousLength = widget.revealedCount;
+      // Track the FULL current length so that subsequent didUpdateWidget calls
+      // from unrelated screen rebuilds (e.g. _isAnimating flag clearing) do NOT
+      // enter the growth branch and reset _flippedCount mid-animation.
+      // Previously this was set to revealedCount (0 on new deal), which caused
+      // every rebuild during the animation to re-enter the growth branch.
+      _previousLength = widget.cards.length;
       // Hidden cards (rank == 'hidden') don't run a flip animation, so they
       // must NOT count toward _totalNewCards. Only visible non-hidden new
       // cards will fire onFlipComplete.

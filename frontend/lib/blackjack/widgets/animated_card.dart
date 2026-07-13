@@ -108,9 +108,11 @@ class _AnimatedCardState extends State<AnimatedCard>
     _slideX = Tween<double>(begin: -60.0, end: 0.0).animate(
       CurvedAnimation(parent: _slideController, curve: Curves.easeOut),
     );
-    _opacity = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _slideController, curve: Curves.easeOut),
-    );
+    // Keep opacity constant at 1.0 — no fade-in. Starting at opacity 0 on
+    // Flutter Web can cause the card to remain invisible if the rendering layer
+    // is composited before the animation ticker picks up, making animations
+    // appear broken even though they are technically running.
+    _opacity = const AlwaysStoppedAnimation(1.0);
     _flipAngle = Tween<double>(begin: 0, end: pi).animate(
       CurvedAnimation(parent: _flipController, curve: Curves.easeInOut),
     );
