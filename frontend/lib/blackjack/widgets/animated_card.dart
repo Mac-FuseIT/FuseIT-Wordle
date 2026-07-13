@@ -1,43 +1,39 @@
-import 'dart:math' show pi;
-
+import 'dart:math';
 import 'package:flutter/material.dart';
 
-/// A card widget that animates into view with a slide-in + 3D flip sequence.
+/// A self-contained card widget that animates with a slide-in from the left
+/// followed by a 3D Y-axis flip from face-down to face-up.
 ///
-/// Animation sequence (when [startFaceDown] is true and [skipAnimation] is false):
-/// 1. Card starts 60px to the left, opacity 0, showing the card back.
-/// 2. After [slideDelay], slides in to position and fades to full opacity (300ms, easeOut).
-/// 3. Pauses 100ms.
-/// 4. Flips on the Y-axis (400ms, easeInOut). At the halfway point the face replaces the back.
-/// 5. Fires [onFlipComplete].
+/// Sequence (when [skipAnimation] is false and [startFaceDown] is true):
+///   1. Card starts 60px to the left, opacity 0, face-down.
+///   2. After [slideDelay], it slides to position + fades in (300ms, easeOut).
+///   3. Pauses 100ms.
+///   4. Flips via Y-axis rotation 0→π (400ms, easeInOut). At π/2 the rendered
+///      child swaps from card-back to card-face.
+///   5. Fires [onFlipComplete].
 ///
 /// Special cases:
-/// - [skipAnimation] == true → renders face immediately, no animation.
-/// - [cardData] has rank == 'hidden' → renders card back immediately, no animation.
-/// - When [cardData] changes from hidden → real card (dealer hole reveal), triggers flip-only
-///   animation (no slide, card is already positioned).
+/// - [skipAnimation] = true  → render final state immediately, no controllers.
+/// - cardData rank == 'hidden' → render card back, no flip.
+/// - If rank changes from 'hidden' to real in [didUpdateWidget] → flip-only.
 class AnimatedCard extends StatefulWidget {
-  /// Card data map. Expected keys: 'rank' and 'suit'.
-  /// Use {'rank': 'hidden', 'suit': 'hidden'} for a face-down placeholder.
   final Map<String, dynamic> cardData;
 
-  /// Whether to animate face-down then flip. Defaults to true.
+  /// When true, the card animates in face-down then flips to reveal.
+  /// When false, the card appears face-up with no animation.
   final bool startFaceDown;
 
-  /// When true, skips all animation and shows the card face immediately.
-  /// Use this for reconnection or initial load scenarios.
+  /// When true, skip all animation and render the final state immediately.
+  /// Used for reconnection / initial-load scenarios.
   final bool skipAnimation;
 
-  /// Delay before the slide-in animation begins. Useful for staggered deals.
+  /// Delay before the slide-in animation begins.
   final Duration slideDelay;
 
-  /// Called when the flip animation finishes and the card face is fully visible.
+  /// Called once the flip animation has fully completed.
   final VoidCallback? onFlipComplete;
 
-  /// Card width in logical pixels.
   final double width;
-
-  /// Card height in logical pixels.
   final double height;
 
   const AnimatedCard({
@@ -57,31 +53,49 @@ class AnimatedCard extends StatefulWidget {
 
 class _AnimatedCardState extends State<AnimatedCard>
     with TickerProviderStateMixin {
-  // Controllers — nullable because they are only created when animation runs.
-  AnimationController? _slideController;
-  AnimationController? _flipController;
+  late AnimationController _slideController;
+  late AnimationController _flipController;
+  late Animation<double> _slideX;
+  late Animation<double> _opacity;
+  late Animation<double> _flipAngle;
 
-  Animation<Offset>? _slideAnimation;
-  Animation<double>? _opacityAnimation;
-  Animation<double>? _flipAnimation;
+  bool _showFace = false;
+  bool _flipOnly = false; // true when transitioning from hidden → revealed
 
-  /// True once the slide-in animation has finished (or was skipped).
-  bool _slideComplete = false;
-
-  /// True once the flip animation has finished (or was skipped).
-  bool _revealed = false;
+  bool get _isHidden => widget.cardData['rank'] == 'hidden';
 
   @override
   void initState() {
     super.initState();
 
-    if (widget.skipAnimation || _isHiddenCard()) {
-      // Show immediately — no animation needed.
-      _revealed = true;
-      _slideComplete = true;
+    if (widget.skipAnimation) {
+      // Render final state immediately — no controllers needed.
+      _showFace = !_isHidden;
+      _initDummyControllers();
       return;
     }
 
+    _initControllers();
+
+    if (widget.startFaceDown && !_isHidden) {
+      _runFullSequence();
+    } else if (!widget.startFaceDown) {
+      // Show face immediately, no animation.
+      _showFace = true;
+      _slideController.value = 1.0;
+    }
+  }
+
+  void _initDummyControllers() {
+    // Zero-duration controllers that never animate — just satisfy late fields.
+    _slideController = AnimationController(vsync: this, duration: Duration.zero);
+    _flipController = AnimationController(vsync: this, duration: Duration.zero);
+    _slideX = const AlwaysStoppedAnimation(0);
+    _opacity = const AlwaysStoppedAnimation(1);
+    _flipAngle = const AlwaysStoppedAnimation(0);
+  }
+
+  void _initControllers() {
     _slideController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
@@ -91,140 +105,136 @@ class _AnimatedCardState extends State<AnimatedCard>
       duration: const Duration(milliseconds: 400),
     );
 
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(-60, 0),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _slideController!,
-      curve: Curves.easeOut,
-    ));
+    _slideX = Tween<double>(begin: -60.0, end: 0.0).animate(
+      CurvedAnimation(parent: _slideController, curve: Curves.easeOut),
+    );
+    _opacity = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _slideController, curve: Curves.easeOut),
+    );
+    _flipAngle = Tween<double>(begin: 0, end: pi).animate(
+      CurvedAnimation(parent: _flipController, curve: Curves.easeInOut),
+    );
 
-    _opacityAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _slideController!,
-      curve: Curves.easeOut,
-    ));
-
-    _flipAnimation = Tween<double>(
-      begin: 0.0,
-      end: pi,
-    ).animate(CurvedAnimation(
-      parent: _flipController!,
-      curve: Curves.easeInOut,
-    ));
-
-    // Start the sequential animation after slideDelay.
-    Future.delayed(widget.slideDelay, () {
-      if (!mounted) return;
-      _slideController!.forward().then((_) {
-        if (!mounted) return;
-        setState(() => _slideComplete = true);
-        // Pause 100ms before flip.
-        Future.delayed(const Duration(milliseconds: 100), () {
-          if (!mounted) return;
-          _flipController!.forward().then((_) {
-            if (!mounted) return;
-            setState(() => _revealed = true);
-            widget.onFlipComplete?.call();
-          });
-        });
-      });
+    _flipController.addListener(() {
+      if (_flipAngle.value >= pi / 2 && !_showFace) {
+        setState(() => _showFace = true);
+      }
     });
+  }
+
+  Future<void> _runFullSequence() async {
+    await Future.delayed(widget.slideDelay);
+    if (!mounted) return;
+    await _slideController.forward();
+    if (!mounted) return;
+    await Future.delayed(const Duration(milliseconds: 100));
+    if (!mounted) return;
+    await _flipController.forward();
+    if (!mounted) return;
+    widget.onFlipComplete?.call();
+  }
+
+  Future<void> _runFlipOnly() async {
+    if (!mounted) return;
+    await _flipController.forward();
+    if (!mounted) return;
+    widget.onFlipComplete?.call();
   }
 
   @override
   void didUpdateWidget(AnimatedCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-
-    // Dealer hole card reveal: card data changed from hidden → real card.
-    if (_wasHidden(oldWidget.cardData) && !_isHiddenCard()) {
-      // Flip-only animation — card is already positioned, no slide needed.
-      _slideComplete = true;
-      _revealed = false;
-
-      // Ensure flip controller exists (may not if widget started as hidden).
-      if (_flipController == null) {
-        _flipController = AnimationController(
-          vsync: this,
-          duration: const Duration(milliseconds: 400),
-        );
-        _flipAnimation = Tween<double>(
-          begin: 0.0,
-          end: pi,
-        ).animate(CurvedAnimation(
-          parent: _flipController!,
-          curve: Curves.easeInOut,
-        ));
-      } else {
-        _flipController!.reset();
-      }
-
-      _flipController!.forward().then((_) {
-        if (!mounted) return;
-        setState(() => _revealed = true);
-        widget.onFlipComplete?.call();
-      });
+    final wasHidden = oldWidget.cardData['rank'] == 'hidden';
+    final isNowRevealed = widget.cardData['rank'] != 'hidden';
+    if (wasHidden && isNowRevealed && !widget.skipAnimation) {
+      _flipOnly = true;
+      _flipController.reset();
+      setState(() => _showFace = false);
+      _runFlipOnly();
     }
   }
 
   @override
   void dispose() {
-    _slideController?.dispose();
-    _flipController?.dispose();
+    _slideController.dispose();
+    _flipController.dispose();
     super.dispose();
   }
 
-  // ---------------------------------------------------------------------------
-  // Helpers
-  // ---------------------------------------------------------------------------
+  @override
+  Widget build(BuildContext context) {
+    if (widget.skipAnimation) {
+      return _showFace ? _buildCardFace() : _buildCardBack();
+    }
 
-  bool _isHiddenCard() => widget.cardData['rank'] == 'hidden';
-  bool _wasHidden(Map<String, dynamic> data) => data['rank'] == 'hidden';
+    return AnimatedBuilder(
+      animation: Listenable.merge([_slideController, _flipController]),
+      builder: (context, child) {
+        final Widget cardVisual = Transform(
+          alignment: Alignment.center,
+          transform: Matrix4.identity()
+            ..setEntry(3, 2, 0.001)
+            ..rotateY(_flipAngle.value),
+          child: _showFace
+              ? Transform(
+                  alignment: Alignment.center,
+                  transform: Matrix4.identity()..rotateY(pi),
+                  child: _buildCardFace(),
+                )
+              : _buildCardBack(),
+        );
 
-  // ---------------------------------------------------------------------------
-  // Card renderers
-  // ---------------------------------------------------------------------------
+        if (_flipOnly) {
+          return cardVisual;
+        }
 
-  /// Card back — matches the hidden-card style in blackjack_screen.dart.
+        return Opacity(
+          opacity: _opacity.value,
+          child: Transform.translate(
+            offset: Offset(_slideX.value, 0),
+            child: cardVisual,
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildCardBack() {
     return Container(
       width: widget.width,
       height: widget.height,
       decoration: BoxDecoration(
         color: const Color(0xFF2C5F8A),
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(6),
         border: Border.all(color: Colors.white24),
       ),
-      child: const Center(
-        child: Text(
-          '?',
-          style: TextStyle(
-            color: Colors.white70,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
+      alignment: Alignment.center,
+      child: Text(
+        '?',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: widget.width * 0.4,
+          fontWeight: FontWeight.bold,
         ),
       ),
     );
   }
 
-  /// Card face — matches the revealed-card style in blackjack_screen._buildCard.
   Widget _buildCardFace() {
-    final rank = widget.cardData['rank'] as String? ?? '';
-    final suit = widget.cardData['suit'] as String? ?? '';
-    final suitSymbol = _getSuitSymbol(suit);
-    final isRed = suit == 'hearts' || suit == 'diamonds';
-    final color = isRed ? Colors.red : Colors.black;
+    final rank = widget.cardData['rank']?.toString() ?? '';
+    final suit = widget.cardData['suit']?.toString() ?? '';
+    final isRed = suit == '♥' || suit == '♦';
 
     return Container(
       width: widget.width,
       height: widget.height,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.black12),
+        boxShadow: const [
+          BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(1, 2)),
+        ],
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -232,95 +242,22 @@ class _AnimatedCardState extends State<AnimatedCard>
           Text(
             rank,
             style: TextStyle(
-              color: color,
-              fontSize: 16,
+              color: isRed ? Colors.red : Colors.black,
+              fontSize: widget.width * 0.35,
               fontWeight: FontWeight.bold,
+              height: 1,
             ),
           ),
           Text(
-            suitSymbol,
-            style: TextStyle(color: color, fontSize: 14),
+            suit,
+            style: TextStyle(
+              color: isRed ? Colors.red : Colors.black,
+              fontSize: widget.width * 0.35,
+              height: 1,
+            ),
           ),
         ],
       ),
-    );
-  }
-
-  String _getSuitSymbol(String suit) {
-    switch (suit.toLowerCase()) {
-      case 'hearts':
-        return '♥';
-      case 'diamonds':
-        return '♦';
-      case 'clubs':
-        return '♣';
-      case 'spades':
-        return '♠';
-      default:
-        return suit;
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // Build
-  // ---------------------------------------------------------------------------
-
-  @override
-  Widget build(BuildContext context) {
-    // Hidden card — always show the back with no animation.
-    if (_isHiddenCard()) {
-      return _buildCardBack();
-    }
-
-    // Skip-animation mode — show face immediately.
-    if (widget.skipAnimation) {
-      return _buildCardFace();
-    }
-
-    // Animation not yet initialised (before slideDelay fires the first frame).
-    if (_slideController == null) return const SizedBox.shrink();
-
-    return AnimatedBuilder(
-      animation: Listenable.merge([_slideController!, if (_flipController != null) _flipController!]),
-      builder: (context, child) {
-        final offset = _slideAnimation?.value ?? Offset.zero;
-        final opacity = _opacityAnimation?.value ?? 1.0;
-
-        Widget cardWidget;
-
-        final flipCtrl = _flipController;
-        if (flipCtrl != null &&
-            (flipCtrl.isAnimating || flipCtrl.isCompleted)) {
-          final flipValue = _flipAnimation?.value ?? 0.0;
-
-          // During the first half of the flip show the back; during the second
-          // half show the face (counter-rotated so it reads correctly).
-          cardWidget = Transform(
-            alignment: Alignment.center,
-            transform: Matrix4.identity()
-              ..setEntry(3, 2, 0.001) // perspective
-              ..rotateY(flipValue),
-            child: flipValue < pi / 2
-                ? _buildCardBack()
-                : Transform(
-                    alignment: Alignment.center,
-                    transform: Matrix4.identity()..rotateY(pi),
-                    child: _buildCardFace(),
-                  ),
-          );
-        } else {
-          // Slide phase — card hasn't started flipping yet.
-          cardWidget = _buildCardBack();
-        }
-
-        return Transform.translate(
-          offset: offset,
-          child: Opacity(
-            opacity: opacity,
-            child: cardWidget,
-          ),
-        );
-      },
     );
   }
 }
