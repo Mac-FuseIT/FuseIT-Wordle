@@ -223,7 +223,8 @@ class _AnimatedCardState extends State<AnimatedCard>
   Widget _buildCardFace() {
     final rank = widget.cardData['rank']?.toString() ?? '';
     final suit = widget.cardData['suit']?.toString() ?? '';
-    final isRed = suit == '♥' || suit == '♦';
+    final suitSymbol = _getSuitSymbol(suit);
+    final isRed = suit == 'hearts' || suit == 'diamonds';
 
     return Container(
       width: widget.width,
@@ -231,7 +232,7 @@ class _AnimatedCardState extends State<AnimatedCard>
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.black12),
+        border: Border.all(color: Colors.grey.shade300),
         boxShadow: const [
           BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(1, 2)),
         ],
@@ -243,21 +244,34 @@ class _AnimatedCardState extends State<AnimatedCard>
             rank,
             style: TextStyle(
               color: isRed ? Colors.red : Colors.black,
-              fontSize: widget.width * 0.35,
+              fontSize: 16,
               fontWeight: FontWeight.bold,
-              height: 1,
             ),
           ),
           Text(
-            suit,
+            suitSymbol,
             style: TextStyle(
               color: isRed ? Colors.red : Colors.black,
-              fontSize: widget.width * 0.35,
-              height: 1,
+              fontSize: 14,
             ),
           ),
         ],
       ),
     );
+  }
+
+  String _getSuitSymbol(String suit) {
+    switch (suit) {
+      case 'hearts':
+        return '♥';
+      case 'diamonds':
+        return '♦';
+      case 'clubs':
+        return '♣';
+      case 'spades':
+        return '♠';
+      default:
+        return '';
+    }
   }
 }
