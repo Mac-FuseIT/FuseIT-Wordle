@@ -45,63 +45,177 @@ function shuffle(arr, rng) {
 
 // ─── Datamuse API ─────────────────────────────────────────────────────────────
 
-// Fetch spangram candidates (6-8 letters) related to the theme topic
+// The spangram should BE the topic word itself.
+// If the topic doesn't fit 6-8 letters, try simple transformations.
+// If nothing works, return empty (theme will be skipped).
 async function fetchSpangramCandidates(topic) {
-  const [mlRes, trgRes] = await Promise.all([
-    fetch(`https://api.datamuse.com/words?ml=${encodeURIComponent(topic)}&max=150&md=f`).then(r => r.json()).catch(() => []),
-    fetch(`https://api.datamuse.com/words?rel_trg=${encodeURIComponent(topic)}&max=80&md=f`).then(r => r.json()).catch(() => []),
-  ]);
+  const candidates = [];
+  const lower = topic.toLowerCase();
+  const singular = lower.replace(/s$/, '');
 
-  const scored = {};
-  for (const w of mlRes) {
-    const word = w.word.toLowerCase();
-    if (!/^[a-z]+$/.test(word) || word.length < 6 || word.length > 8) continue;
-    if (word === topic) continue;
-    const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
-    const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
-    if (freq < 2.0) continue;
-    scored[word] = (scored[word] || 0) + (w.score || 0);
-  }
-  for (const w of trgRes) {
-    const word = w.word.toLowerCase();
-    if (!/^[a-z]+$/.test(word) || word.length < 6 || word.length > 8) continue;
-    if (word === topic) continue;
-    const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
-    const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
-    if (freq < 2.0) continue;
-    scored[word] = (scored[word] || 0) + 50000; // boost rel_trg words
+  // Strategy 1: Topic itself fits 6-8 letters
+  if (/^[a-z]+$/.test(lower) && lower.length >= 6 && lower.length <= 8) {
+    candidates.push(lower);
   }
 
-  return Object.entries(scored)
-    .sort((a, b) => b[1] - a[1])
-    .map(([w]) => w);
+  // Strategy 2: Singular form fits
+  if (/^[a-z]+$/.test(singular) && singular.length >= 6 && singular.length <= 8 && singular !== lower) {
+    candidates.push(singular);
+  }
+
+  // Strategy 3: Plural form fits (add 's' to topic)
+  const plural = lower + 's';
+  if (lower.length === 5 && /^[a-z]+$/.test(plural) && !candidates.length) {
+    // Only use plurals that make linguistic sense
+    // (not "chesss" or "icees" — only regular plurals of 5-letter nouns)
+    candidates.push(plural);
+  }
+
+  // If we have candidates, return them — topic itself is always best
+  if (candidates.length > 0) return candidates;
+
+  // Strategy 4: For short/long topics, try very tight synonyms only
+  // Use rel_syn (exact synonyms) — NOT rel_spc/rel_gen which can drift
+  const synRes = await fetch(
+    `https://api.datamuse.com/words?rel_syn=${encodeURIComponent(lower)}&max=10&md=f`
+  ).then(r => r.json()).catch(() => []);
+
+  for (const w of synRes) {
+    const word = w.word.toLowerCase();
+    if (!/^[a-z]+$/.test(word) || word.length < 6 || word.length > 8) continue;
+    const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
+    const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
+    if (freq < 1.0) continue;
+    candidates.push(word);
+  }
+
+  // Also try singular synonym
+  if (singular !== lower) {
+    const synRes2 = await fetch(
+      `https://api.datamuse.com/words?rel_syn=${encodeURIComponent(singular)}&max=10&md=f`
+    ).then(r => r.json()).catch(() => []);
+    for (const w of synRes2) {
+      const word = w.word.toLowerCase();
+      if (!/^[a-z]+$/.test(word) || word.length < 6 || word.length > 8) continue;
+      if (candidates.includes(word)) continue;
+      const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
+      const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
+      if (freq < 1.0) continue;
+      candidates.push(word);
+    }
+  }
+
+  // If still nothing, return empty — this theme will be skipped
+  // (better to skip than generate garbage like "ERUPTION" for "hives")
+  return candidates;
 }
 
-// Fetch fill words (4-8 letters) related to the SPANGRAM word
-async function fetchWordsForSpangram(spangram) {
-  const [mlRes, trgRes] = await Promise.all([
-    fetch(`https://api.datamuse.com/words?ml=${encodeURIComponent(spangram)}&max=200&md=f`).then(r => r.json()).catch(() => []),
-    fetch(`https://api.datamuse.com/words?rel_trg=${encodeURIComponent(spangram)}&max=100&md=f`).then(r => r.json()).catch(() => []),
-  ]);
+// Fetch fill words tightly related to the topic (the spangram IS the topic)
+async function fetchWordsForSpangram(spangram, topic) {
+  const queryWord = topic;
+  const singular = queryWord.replace(/s$/, '');
+  // Also try the spangram itself as a query term (may differ from topic for short topics)
+  const queries = [singular];
+  if (queryWord !== singular) queries.push(queryWord);
+  if (spangram !== singular && spangram !== queryWord) queries.push(spangram);
+
+  // Fire tight queries for all query variants
+  const allResults = { gen: [], com: [], trg: [], jjb: [] };
+
+  for (const q of queries) {
+    const [trgRes, genRes, comRes, jjbRes] = await Promise.all([
+      fetch(`https://api.datamuse.com/words?rel_trg=${encodeURIComponent(q)}&topics=${encodeURIComponent(topic)}&max=100&md=f,p`).then(r => r.json()).catch(() => []),
+      fetch(`https://api.datamuse.com/words?rel_gen=${encodeURIComponent(q)}&max=60&md=f,p`).then(r => r.json()).catch(() => []),
+      fetch(`https://api.datamuse.com/words?rel_com=${encodeURIComponent(q)}&max=40&md=f,p`).then(r => r.json()).catch(() => []),
+      fetch(`https://api.datamuse.com/words?rel_jjb=${encodeURIComponent(q)}&topics=${encodeURIComponent(topic)}&max=50&md=f,p`).then(r => r.json()).catch(() => []),
+    ]);
+    allResults.trg.push(...trgRes);
+    allResults.gen.push(...genRes);
+    allResults.com.push(...comRes);
+    allResults.jjb.push(...jjbRes);
+  }
 
   const scored = {};
-  for (const w of mlRes) {
-    const word = w.word.toLowerCase();
-    if (!/^[a-z]+$/.test(word) || word.length < 4 || word.length > 8) continue;
-    if (word === spangram) continue;
-    const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
-    const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
-    if (freq < 3.0) continue; // only common, recognizable words
-    scored[word] = (scored[word] || 0) + (w.score || 0);
+
+  function isProperNoun(w) {
+    // Check tags for 'prop' (proper noun)
+    const tags = w.tags || [];
+    if (tags.includes('prop')) return true;
+    // If the word as returned starts with uppercase, likely proper noun
+    if (w.word && w.word[0] === w.word[0].toUpperCase() && w.word[0] !== w.word[0].toLowerCase()) return true;
+    return false;
   }
-  for (const w of trgRes) {
+
+  function processResults(results, bonus) {
+    for (const w of results) {
+      if (isProperNoun(w)) continue; // Skip proper nouns
+      const word = w.word.toLowerCase();
+      if (!/^[a-z]+$/.test(word) || word.length < 4 || word.length > 8) continue;
+      if (word === spangram || word === topic || word === singular) continue;
+      const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
+      const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
+      if (freq < 2.0) continue;
+      // Use FIXED bonus only — do NOT use w.score (it's word2vec distance, not relevance)
+      scored[word] = (scored[word] || 0) + bonus;
+    }
+  }
+
+  // Higher bonus = more likely to be picked. Tight relations outrank loose ones.
+  processResults(allResults.gen, 100000);  // hyponyms (types of)
+  processResults(allResults.com, 90000);   // parts/comprises
+  processResults(allResults.trg, 80000);   // co-occurrence
+  processResults(allResults.jjb, 70000);   // adjectives
+
+  // ml as amplifier only: boost words already scored from tight sources
+  const mlRes = await fetch(
+    `https://api.datamuse.com/words?ml=${encodeURIComponent(queryWord)}&topics=${encodeURIComponent(queryWord)}&max=150&md=f,p`
+  ).then(r => r.json()).catch(() => []);
+
+  for (const w of mlRes) {
+    if (isProperNoun(w)) continue;
     const word = w.word.toLowerCase();
     if (!/^[a-z]+$/.test(word) || word.length < 4 || word.length > 8) continue;
-    if (word === spangram) continue;
+    if (word === spangram || word === topic || word === singular) continue;
     const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
     const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
-    if (freq < 3.0) continue;
-    scored[word] = (scored[word] || 0) + 50000; // boost rel_trg
+    if (freq < 2.0) continue;
+    if (scored[word]) {
+      scored[word] += 10000; // amplify existing good words
+    }
+  }
+
+  // Fallback: if tight sources produced fewer than 15 words, allow ml (strict freq)
+  if (Object.keys(scored).length < 15) {
+    for (const w of mlRes) {
+      if (isProperNoun(w)) continue;
+      const word = w.word.toLowerCase();
+      if (!/^[a-z]+$/.test(word) || word.length < 4 || word.length > 8) continue;
+      if (word === spangram || word === topic || word === singular) continue;
+      if (scored[word]) continue; // already scored
+      const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
+      const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
+      if (freq < 3.0) continue; // stricter freq for fallback
+      scored[word] = 1000; // very low score — only used if nothing better exists
+    }
+  }
+
+  // Words that appear in multiple signal sources get a bonus multiplier
+  const signalCounts = {};
+  function countSignal(results) {
+    for (const w of results) {
+      const word = w.word.toLowerCase();
+      if (scored[word]) signalCounts[word] = (signalCounts[word] || 0) + 1;
+    }
+  }
+  countSignal(allResults.gen);
+  countSignal(allResults.com);
+  countSignal(allResults.trg);
+  countSignal(allResults.jjb);
+
+  // Words in 2+ sources are more reliable — boost them
+  for (const [word, count] of Object.entries(signalCounts)) {
+    if (count >= 2 && scored[word]) scored[word] = Math.floor(scored[word] * 1.5);
+    if (count >= 3 && scored[word]) scored[word] = Math.floor(scored[word] * 2);
   }
 
   return Object.entries(scored)
@@ -265,7 +379,7 @@ async function generatePuzzle(dateStr, themeName, themeTopics, rng) {
     const spangram = spangramCandidates[spanIdx];
 
     // Fetch words related to the spangram — this ensures coherence
-    const fillWords = await fetchWordsForSpangram(spangram);
+    const fillWords = await fetchWordsForSpangram(spangram, topic);
     if (fillWords.length < 10) continue;
 
     const plans = shuffle([...(PLANS_BY_SPANGRAM[spangram.length] || PLANS_BY_SPANGRAM[8])], rng);
@@ -315,7 +429,7 @@ async function generatePuzzle(dateStr, themeName, themeTopics, rng) {
         }
       }
     }
-    await new Promise(r => setTimeout(r, 150));
+    await new Promise(r => setTimeout(r, 250));
   }
   return null;
 }
