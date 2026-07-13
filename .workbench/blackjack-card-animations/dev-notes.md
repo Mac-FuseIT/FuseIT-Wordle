@@ -167,3 +167,25 @@ No errors (dart analyze frontend/lib/blackjack/)
 ### Open Issues
 - `_buildCard()` and `_buildSmallCard()` are dead code — remove in a follow-up cleanup.
 - `_isAnimating` is only cleared by `onAllFlipsComplete` of the *local player's* seat (or the dealer area). If the local player has no cards (spectator mode / edge case), `_isAnimating` might never clear. Low risk for the current game design (all seated players are dealt cards), but worth noting.
+
+## Dart Developer Notes — Review fix-ups (4 issues)
+
+### Files Modified
+- `frontend/lib/blackjack/widgets/animated_hand.dart` — Fix 1: changed `ValueKey('card_${i}_${card['rank']}_${card['suit']}')` → `ValueKey('card_$i')` so the same `AnimatedCard` widget instance survives a data change from hidden to revealed, allowing `didUpdateWidget` to fire the flip animation.
+- `frontend/lib/blackjack/blackjack_screen.dart` — Fix 2: removed dead `_buildCard()` method. Fix 3: deleted `_calculatePartialValue()` (duplicate logic) and replaced its two call sites with `_calculateHandValue`.
+- `frontend/lib/blackjack/blackjack_mp_screen.dart` — Fix 2: removed dead `_buildCard()` and `_buildSmallCard()` methods. Fix 3: deleted `_calculateDealerValue()` (duplicate logic) and replaced its call site with `_calculateHandValue`. Fix 4: added 6-second `Future.delayed` safety timeout after `_isAnimating = true` in both the `cards_dealt` and `dealer_turn` message handlers to clear `_isAnimating` if animation callbacks never fire (spectator edge case).
+
+### Key Decisions
+- The positional key fix (Fix 1) is the most semantically important: Flutter rebuilds widgets by comparing keys in the widget tree. Including `rank`/`suit` in the key caused Flutter to treat the revealed card as a brand-new widget, destroying the `AnimatedCard` state and preventing `didUpdateWidget` from firing the flip. Positional keys (`card_$i`) preserve the instance.
+- Fix 3: `_calculateDealerValue` in the MP screen had an additional `rank as String` cast which is fine to drop since `_calculateHandValue` already handles the same logic. The hidden-card guard (`if (rank == 'hidden') continue`) is already present in both methods.
+- Fix 4 timeout is placed *outside* the `setState` call (after the closing `});`) so it runs after the state is committed, consistent with `Future.delayed` usage elsewhere in the file.
+
+### Packages & Docs Consulted
+None — all changes are pure refactors within existing code.
+
+### Analyze & Test Results
+`analyze_files` on all 3 modified files: **No errors**
+Net diff: 12 insertions, 217 deletions (dead code removed).
+
+### Open Issues
+None.
