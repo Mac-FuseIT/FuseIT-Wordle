@@ -59,8 +59,13 @@ class AnimatedHand extends StatefulWidget {
 
 class _AnimatedHandState extends State<AnimatedHand> {
   /// How many cards were in the list the last time we committed an update.
-  /// Used to detect whether new cards have been appended or the hand was reset.
+  /// Tracks list size only — used to detect growth or reset, not as a
+  /// revealed-count substitute.
   int _previousLength = 0;
+
+  /// Cards at index >= [_animateFromIndex] will animate; those below appear
+  /// instantly. Updated on init and whenever the hand grows or resets.
+  int _animateFromIndex = 0;
 
   /// How many new cards are being animated in the current cycle.
   int _totalNewCards = 0;
@@ -71,11 +76,17 @@ class _AnimatedHandState extends State<AnimatedHand> {
   @override
   void initState() {
     super.initState();
-    _previousLength = widget.cards.length;
-    // On first build there are no "new" cards to animate — everything visible
-    // is either already-revealed (revealedCount) or animates normally.
-    final newCards = widget.cards.length - widget.revealedCount;
-    _totalNewCards = (widget.animateNewCards && newCards > 0) ? newCards : 0;
+    if (widget.animateNewCards) {
+      // Cards before revealedCount are already visible — animate the rest.
+      _animateFromIndex = widget.revealedCount;
+      _previousLength = widget.revealedCount;
+      _totalNewCards = widget.cards.length - widget.revealedCount;
+    } else {
+      // Reconnection / page-refresh — show everything instantly.
+      _animateFromIndex = widget.cards.length;
+      _previousLength = widget.cards.length;
+      _totalNewCards = 0;
+    }
   }
 
   @override
@@ -86,16 +97,17 @@ class _AnimatedHandState extends State<AnimatedHand> {
     final oldLength = _previousLength;
 
     if (newLength > oldLength) {
-      // New cards were appended — start a fresh animation cycle.
-      final added = newLength - oldLength;
+      // New cards appended (hit, dealer draw) — animate from old boundary.
       setState(() {
-        _totalNewCards = added;
+        _animateFromIndex = oldLength;
+        _totalNewCards = newLength - oldLength;
         _flippedCount = 0;
         _previousLength = newLength;
       });
     } else if (newLength < oldLength) {
-      // Hand was cleared (new round) — reset all tracking state.
+      // Hand cleared (new round) — reset all tracking state.
       setState(() {
+        _animateFromIndex = widget.revealedCount;
         _totalNewCards = 0;
         _flippedCount = 0;
         _previousLength = newLength;
@@ -113,16 +125,6 @@ class _AnimatedHandState extends State<AnimatedHand> {
     }
   }
 
-  /// The effective number of already-revealed cards.
-  ///
-  /// We take the maximum of [widget.revealedCount] and [_previousLength] so
-  /// that cards which have already been through an animation cycle in a
-  /// previous rebuild are never re-animated.
-  int get _effectiveRevealedCount =>
-      _previousLength > widget.revealedCount
-          ? _previousLength
-          : widget.revealedCount;
-
   @override
   Widget build(BuildContext context) {
     return Wrap(
@@ -130,10 +132,10 @@ class _AnimatedHandState extends State<AnimatedHand> {
       runSpacing: widget.spacing,
       children: List.generate(widget.cards.length, (i) {
         final card = widget.cards[i];
-        final isOldCard = i < _effectiveRevealedCount;
+        final isOldCard = i < _animateFromIndex;
         final shouldSkip = !widget.animateNewCards || isOldCard;
 
-        final newCardIndex = shouldSkip ? 0 : (i - _effectiveRevealedCount);
+        final newCardIndex = shouldSkip ? 0 : (i - _animateFromIndex);
         final delay = shouldSkip
             ? Duration.zero
             : widget.delayBetweenCards * newCardIndex;

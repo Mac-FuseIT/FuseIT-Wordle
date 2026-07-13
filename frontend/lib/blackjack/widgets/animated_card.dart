@@ -146,7 +146,25 @@ class _AnimatedCardState extends State<AnimatedCard>
     super.didUpdateWidget(oldWidget);
     final wasHidden = oldWidget.cardData['rank'] == 'hidden';
     final isNowRevealed = widget.cardData['rank'] != 'hidden';
-    if (wasHidden && isNowRevealed && !widget.skipAnimation) {
+    if (wasHidden && isNowRevealed) {
+      // Always flip on reveal, even if skipAnimation was true initially
+      // (e.g. the dealer's hidden card which was rendered instantly as a back).
+      // If we have dummy zero-duration controllers, replace with real ones.
+      if (_flipController.duration == Duration.zero) {
+        _flipController.dispose();
+        _flipController = AnimationController(
+          vsync: this,
+          duration: const Duration(milliseconds: 400),
+        );
+        _flipAngle = Tween<double>(begin: 0, end: pi).animate(
+          CurvedAnimation(parent: _flipController, curve: Curves.easeInOut),
+        );
+        _flipController.addListener(() {
+          if (_flipAngle.value >= pi / 2 && !_showFace) {
+            setState(() => _showFace = true);
+          }
+        });
+      }
       _flipOnly = true;
       _flipController.reset();
       setState(() => _showFace = false);
@@ -163,7 +181,9 @@ class _AnimatedCardState extends State<AnimatedCard>
 
   @override
   Widget build(BuildContext context) {
-    if (widget.skipAnimation) {
+    // If a hidden→revealed flip is in progress, we must render via the
+    // AnimatedBuilder even if skipAnimation was originally true.
+    if (widget.skipAnimation && !_flipOnly) {
       return _showFace ? _buildCardFace() : _buildCardBack();
     }
 
