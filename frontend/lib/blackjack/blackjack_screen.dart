@@ -834,7 +834,16 @@ class _BlackjackScreenState extends State<BlackjackScreen> {
           width: double.infinity,
           height: 48,
           child: ElevatedButton(
-            onPressed: _balance > 0 ? () => setState(() { _state = 'idle'; _error = null; }) : null,
+            onPressed: _balance > 0 ? () => setState(() {
+              _state = 'idle';
+              _error = null;
+              _displayedPlayerValue = 0;
+              _displayedDealerValue = 0;
+              _playerCards = [];
+              _dealerCards = [];
+              _previousPlayerCardCount = 0;
+              _previousDealerCardCount = 0;
+            }) : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: widget.theme.correct,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
