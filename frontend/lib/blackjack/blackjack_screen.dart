@@ -184,6 +184,21 @@ class _BlackjackScreenState extends State<BlackjackScreen> {
           final dealerCardsAdded = _dealerCards.length > prevDealerCount;
           if (playerCardsAdded || dealerCardsAdded) {
             _isAnimating = true;
+            // Bug 1 fix: reset displayed values to 0 on new deal (prevCount == 0)
+            // so the old hand's value doesn't linger until the first card flips
+            if (playerCardsAdded && prevPlayerCount == 0) {
+              _displayedPlayerValue = 0;
+            }
+            if (dealerCardsAdded && prevDealerCount == 0) {
+              _displayedDealerValue = 0;
+            }
+          }
+          // Bug 2 fix: on game over (stand), set values authoritatively from
+          // server response — the hidden card reveal callback won't fire via
+          // AnimatedHand since the card is treated as "old" (index < animateFromIndex)
+          if (gameOver) {
+            _displayedDealerValue = _dealerTotal;
+            _displayedPlayerValue = _playerTotal;
           }
         }
       } else if (_currentBet == 0) {
