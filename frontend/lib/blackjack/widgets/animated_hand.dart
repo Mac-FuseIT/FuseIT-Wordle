@@ -80,7 +80,20 @@ class _AnimatedHandState extends State<AnimatedHand> {
       // Cards before revealedCount are already visible — animate the rest.
       _animateFromIndex = widget.revealedCount;
       _previousLength = widget.revealedCount;
-      _totalNewCards = widget.cards.length - widget.revealedCount;
+      // Hidden cards (rank == 'hidden') don't run a flip animation, so they
+      // must NOT count toward _totalNewCards. Only visible non-hidden new
+      // cards will fire onFlipComplete.
+      _totalNewCards = widget.cards
+          .skip(widget.revealedCount)
+          .where((c) => c['rank'] != 'hidden')
+          .length;
+      // If every new card is hidden (e.g. dealer's initial deal), there are
+      // no flips to wait for — fire the completion callback immediately.
+      if (_totalNewCards == 0 && widget.cards.length > widget.revealedCount) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          widget.onAllFlipsComplete?.call();
+        });
+      }
     } else {
       // Reconnection / page-refresh — show everything instantly.
       _animateFromIndex = widget.cards.length;
@@ -98,12 +111,22 @@ class _AnimatedHandState extends State<AnimatedHand> {
 
     if (newLength > oldLength) {
       // New cards appended (hit, dealer draw) — animate from old boundary.
+      // Hidden cards don't flip, so exclude them from the expected flip count.
+      final newCards = widget.cards.sublist(oldLength);
+      final animatableCount =
+          newCards.where((c) => c['rank'] != 'hidden').length;
       setState(() {
         _animateFromIndex = oldLength;
-        _totalNewCards = newLength - oldLength;
+        _totalNewCards = animatableCount;
         _flippedCount = 0;
         _previousLength = newLength;
       });
+      // If all new cards are hidden, no flips will fire — complete immediately.
+      if (animatableCount == 0) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          widget.onAllFlipsComplete?.call();
+        });
+      }
     } else if (newLength < oldLength) {
       // Hand cleared (new round) — reset all tracking state.
       setState(() {
@@ -132,13 +155,23 @@ class _AnimatedHandState extends State<AnimatedHand> {
       runSpacing: widget.spacing,
       children: List.generate(widget.cards.length, (i) {
         final card = widget.cards[i];
+        final isHidden = card['rank'] == 'hidden';
         final isOldCard = i < _animateFromIndex;
-        final shouldSkip = !widget.animateNewCards || isOldCard;
+        // Hidden cards never run a flip animation — treat them like already-
+        // revealed cards so AnimatedCard renders them instantly as a back.
+        final shouldSkip = !widget.animateNewCards || isOldCard || isHidden;
 
-        final newCardIndex = shouldSkip ? 0 : (i - _animateFromIndex);
+        // For delay, count only non-hidden new cards that come before this one
+        // so the stagger timing is unaffected by hidden cards in the sequence.
+        int actualNewIndex = 0;
+        if (!shouldSkip) {
+          for (int j = _animateFromIndex; j < i; j++) {
+            if (widget.cards[j]['rank'] != 'hidden') actualNewIndex++;
+          }
+        }
         final delay = shouldSkip
             ? Duration.zero
-            : widget.delayBetweenCards * newCardIndex;
+            : widget.delayBetweenCards * actualNewIndex;
 
         return AnimatedCard(
           key: ValueKey('card_$i'),
@@ -146,6 +179,9 @@ class _AnimatedHandState extends State<AnimatedHand> {
           startFaceDown: !shouldSkip,
           skipAnimation: shouldSkip,
           slideDelay: delay,
+          // Hidden cards don't flip, so they get no flip callback. Their
+          // later reveal (hidden→real) is handled inside AnimatedCard itself
+          // via didUpdateWidget and fires onFlipComplete at that point.
           onFlipComplete: shouldSkip ? null : () => _onCardFlipped(i),
           width: widget.cardWidth,
           height: widget.cardHeight,
