@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/app_theme.dart';
 import 'blackjack_mp_websocket.dart';
+import 'widgets/animated_hand.dart';
 
 class BlackjackMpScreen extends StatefulWidget {
   final AppTheme theme;
@@ -41,6 +42,14 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
 
   int _deckRemaining = 52;
 
+  // Animation state
+  Map<int, int> _displayedPlayerValues = {}; // keyed by player userId
+  int _displayedDealerValue = 0;
+  Map<int, int> _previousCardCounts = {}; // keyed by player userId
+  int _previousDealerCardCount = 0;
+  bool _isInitialState = true; // true = show all cards instantly (reconnection)
+  bool _isAnimating = false;
+
   Timer? _errorTimer;
   Timer? _resultsTimer;
 
@@ -76,6 +85,16 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
           if (me != null) {
             _myBalance = me['balance'] ?? 0;
             _myBetPlaced = (me['bet'] ?? 0) > 0;
+          }
+          // Reconnection: show all existing cards instantly, snapshot counts
+          _isInitialState = true;
+          _previousDealerCardCount = (_dealer['hand'] as List?)?.length ?? 0;
+          _displayedDealerValue = _dealer['value'] ?? 0;
+          for (final p in _players) {
+            final uid = p['userId'] as int;
+            final handLen = (p['hand'] as List?)?.length ?? 0;
+            _previousCardCounts[uid] = handLen;
+            _displayedPlayerValues[uid] = p['value'] ?? 0;
           }
         });
         break;
@@ -127,6 +146,13 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
 
       case 'cards_dealt':
         setState(() {
+          // Snapshot previous counts before updating (should all be 0)
+          for (final p in _players) {
+            final uid = p['userId'] as int;
+            _previousCardCounts[uid] = (p['hand'] as List?)?.length ?? 0;
+          }
+          _previousDealerCardCount = (_dealer['hand'] as List?)?.length ?? 0;
+
           final dealtPlayers = data['players'] as List? ?? [];
           for (final dealt in dealtPlayers) {
             final dMap = Map<String, dynamic>.from(dealt);
@@ -146,6 +172,8 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
           _deckRemaining -= (playerCount * 2 + 2);
           if (_deckRemaining < 0) _deckRemaining = 0;
           _phase = 'playing';
+          _isInitialState = false;
+          _isAnimating = true;
         });
         break;
 
@@ -163,6 +191,10 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
           final cardUserId = data['userId'];
           final idx = _players.indexWhere((p) => p['userId'] == cardUserId);
           if (idx != -1) {
+            // Snapshot previous count before update
+            _previousCardCounts[cardUserId as int] =
+                (_players[idx]['hand'] as List?)?.length ?? 0;
+
             final updated = Map<String, dynamic>.from(_players[idx]);
             if (data['hand'] != null) {
               updated['hand'] = List<Map<String, dynamic>>.from(data['hand']);
@@ -176,6 +208,7 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
           }
           _deckRemaining--;
           if (_deckRemaining < 0) _deckRemaining = 0;
+          _isAnimating = true;
         });
         break;
 
@@ -221,6 +254,10 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
 
       case 'dealer_turn':
         setState(() {
+          // Snapshot previous dealer card count before update
+          _previousDealerCardCount =
+              (_dealer['hand'] as List?)?.length ?? 0;
+
           final hand = data['finalHand'] ?? data['hand'] ?? data['cards'];
           final value = data['finalValue'] ?? data['value'];
           if (hand != null) _dealer['hand'] = List<Map<String, dynamic>>.from((hand as List).map((c) => Map<String, dynamic>.from(c)));
@@ -232,6 +269,7 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
             if (_deckRemaining < 0) _deckRemaining = 0;
           }
           _phase = 'dealer_turn';
+          _isAnimating = true;
         });
         break;
 
@@ -438,11 +476,10 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
   // SECTION: dealer area
   Widget _buildDealerArea() {
     final dealerHand = List<Map<String, dynamic>>.from(_dealer['hand'] ?? []);
-    final dealerValue = _dealer['value'] ?? 0;
     final hasHidden = dealerHand.any(
       (c) => c['rank'] == 'hidden' || c['suit'] == 'hidden',
     );
-    final valueLabel = hasHidden ? '?' : '$dealerValue';
+    final valueLabel = hasHidden ? '?' : '$_displayedDealerValue';
 
     return Container(
       width: double.infinity,
@@ -486,11 +523,25 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
           ),
           if (dealerHand.isNotEmpty) ...[
             const SizedBox(height: 8),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              alignment: WrapAlignment.center,
-              children: dealerHand.map((c) => _buildCard(c)).toList(),
+            AnimatedHand(
+              cards: dealerHand,
+              revealedCount: _isInitialState
+                  ? dealerHand.length
+                  : _previousDealerCardCount,
+              animateNewCards: !_isInitialState,
+              delayBetweenCards: const Duration(milliseconds: 400),
+              onCardFlipped: (index) {
+                final visibleCards = dealerHand
+                    .sublist(0, index + 1)
+                    .where((c) => c['rank'] != 'hidden')
+                    .toList();
+                setState(
+                  () => _displayedDealerValue =
+                      _calculateDealerValue(visibleCards),
+                );
+              },
+              onAllFlipsComplete: () =>
+                  setState(() => _isAnimating = false),
             ),
           ] else
             const Padding(
@@ -548,7 +599,7 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
     final name = isMe ? 'You' : (player['name'] ?? player['nickname'] ?? 'Player');
     final bet = player['bet'] ?? 0;
     final hand = List<Map<String, dynamic>>.from(player['hand'] ?? []);
-    final value = player['value'] ?? 0;
+    final displayedValue = _displayedPlayerValues[player['userId']] ?? 0;
     final status = player['status'] ?? '';
 
     return Container(
@@ -596,10 +647,32 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
           const SizedBox(height: 6),
           // Cards
           if (hand.isNotEmpty)
-            Wrap(
+            AnimatedHand(
+              cards: hand,
+              revealedCount: _isInitialState
+                  ? hand.length
+                  : (_previousCardCounts[player['userId']] ?? hand.length),
+              animateNewCards: !_isInitialState,
+              delayBetweenCards: const Duration(milliseconds: 550),
+              cardWidth: 32,
+              cardHeight: 44,
               spacing: 4,
-              runSpacing: 4,
-              children: hand.map((c) => _buildSmallCard(c)).toList(),
+              onCardFlipped: (cardIndex) {
+                setState(() {
+                  final visibleCards = hand
+                      .sublist(0, cardIndex + 1)
+                      .where((c) =>
+                          c['rank'] != 'hidden' && c['rank'] != null)
+                      .toList();
+                  _displayedPlayerValues[player['userId']] =
+                      _calculateHandValue(visibleCards);
+                });
+              },
+              onAllFlipsComplete: () {
+                if (player['userId'] == widget.userId) {
+                  setState(() => _isAnimating = false);
+                }
+              },
             )
           else
             const Text('—', style: TextStyle(color: Colors.white24, fontSize: 14)),
@@ -607,7 +680,7 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
           // Value + status
           if (hand.isNotEmpty)
             Text(
-              'Value: $value',
+              'Value: $displayedValue',
               style: const TextStyle(color: Colors.white70, fontSize: 11),
             ),
           if (status.isNotEmpty)
@@ -914,7 +987,7 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
           child: SizedBox(
             height: 44,
             child: ElevatedButton(
-              onPressed: _ws.hit,
+              onPressed: (_isAnimating || !_isMyTurn()) ? null : _ws.hit,
               style: ElevatedButton.styleFrom(
                 backgroundColor: widget.theme.present,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -928,7 +1001,7 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
           child: SizedBox(
             height: 44,
             child: ElevatedButton(
-              onPressed: _ws.stand,
+              onPressed: (_isAnimating || !_isMyTurn()) ? null : _ws.stand,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF3A3A3C),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -942,16 +1015,16 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
           child: SizedBox(
             height: 44,
             child: ElevatedButton(
-              onPressed: canDouble ? _ws.doubleBet : null,
+              onPressed: (_isAnimating || !canDouble) ? null : _ws.doubleBet,
               style: ElevatedButton.styleFrom(
-                backgroundColor: canDouble ? widget.theme.correct : const Color(0xFF2A2A2B),
+                backgroundColor: (!_isAnimating && canDouble) ? widget.theme.correct : const Color(0xFF2A2A2B),
                 disabledBackgroundColor: const Color(0xFF2A2A2B),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
               child: Text(
                 'Double',
                 style: TextStyle(
-                  color: canDouble ? Colors.white : Colors.white38,
+                  color: (!_isAnimating && canDouble) ? Colors.white : Colors.white38,
                   fontWeight: FontWeight.bold,
                   fontSize: 13,
                 ),
@@ -1218,5 +1291,50 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
       default:
         return suit;
     }
+  }
+
+  // SECTION: value calculators
+  int _calculateDealerValue(List<Map<String, dynamic>> cards) {
+    int total = 0;
+    int aces = 0;
+    for (final c in cards) {
+      final rank = c['rank'] ?? '';
+      if (rank == 'hidden') continue;
+      if (rank == 'A') {
+        total += 11;
+        aces++;
+      } else if (['J', 'Q', 'K'].contains(rank)) {
+        total += 10;
+      } else {
+        total += int.tryParse(rank as String) ?? 0;
+      }
+    }
+    while (total > 21 && aces > 0) {
+      total -= 10;
+      aces--;
+    }
+    return total;
+  }
+
+  int _calculateHandValue(List<Map<String, dynamic>> cards) {
+    int total = 0;
+    int aces = 0;
+    for (final c in cards) {
+      final rank = c['rank'] ?? '';
+      if (rank == 'hidden' || rank == '') continue;
+      if (rank == 'A') {
+        total += 11;
+        aces++;
+      } else if (['J', 'Q', 'K'].contains(rank)) {
+        total += 10;
+      } else {
+        total += int.tryParse(rank as String) ?? 0;
+      }
+    }
+    while (total > 21 && aces > 0) {
+      total -= 10;
+      aces--;
+    }
+    return total;
   }
 }
