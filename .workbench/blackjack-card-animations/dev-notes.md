@@ -44,3 +44,44 @@ No widget tests written for this task (spec does not call for them in Task 1; te
 - **Widget tests:** No automated tests yet. A golden/snapshot test for each animation state (pre-slide, mid-flip, revealed) would be valuable.
 - **`_buildCardBack` border radius:** The spec snippet uses `BorderRadius.circular(4)` while the existing `_buildCard` in `blackjack_screen.dart` uses `BorderRadius.circular(8)`. The spec takes precedence here; `circular(4)` is used in `AnimatedCard`. The reviewer may want to align these.
 - **Task 2 (`AnimatedHand`)** is not yet implemented — this file only covers Task 1.
+
+---
+
+## Dart Developer Notes — AnimatedHand widget (Task 2)
+
+### Files Created
+- `frontend/lib/blackjack/widgets/animated_hand.dart` — `StatefulWidget` that orchestrates a list of `AnimatedCard` widgets with staggered timing, state tracking for new-vs-revealed cards, and completion callbacks.
+
+### Files Modified
+- `frontend/lib/blackjack/widgets/animated_card.dart` — Replaced the previous version on the branch with the full implementation matching the spec (slide + 3D flip, hidden-card support, `skipAnimation` mode, `didUpdateWidget` flip-only path). No API surface changes.
+
+### Key Decisions
+
+**`_effectiveRevealedCount` = max(revealedCount, _previousLength):**  
+Cards that were animated in a prior cycle must never be re-animated. `_previousLength` grows monotonically between rounds, so taking the max of the prop and the tracked length is the simplest way to ensure idempotency across rebuilds that don't change the list length.
+
+**`_totalNewCards` initialised in `initState`:**  
+On the very first build the widget may already have cards (e.g. initial deal on reconnect). `_totalNewCards` is set to `cards.length - revealedCount` when `animateNewCards` is true, so the very first deal is also tracked for `onAllFlipsComplete`.
+
+**No extra timer / Future logic in `AnimatedHand`:**  
+All delay logic lives inside `AnimatedCard.slideDelay`. `AnimatedHand` only computes `delay = delayBetweenCards * newCardIndex` and passes it down. This keeps `AnimatedHand` free of async state.
+
+**`_flippedCount` is not reset in `build`:**  
+Only reset in `didUpdateWidget` when the list grows. This is intentional — a re-render triggered by unrelated parent state must not reset the completion counter mid-animation.
+
+**`onFlipComplete: null` for old/skip cards:**  
+Cards rendered with `shouldSkip = true` have no `onFlipComplete` callback. This avoids `_onCardFlipped` being called for already-revealed cards and keeps `_flippedCount` accurate.
+
+### Packages & Docs Consulted
+- No third-party packages. Pure Flutter SDK.
+- `.workbench/blackjack-card-animations/spec.md` — source of truth.
+- `.workbench/blackjack-card-animations/task.md` — sub-task specification.
+
+### Analyze & Test Results
+```
+analyze_files → No errors
+```
+
+### Open Issues
+- **Task 3 & 4** (solo and multiplayer screen integration) not yet done.
+- **Widget tests** for `AnimatedHand` (stagger timing, callback sequencing) would add confidence — recommended before reviewer sign-off.
