@@ -175,6 +175,10 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
           _isInitialState = false;
           _isAnimating = true;
         });
+        // Safety timeout: clear _isAnimating if callbacks never fire (spectator edge case)
+        Future.delayed(const Duration(seconds: 6), () {
+          if (mounted && _isAnimating) setState(() => _isAnimating = false);
+        });
         break;
 
       case 'turn_start':
@@ -270,6 +274,10 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
           }
           _phase = 'dealer_turn';
           _isAnimating = true;
+        });
+        // Safety timeout: clear _isAnimating if callbacks never fire (spectator edge case)
+        Future.delayed(const Duration(seconds: 6), () {
+          if (mounted && _isAnimating) setState(() => _isAnimating = false);
         });
         break;
 
@@ -537,7 +545,7 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
                     .toList();
                 setState(
                   () => _displayedDealerValue =
-                      _calculateDealerValue(visibleCards),
+                      _calculateHandValue(visibleCards),
                 );
               },
               onAllFlipsComplete: () =>
@@ -692,55 +700,6 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSmallCard(Map<String, dynamic> card) {
-    final rank = card['rank'] ?? '';
-    final suit = card['suit'] ?? '';
-    final hidden = rank == 'hidden' || suit == 'hidden';
-
-    if (hidden) {
-      return Container(
-        width: 32,
-        height: 44,
-        decoration: BoxDecoration(
-          color: const Color(0xFF2C5F8A),
-          borderRadius: BorderRadius.circular(5),
-          border: Border.all(color: Colors.white24),
-        ),
-        child: const Center(
-          child: Text('?', style: TextStyle(color: Colors.white54, fontSize: 14)),
-        ),
-      );
-    }
-
-    final isRed = suit == '♥' || suit == '♦' ||
-        suit == 'hearts' || suit == 'diamonds';
-    final suitSymbol = _getSuitSymbol(suit);
-    final color = isRed ? Colors.red : Colors.black;
-
-    return Container(
-      width: 32,
-      height: 44,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(5),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 2,
-            offset: const Offset(1, 1),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(rank, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold)),
-          Text(suitSymbol, style: TextStyle(color: color, fontSize: 10)),
         ],
       ),
     );
@@ -1201,79 +1160,6 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
     );
   }
 
-  // SECTION: card builder
-  Widget _buildCard(Map<String, dynamic> card) {
-    final rank = card['rank'] ?? '';
-    final suit = card['suit'] ?? '';
-    final hidden = rank == 'hidden' || suit == 'hidden';
-
-    if (hidden) {
-      return Container(
-        width: 52,
-        height: 72,
-        decoration: BoxDecoration(
-          color: const Color(0xFF2C5F8A),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.white24),
-        ),
-        child: Center(
-          child: Container(
-            width: 36,
-            height: 56,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: Colors.white24),
-            ),
-            child: const Center(
-              child: Text(
-                '?',
-                style: TextStyle(
-                  color: Colors.white54,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    final isRed = suit == '♥' || suit == '♦' ||
-        suit == 'hearts' || suit == 'diamonds';
-    final suitSymbol = _getSuitSymbol(suit);
-    final color = isRed ? Colors.red : Colors.black;
-
-    return Container(
-      width: 52,
-      height: 72,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 4,
-            offset: const Offset(1, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            rank,
-            style: TextStyle(color: color, fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          Text(
-            suitSymbol,
-            style: TextStyle(color: color, fontSize: 16),
-          ),
-        ],
-      ),
-    );
-  }
-
   String _getSuitSymbol(String suit) {
     switch (suit.toLowerCase()) {
       case 'hearts':
@@ -1291,29 +1177,6 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
       default:
         return suit;
     }
-  }
-
-  // SECTION: value calculators
-  int _calculateDealerValue(List<Map<String, dynamic>> cards) {
-    int total = 0;
-    int aces = 0;
-    for (final c in cards) {
-      final rank = c['rank'] ?? '';
-      if (rank == 'hidden') continue;
-      if (rank == 'A') {
-        total += 11;
-        aces++;
-      } else if (['J', 'Q', 'K'].contains(rank)) {
-        total += 10;
-      } else {
-        total += int.tryParse(rank as String) ?? 0;
-      }
-    }
-    while (total > 21 && aces > 0) {
-      total -= 10;
-      aces--;
-    }
-    return total;
   }
 
   int _calculateHandValue(List<Map<String, dynamic>> cards) {

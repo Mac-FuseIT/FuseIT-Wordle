@@ -139,7 +139,7 @@ class _AnimatedHandState extends State<AnimatedHand> {
             : widget.delayBetweenCards * newCardIndex;
 
         return AnimatedCard(
-          key: ValueKey('card_${i}_${card['rank']}_${card['suit']}'),
+          key: ValueKey('card_$i'),
           cardData: card,
           startFaceDown: !shouldSkip,
           skipAnimation: shouldSkip,

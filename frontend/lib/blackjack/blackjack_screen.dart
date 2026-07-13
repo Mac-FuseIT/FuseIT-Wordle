@@ -221,22 +221,6 @@ class _BlackjackScreenState extends State<BlackjackScreen> {
     return total;
   }
 
-  /// Calculates hand value for a partial card list (used by animation callbacks
-  /// to update the displayed value progressively as cards flip).
-  int _calculatePartialValue(List<Map<String, dynamic>> cards) {
-    int total = 0;
-    int aces = 0;
-    for (final card in cards) {
-      final rank = card['rank'] ?? '';
-      if (rank == 'hidden') continue;
-      if (rank == 'A') { total += 11; aces++; }
-      else if (['J', 'Q', 'K'].contains(rank)) total += 10;
-      else total += int.tryParse(rank) ?? 0;
-    }
-    while (total > 21 && aces > 0) { total -= 10; aces--; }
-    return total;
-  }
-
   String _resultText(String status) {
     switch (status) {
       case 'blackjack':
@@ -691,7 +675,7 @@ class _BlackjackScreenState extends State<BlackjackScreen> {
                         .sublist(0, index + 1)
                         .where((c) => c['rank'] != 'hidden')
                         .toList();
-                    _displayedDealerValue = _calculatePartialValue(visibleCards);
+                    _displayedDealerValue = _calculateHandValue(visibleCards);
                   });
                 },
                 onAllFlipsComplete: () => setState(() => _isAnimating = false),
@@ -727,7 +711,7 @@ class _BlackjackScreenState extends State<BlackjackScreen> {
                 delayBetweenCards: const Duration(milliseconds: 550),
                 onCardFlipped: (index) {
                   setState(() {
-                    _displayedPlayerValue = _calculatePartialValue(
+                    _displayedPlayerValue = _calculateHandValue(
                       _playerCards.sublist(0, index + 1),
                     );
                   });
@@ -740,58 +724,6 @@ class _BlackjackScreenState extends State<BlackjackScreen> {
         const SizedBox(height: 8),
         Text('Bet: \$$_currentBet', style: TextStyle(color: widget.theme.present, fontSize: 14)),
       ],
-    );
-  }
-
-  Widget _buildCard(Map<String, dynamic> card) {
-    final rank = card['rank'] ?? '';
-    final suit = card['suit'] ?? '';
-    final hidden = rank == 'hidden' || suit == 'hidden';
-
-    if (hidden) {
-      return Container(
-        width: 52,
-        height: 72,
-        decoration: BoxDecoration(
-          color: const Color(0xFF2C5F8A),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.white24),
-        ),
-        child: Center(
-          child: Container(
-            width: 36,
-            height: 56,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: Colors.white24),
-            ),
-            child: const Center(
-              child: Text('?', style: TextStyle(color: Colors.white54, fontSize: 24, fontWeight: FontWeight.bold)),
-            ),
-          ),
-        ),
-      );
-    }
-
-    final isRed = suit == '♥' || suit == '♦' || suit == 'hearts' || suit == 'diamonds';
-    final suitSymbol = _getSuitSymbol(suit);
-    final color = isRed ? Colors.red : Colors.black;
-
-    return Container(
-      width: 52,
-      height: 72,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 4, offset: const Offset(1, 2))],
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(rank, style: TextStyle(color: color, fontSize: 18, fontWeight: FontWeight.bold)),
-          Text(suitSymbol, style: TextStyle(color: color, fontSize: 16)),
-        ],
-      ),
     );
   }
 
