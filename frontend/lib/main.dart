@@ -16,7 +16,7 @@ import 'pong/screens/pong_lobby_screen.dart';
 import 'invade/invade_game_screen.dart';
 import 'invade/invade_lobby_screen.dart';
 import 'chess/chess_lobby_screen.dart';
-import 'blackjack/blackjack_lobby_screen.dart';
+import 'blackjack/blackjack_lobby_screen.dart'; // class renamed to CasinoLobbyScreen
 import 'widgets/wavy_background.dart';
 
 void main() => runApp(const FuseArcadeApp());
@@ -176,7 +176,7 @@ class _AppShellState extends State<AppShell> {
                 theme: _theme,
                 onBack: () => setState(() => _view = AppView.menu),
               ),
-              AppView.blackjackGame => BlackjackLobbyScreen(
+              AppView.blackjackGame => CasinoLobbyScreen(
                 nickname: _name!,
                 userId: _userId!,
                 theme: _theme,

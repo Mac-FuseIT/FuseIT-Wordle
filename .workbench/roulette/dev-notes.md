@@ -225,3 +225,48 @@ Cloudflare Pages Functions have no local build step. Syntax verified by reading 
 
 ### Open Issues
 - The Flutter leaderboard table widget (`LeaderboardTable` or similar) will need to add a "Spins" column to display `spins_played`. That is a frontend task.
+
+## Dart Developer Notes — Fix balance read + monthly leaderboard field
+
+### Files Modified
+- `frontend/lib/blackjack/roulette/roulette_screen.dart` — Replaced `result` case in `_handleMessage`. Previously read `data['yourNewBalance']` (non-existent field). Now extracts the player's own entry from the `payouts` list by matching `userId`, and reads `newBalance` from that entry. Also added explicit `as Map` cast and `as int` cast for type safety.
+- `frontend/lib/blackjack/blackjack_lobby_screen.dart` — Changed `row['total_spins']` to `row['spins_played']` on line 672 (monthly leaderboard). Backend sends `spins_played` for both daily and monthly leaderboards.
+
+### Key Decisions
+- Used `firstWhere` with `orElse: () => <String, dynamic>{}` so the lookup never throws when the player isn't in the payouts list (e.g. they disconnected mid-round).
+- Kept `_timeRemaining = 5000` removed from the new `result` case — it was in the old code but the task spec replacement didn't include it, and the `spinning` case already sets `_timeRemaining = 5000` before transitioning to `result`.
+
+### Packages & Docs Consulted
+None — pure Dart/Flutter standard library.
+
+### Analyze & Test Results
+`analyze_files` on both files: **No errors**
+
+### Open Issues
+None.
+
+## Developer Notes — Fix 3 critical backend bugs (wrangler.toml + stale balance)
+
+### Files Created
+_none_
+
+### Files Modified
+- `wrangler.toml` — Added `[[durable_objects.bindings]]` entry for `ROULETTE_TABLE` / `RouletteTable` / `fuseit-roulette-worker` alongside the existing DO bindings (Fix 1).
+- `src/roulette-worker.js` — In `transitionToResult`, replaced the `if (totalWon > 0)` guard around the D1 read with an unconditional D1 read for every player. Winnings are still only written back to D1 when `totalWon > 0`, but `newBalance` is now always read from D1 (the authoritative source) rather than from the stale cached `player.balance` (Fix 3).
+
+### Key Decisions
+- Fix 2 (adding `yourNewBalance` to the broadcast) was intentionally skipped per task instructions — the payouts array already carries `newBalance` per player, and the Flutter client fix is handled by a separate agent.
+- Force-adding `wrangler.toml` was necessary because it is listed in `.gitignore`. The file was already untracked and present; force-adding is the correct move to get it into version control on this branch.
+- The unconditional D1 read in Fix 3 adds one extra D1 read per losing player per round, but this is negligible for the table sizes in scope and ensures correctness over performance micro-optimisation.
+
+### Library Docs Consulted (Context7)
+none — no third-party libraries touched; pure Cloudflare Workers D1 SQL.
+
+### Build & Test Results
+```
+$ node --check src/roulette-worker.js
+(exit 0 — no syntax errors)
+```
+
+### Open Issues
+- `wrangler.toml` is in `.gitignore` — consider removing that ignore rule if the file should be tracked long-term, or confirm the force-add approach is intentional.
