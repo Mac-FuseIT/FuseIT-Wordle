@@ -23,7 +23,7 @@ export async function onRequestGet({ request, env }) {
      LIMIT 50`
   ).bind(today, today).all();
 
-  // Monthly leaderboard: sum of all cashed-out results + today's active sessions
+  // Monthly leaderboard: sum of all cashed-out results + all uncashed sessions for the month
   const monthlyResults = await env.DB.prepare(
     `SELECT nickname, SUM(profit) as total_profit, SUM(hands) as total_hands, COUNT(*) as games FROM (
        SELECT u.name as nickname, (br.final_balance - 100) as profit, br.hands_played as hands, br.user_id
@@ -34,13 +34,13 @@ export async function onRequestGet({ request, env }) {
        SELECT u.name as nickname, (json_extract(bs.session_state, '$.balance') - 100) as profit, json_extract(bs.session_state, '$.handsPlayed') as hands, bs.user_id
        FROM blackjack_sessions bs
        JOIN users u ON u.id = bs.user_id
-       WHERE bs.date = ?
+       WHERE bs.date >= ? AND bs.date <= ?
          AND NOT EXISTS (SELECT 1 FROM blackjack_results br2 WHERE br2.user_id = bs.user_id AND br2.date = bs.date)
      )
      GROUP BY user_id
      ORDER BY total_profit DESC
      LIMIT 50`
-  ).bind(monthStart, today, today).all();
+  ).bind(monthStart, today, monthStart, today).all();
 
   return jsonResponse({
     daily: dailyResults.results || [],
