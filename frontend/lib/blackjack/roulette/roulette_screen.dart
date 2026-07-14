@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/app_theme.dart';
 import 'roulette_websocket.dart';
 import 'models/roulette_state.dart';
+import 'widgets/roulette_wheel.dart';
 
 class RouletteScreen extends StatefulWidget {
   final AppTheme theme;
@@ -56,7 +57,10 @@ class _RouletteScreenState extends State<RouletteScreen> {
 
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (_timeRemaining > 0) {
-        setState(() => _timeRemaining = (_timeRemaining - 1000).clamp(0, _timeRemaining));
+        setState(
+          () =>
+              _timeRemaining = (_timeRemaining - 1000).clamp(0, _timeRemaining),
+        );
       }
     });
   }
@@ -187,7 +191,9 @@ class _RouletteScreenState extends State<RouletteScreen> {
         break;
 
       case 'error':
-        setState(() => _error = data['message']?.toString() ?? 'An error occurred');
+        setState(
+          () => _error = data['message']?.toString() ?? 'An error occurred',
+        );
         _errorTimer?.cancel();
         _errorTimer = Timer(const Duration(seconds: 3), () {
           if (mounted) setState(() => _error = null);
@@ -203,29 +209,6 @@ class _RouletteScreenState extends State<RouletteScreen> {
   // ---------------------------------------------------------------------------
   // Helper methods
   // ---------------------------------------------------------------------------
-
-  Color _getWheelColor() {
-    if (_winningNumber == null) return const Color(0xFF1A1A1B);
-    switch (_winningColor) {
-      case 'red':
-        return Colors.red.shade800;
-      case 'black':
-        return Colors.black;
-      case 'green':
-        return Colors.green.shade800;
-      default:
-        return const Color(0xFF1A1A1B);
-    }
-  }
-
-  String _getWheelText() {
-    if (_phase == 'betting') {
-      return _winningNumber != null ? '$_winningNumber' : 'Place Bets';
-    }
-    if (_phase == 'spinning') return '$_winningNumber';
-    if (_phase == 'result') return '$_winningNumber';
-    return 'Roulette';
-  }
 
   double _getProgress() {
     switch (_phase) {
@@ -402,9 +385,10 @@ class _RouletteScreenState extends State<RouletteScreen> {
           Text(
             'Reconnecting...',
             style: TextStyle(
-                color: Colors.black87,
-                fontWeight: FontWeight.bold,
-                fontSize: 13),
+              color: Colors.black87,
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+            ),
           ),
         ],
       ),
@@ -442,47 +426,12 @@ class _RouletteScreenState extends State<RouletteScreen> {
   }
 
   // ---------------------------------------------------------------------------
-  // Wheel placeholder
+  // Wheel
   // ---------------------------------------------------------------------------
 
   Widget _buildWheelPlaceholder() {
-    final wheelText = _getWheelText();
-    final isSpinning = _phase == 'spinning';
-
     return Center(
-      child: Container(
-        width: 200,
-        height: 200,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: _getWheelColor(),
-          border: Border.all(color: Colors.white24, width: 2),
-        ),
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (isSpinning)
-                const Text(
-                  'Spinning...',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              Text(
-                wheelText,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: _phase == 'result' ? 48 : 36,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      child: RouletteWheel(winningNumber: _winningNumber, phase: _phase),
     );
   }
 
@@ -581,8 +530,7 @@ class _RouletteScreenState extends State<RouletteScreen> {
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 11,
-                  fontWeight:
-                      selected ? FontWeight.bold : FontWeight.normal,
+                  fontWeight: selected ? FontWeight.bold : FontWeight.normal,
                 ),
               ),
             ),
@@ -600,34 +548,70 @@ class _RouletteScreenState extends State<RouletteScreen> {
     final enabled = _phase == 'betting';
     return Column(
       children: [
-        Row(children: [
-          _buildOutsideBet('RED', 'red', null, Colors.red.shade700, enabled),
-          const SizedBox(width: 4),
-          _buildOutsideBet(
-              'BLACK', 'black', null, Colors.grey.shade900, enabled),
-        ]),
+        Row(
+          children: [
+            _buildOutsideBet('RED', 'red', null, Colors.red.shade700, enabled),
+            const SizedBox(width: 4),
+            _buildOutsideBet(
+              'BLACK',
+              'black',
+              null,
+              Colors.grey.shade900,
+              enabled,
+            ),
+          ],
+        ),
         const SizedBox(height: 4),
-        Row(children: [
-          _buildOutsideBet(
-              'ODD', 'odd', null, const Color(0xFF2C2C2E), enabled),
-          const SizedBox(width: 4),
-          _buildOutsideBet(
-              'EVEN', 'even', null, const Color(0xFF2C2C2E), enabled),
-        ]),
+        Row(
+          children: [
+            _buildOutsideBet(
+              'ODD',
+              'odd',
+              null,
+              const Color(0xFF2C2C2E),
+              enabled,
+            ),
+            const SizedBox(width: 4),
+            _buildOutsideBet(
+              'EVEN',
+              'even',
+              null,
+              const Color(0xFF2C2C2E),
+              enabled,
+            ),
+          ],
+        ),
         const SizedBox(height: 4),
-        Row(children: [
-          _buildOutsideBet(
-              'LOW 1-18', 'low', null, const Color(0xFF2C2C2E), enabled),
-          const SizedBox(width: 4),
-          _buildOutsideBet(
-              'HIGH 19-36', 'high', null, const Color(0xFF2C2C2E), enabled),
-        ]),
+        Row(
+          children: [
+            _buildOutsideBet(
+              'LOW 1-18',
+              'low',
+              null,
+              const Color(0xFF2C2C2E),
+              enabled,
+            ),
+            const SizedBox(width: 4),
+            _buildOutsideBet(
+              'HIGH 19-36',
+              'high',
+              null,
+              const Color(0xFF2C2C2E),
+              enabled,
+            ),
+          ],
+        ),
       ],
     );
   }
 
-  Widget _buildOutsideBet(String label, String betType, dynamic betValue,
-      Color bg, bool enabled) {
+  Widget _buildOutsideBet(
+    String label,
+    String betType,
+    dynamic betValue,
+    Color bg,
+    bool enabled,
+  ) {
     return Expanded(
       child: GestureDetector(
         onTap: enabled
@@ -671,9 +655,7 @@ class _RouletteScreenState extends State<RouletteScreen> {
             child: Row(
               children: [
                 for (int col = 1; col <= 3; col++)
-                  Expanded(
-                    child: _buildNumberCell(row * 3 + col, enabled),
-                  ),
+                  Expanded(child: _buildNumberCell(row * 3 + col, enabled)),
               ],
             ),
           ),
@@ -686,8 +668,8 @@ class _RouletteScreenState extends State<RouletteScreen> {
     final bgColor = color == 'red'
         ? Colors.red.shade700
         : color == 'green'
-            ? Colors.green.shade700
-            : Colors.grey.shade900;
+        ? Colors.green.shade700
+        : Colors.grey.shade900;
 
     return GestureDetector(
       onTap: enabled
@@ -767,10 +749,7 @@ class _RouletteScreenState extends State<RouletteScreen> {
                   padding: EdgeInsets.zero,
                   minimumSize: const Size(60, 32),
                 ),
-                child: const Text(
-                  'Clear All',
-                  style: TextStyle(fontSize: 13),
-                ),
+                child: const Text('Clear All', style: TextStyle(fontSize: 13)),
               ),
             ],
           ),
@@ -938,18 +917,14 @@ class _RouletteScreenState extends State<RouletteScreen> {
                       style: TextStyle(
                         color: isMe ? widget.theme.correct : Colors.white70,
                         fontSize: 14,
-                        fontWeight:
-                            isMe ? FontWeight.bold : FontWeight.normal,
+                        fontWeight: isMe ? FontWeight.bold : FontWeight.normal,
                       ),
                     ),
                   ),
                   Text(
-                    netProfit >= 0
-                        ? '+\$$netProfit'
-                        : '-\$${netProfit.abs()}',
+                    netProfit >= 0 ? '+\$$netProfit' : '-\$${netProfit.abs()}',
                     style: TextStyle(
-                      color:
-                          netProfit >= 0 ? Colors.green : Colors.redAccent,
+                      color: netProfit >= 0 ? Colors.green : Colors.redAccent,
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
                     ),
