@@ -580,16 +580,13 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
       );
     }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        alignment: WrapAlignment.center,
-        children: List.generate(_players.length, (i) {
-          return _buildPlayerSeat(_players[i], i);
-        }),
-      ),
+    return Column(
+      children: List.generate(_players.length, (i) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: _buildPlayerSeat(_players[i], i),
+        );
+      }),
     );
   }
 
@@ -600,7 +597,7 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
 
     Color borderColor;
     if (isCurrentTurn) {
-      borderColor = widget.theme.present; // yellow overrides green
+      borderColor = widget.theme.present;
     } else if (isMe) {
       borderColor = widget.theme.correct;
     } else {
@@ -614,49 +611,76 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
     final status = player['status'] ?? '';
 
     return Container(
-      width: 150,
-      padding: const EdgeInsets.all(10),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: const Color(0xFF1A1A1B),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: borderColor, width: isCurrentTurn || isMe ? 2 : 1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: borderColor,
+          width: (isCurrentTurn || isMe) ? 2 : 1,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Name row
+          // Name + bet + value row
           Row(
             children: [
-              Expanded(
-                child: Text(
-                  name,
-                  style: TextStyle(
-                    color: isCurrentTurn
-                        ? widget.theme.present
-                        : isMe
-                            ? widget.theme.correct
-                            : Colors.white,
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+              if (isDisconnected)
+                const Padding(
+                  padding: EdgeInsets.only(right: 6),
+                  child: Icon(Icons.wifi_off, color: Colors.grey, size: 14),
+                ),
+              Text(
+                name,
+                style: TextStyle(
+                  color: isCurrentTurn
+                      ? widget.theme.present
+                      : isMe
+                          ? widget.theme.correct
+                          : Colors.grey,
+                  fontSize: 13,
                 ),
               ),
-              if (isDisconnected)
-                const Icon(Icons.wifi_off, color: Colors.grey, size: 12),
+              if (bet > 0) ...[
+                const SizedBox(width: 8),
+                Text(
+                  'Bet: \$$bet',
+                  style: TextStyle(color: widget.theme.present, fontSize: 12),
+                ),
+              ],
+              const Spacer(),
+              if (hand.isNotEmpty)
+                Text(
+                  '$displayedValue',
+                  style: TextStyle(
+                    color: isMe ? widget.theme.correct : widget.theme.present,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
             ],
           ),
-          const SizedBox(height: 4),
-          // Bet
-          Text(
-            bet > 0 ? 'Bet: \$$bet' : 'No bet',
-            style: TextStyle(
-              color: bet > 0 ? widget.theme.present : Colors.white38,
-              fontSize: 11,
+          if (status.isNotEmpty && status != 'waiting' && status != 'playing') ...[
+            const SizedBox(height: 4),
+            Text(
+              status == 'stood'
+                  ? 'Stood'
+                  : status == 'bust'
+                      ? 'BUST'
+                      : status == 'bet_placed'
+                          ? 'Bet placed'
+                          : status,
+              style: TextStyle(
+                color: status == 'bust' ? Colors.red : Colors.white54,
+                fontSize: 11,
+                fontWeight: status == 'bust' ? FontWeight.bold : FontWeight.normal,
+              ),
             ),
-          ),
-          const SizedBox(height: 6),
-          // Cards
+          ],
+          const SizedBox(height: 8),
+          // Cards - full size like solo
           if (hand.isNotEmpty)
             AnimatedHand(
               cards: hand,
@@ -665,9 +689,9 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
                   : (_previousCardCounts[player['userId']] ?? hand.length),
               animateNewCards: !_isInitialState,
               delayBetweenCards: const Duration(milliseconds: 550),
-              cardWidth: 32,
-              cardHeight: 44,
-              spacing: 4,
+              cardWidth: 52,
+              cardHeight: 72,
+              spacing: 6,
               onCardFlipped: (cardIndex) {
                 setState(() {
                   final visibleCards = hand
@@ -686,21 +710,11 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
               },
             )
           else
-            const Text('—', style: TextStyle(color: Colors.white24, fontSize: 14)),
-          const SizedBox(height: 4),
-          // Value + status
-          if (hand.isNotEmpty)
-            Text(
-              'Value: $displayedValue',
-              style: const TextStyle(color: Colors.white70, fontSize: 11),
-            ),
-          if (status.isNotEmpty)
-            Text(
-              _statusLabel(status),
-              style: TextStyle(
-                color: _statusColor(status),
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                'Waiting for cards...',
+                style: TextStyle(color: Colors.white24, fontSize: 13),
               ),
             ),
         ],
