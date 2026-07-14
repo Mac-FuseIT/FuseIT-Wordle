@@ -113,9 +113,11 @@ class _RouletteWheelState extends State<RouletteWheel>
     final delta = (targetNorm - currentNorm + 2 * pi) % (2 * pi); // always ≥ 0
 
     // At least 5 full rotations for visual effect.
+    // The extra pi/2 shifts the landing position a quarter turn clockwise,
+    // so the winning pocket stops at the RIGHT side where the arrow now sits.
     const minFullRotations = 5;
     _startAngle = _currentAngle;
-    _endAngle = _currentAngle + minFullRotations * 2 * pi + delta;
+    _endAngle = _currentAngle + minFullRotations * 2 * pi + delta + pi / 2;
 
     _controller.reset();
     _controller.forward();
@@ -154,11 +156,11 @@ class _RouletteWheelState extends State<RouletteWheel>
                   ),
                 ),
 
-                // Fixed ball indicator (triangle pointing down at top).
+                // Fixed ball indicator — pointing left at the right edge.
                 const Positioned(
-                  top: 0,
+                  right: 0,
                   child: Icon(
-                    Icons.arrow_drop_down,
+                    Icons.arrow_left,
                     color: Colors.white,
                     size: 32,
                   ),
@@ -187,7 +189,7 @@ class _RouletteWheelState extends State<RouletteWheel>
                   ),
                   child: Center(
                     child: Text(
-                      widget.winningNumber != null
+                      (widget.phase == 'result' && widget.winningNumber != null)
                           ? '${widget.winningNumber}'
                           : '',
                       style: const TextStyle(

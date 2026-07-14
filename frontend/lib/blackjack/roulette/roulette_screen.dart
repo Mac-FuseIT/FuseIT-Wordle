@@ -311,15 +311,15 @@ class _RouletteScreenState extends State<RouletteScreen> {
                     const SizedBox(height: 8),
                     _buildWheelPlaceholder(),
                     const SizedBox(height: 12),
+                    _buildPlayersSection(),
+                    const SizedBox(height: 12),
+                    _buildHistory(),
+                    const SizedBox(height: 12),
                     _buildPhaseTimerBar(),
                     const SizedBox(height: 16),
                     _buildBettingTable(),
                     const SizedBox(height: 12),
                     _buildMyBetsSummary(),
-                    const SizedBox(height: 12),
-                    _buildPlayersSection(),
-                    const SizedBox(height: 12),
-                    _buildHistory(),
                     const SizedBox(height: 12),
                     if (_phase == 'result' && _payouts != null) ...[
                       _buildPayouts(),
@@ -782,60 +782,38 @@ class _RouletteScreenState extends State<RouletteScreen> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFF3A3A3C)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Players (${_players.length})',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          ..._players.map((player) {
-            final isMe = player['userId'] == widget.userId;
-            final name = isMe
-                ? 'You'
-                : (player['name'] ?? player['nickname'] ?? 'Player');
-            final total = _playerTotalBets(player);
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 3),
-              child: Row(
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.green,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      name,
-                      style: TextStyle(
-                        color: isMe ? widget.theme.correct : Colors.white,
-                        fontSize: 13,
-                        fontWeight: isMe ? FontWeight.bold : FontWeight.normal,
-                      ),
-                    ),
-                  ),
-                  if (total > 0)
-                    Text(
-                      'Bet: \$$total',
-                      style: const TextStyle(
-                        color: Colors.white54,
-                        fontSize: 12,
-                      ),
-                    ),
-                ],
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 6,
+        children: _players.map((player) {
+          final isMe = player['userId'] == widget.userId;
+          final name = isMe
+              ? 'You'
+              : (player['name'] ?? player['nickname'] ?? 'Player');
+          final total = _playerTotalBets(player);
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.green,
+                ),
               ),
-            );
-          }),
-        ],
+              const SizedBox(width: 4),
+              Text(
+                total > 0 ? '$name · \$$total' : name,
+                style: TextStyle(
+                  color: isMe ? widget.theme.correct : Colors.white,
+                  fontSize: 13,
+                  fontWeight: isMe ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+            ],
+          );
+        }).toList(),
       ),
     );
   }
