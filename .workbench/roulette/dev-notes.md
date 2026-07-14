@@ -202,3 +202,26 @@ $ node --input-type=module --check < src/roulette-worker.js
 
 ### Open Issues
 - None. Wheel widget is complete and wired in.
+
+## Developer Notes — Leaderboard: add roulette spins_played
+
+### Files Created
+_none_
+
+### Files Modified
+- `functions/api/blackjack/leaderboard.js` — Added `user_id` to both UNION SELECT parts of the daily and monthly queries. After each query, a separate D1 query fetches `roulette_results` for the same time window and builds a `user_id → spins_played` map. The final `daily` and `monthly` arrays are assembled with `.map()` spreading `spins_played` onto each row (defaults to 0 for players with no roulette activity).
+
+### Key Decisions
+- **Separate query + JS merge over SQL JOIN:** The daily query uses `UNION ALL` which makes a JOIN on `roulette_results` awkward (would need a subquery or CTE wrapper). A second query + in-memory merge is simpler, cheaper, and just as correct for ≤50 rows.
+- **`user_id` added to both UNION branches:** Required so the JS merge can key off it. `user_id` is not exposed in the API response body in a breaking way — it was just missing before; consumers that only read `nickname`/`profit`/`hands_played` are unaffected.
+- **Monthly roulette query:** Uses `SUM(spins_played)` grouped by `user_id` over the same date range so players accumulate their roulette spins across the whole month.
+- **Profit not changed:** The profit figure is still derived from `blackjack_sessions`/`blackjack_results` balance difference. Since roulette also modifies that same shared balance, the profit column already reflects combined casino activity. `roulette_results` is stats-display only (spins_played).
+
+### Library Docs Consulted (Context7)
+none — no third-party libraries. Pure D1 SQL + JS.
+
+### Build & Test Results
+Cloudflare Pages Functions have no local build step. Syntax verified by reading the final file. Committed cleanly.
+
+### Open Issues
+- The Flutter leaderboard table widget (`LeaderboardTable` or similar) will need to add a "Spins" column to display `spins_played`. That is a frontend task.
