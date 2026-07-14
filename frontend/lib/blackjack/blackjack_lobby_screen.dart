@@ -656,14 +656,22 @@ class _CasinoLobbyScreenState extends State<CasinoLobbyScreen> {
               if (!isMonthly) ...[
                 const SizedBox(width: 12),
                 Text(
-                  '${row['hands_played'] ?? 0} hands',
+                  () {
+                    final hands = row['hands_played'] ?? 0;
+                    final spins = row['spins_played'] ?? 0;
+                    return spins > 0 ? '$hands hands, $spins spins' : '$hands hands';
+                  }(),
                   style: const TextStyle(color: Colors.grey, fontSize: 12),
                 ),
               ],
               if (isMonthly) ...[
                 const SizedBox(width: 12),
                 Text(
-                  '${row['games'] ?? ''} days',
+                  () {
+                    final days = row['games'] ?? 0;
+                    final spins = row['spins_played'] ?? 0;
+                    return spins > 0 ? '$days days, $spins spins' : '$days days';
+                  }(),
                   style: const TextStyle(color: Colors.grey, fontSize: 12),
                 ),
               ],

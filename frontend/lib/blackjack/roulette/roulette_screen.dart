@@ -179,14 +179,25 @@ class _RouletteScreenState extends State<RouletteScreen> {
       case 'result':
         setState(() {
           _phase = 'result';
-          _payouts = List<Map<String, dynamic>>.from(data['payouts'] ?? []);
-          _balance = data['yourNewBalance'] ?? _balance;
-          _winningNumber = data['winningNumber'] ?? _winningNumber;
-          _winningColor = data['winningColor'] ?? _winningColor;
-          if (_winningNumber != null) {
-            _history = [_winningNumber!, ..._history].take(10).toList();
+          _winningNumber = data['winningNumber'];
+          _winningColor = data['winningColor'];
+          final payoutsList = data['payouts'] as List? ?? [];
+          _payouts = List<Map<String, dynamic>>.from(
+            payoutsList.map((p) => Map<String, dynamic>.from(p as Map)),
+          );
+          // Find my balance from payouts
+          final myPayout = _payouts?.firstWhere(
+            (p) => p['userId'] == widget.userId,
+            orElse: () => <String, dynamic>{},
+          );
+          if (myPayout != null && myPayout['newBalance'] != null) {
+            _balance = myPayout['newBalance'] as int;
           }
-          _timeRemaining = 5000;
+          // Add to history
+          if (_winningNumber != null) {
+            _history.insert(0, _winningNumber!);
+            if (_history.length > 10) _history.removeLast();
+          }
         });
         break;
 
