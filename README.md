@@ -141,7 +141,7 @@ npx wrangler d1 execute fuseit-word-db --file=migrations/0001_init.sql --local
 ```bash
 npx wrangler deploy --config wrangler-chess-worker.toml
 npx wrangler deploy --config wrangler-blackjack-worker.toml
- npx wrangler deploy --config wrangler-roulette-worker.toml
+npx wrangler deploy --config wrangler-roulette-worker.toml
 cd frontend && flutter build web --release && cd ..
 npx wrangler pages deploy frontend/build/web
 ```

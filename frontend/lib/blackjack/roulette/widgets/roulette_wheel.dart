@@ -138,8 +138,8 @@ class _RouletteWheelState extends State<RouletteWheel>
               _startAngle + (_endAngle - _startAngle) * _curvedAnimation.value;
 
           return SizedBox(
-            width: 220,
-            height: 220,
+            width: 300,
+            height: 300,
             child: Stack(
               alignment: Alignment.center,
               children: [
@@ -147,7 +147,7 @@ class _RouletteWheelState extends State<RouletteWheel>
                 Transform.rotate(
                   angle: _currentAngle,
                   child: CustomPaint(
-                    size: const Size(200, 200),
+                    size: const Size(280, 280),
                     painter: _WheelPainter(
                       highlightNumber: widget.phase == 'result'
                           ? widget.winningNumber
@@ -162,14 +162,14 @@ class _RouletteWheelState extends State<RouletteWheel>
                   child: Icon(
                     Icons.arrow_left,
                     color: Colors.white,
-                    size: 32,
+                    size: 36,
                   ),
                 ),
 
                 // Dark centre circle with winning-number display.
                 Container(
-                  width: 64,
-                  height: 64,
+                  width: 80,
+                  height: 80,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: const Color(0xFF1A1A1B),
@@ -194,7 +194,7 @@ class _RouletteWheelState extends State<RouletteWheel>
                           : '',
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 20,
+                        fontSize: 24,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
