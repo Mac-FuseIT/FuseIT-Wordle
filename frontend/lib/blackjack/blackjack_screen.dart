@@ -98,6 +98,7 @@ class _BlackjackScreenState extends State<BlackjackScreen> {
               _displayedDealerValue = 0;
             } else if (gameOver) {
               _state = 'result';
+              _showResult = true;
               _dealerTotal = _calculateHandValue(_dealerCards);
               _result = 'Hand over';
               _displayedPlayerValue = _playerTotal;
