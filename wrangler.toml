@@ -1,0 +1,33 @@
+name = "fuseit-wordle"
+compatibility_date = "2024-01-01"
+pages_build_output_dir = "frontend/build/web"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "fuseit-wordle-db"
+database_id = "b9d40390-9784-44c1-a05c-ded1ede17ba5"
+
+[[durable_objects.bindings]]
+name = "ICE_GAME"
+class_name = "IceGameSession"
+script_name = "fuseit-wordle-worker"
+
+[[durable_objects.bindings]]
+name = "PONG_GAME"
+class_name = "PongGameSession"
+script_name = "fuseit-pong-worker"
+
+[[durable_objects.bindings]]
+name = "CHESS_GAME"
+class_name = "ChessGameSession"
+script_name = "fuseit-chess-worker"
+
+[[durable_objects.bindings]]
+name = "BLACKJACK_GAME"
+class_name = "BlackjackMultiplayerSession"
+script_name = "fuseit-blackjack-worker"
+
+[[durable_objects.bindings]]
+name = "ROULETTE_TABLE"
+class_name = "RouletteTable"
+script_name = "fuseit-roulette-worker"

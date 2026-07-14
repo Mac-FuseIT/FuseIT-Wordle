@@ -461,24 +461,25 @@ export class RouletteTable extends DurableObject {
 
       const netProfit = totalWon - totalWagered;
 
-      // Credit winnings to D1 (only if player won something)
+      // Read fresh D1 balance for every player (bets were deducted at placement time,
+      // so losing players' cached balance is stale). Add winnings only if they won.
       let newBalance = player.balance;
-      if (totalWon > 0) {
-        try {
-          const row = await this.env.DB.prepare(
-            'SELECT session_state FROM blackjack_sessions WHERE user_id = ? AND date = ?'
-          ).bind(player.userId, today).first();
-          if (row) {
-            const session = JSON.parse(row.session_state);
+      try {
+        const row = await this.env.DB.prepare(
+          'SELECT session_state FROM blackjack_sessions WHERE user_id = ? AND date = ?'
+        ).bind(player.userId, today).first();
+        if (row) {
+          const session = JSON.parse(row.session_state);
+          if (totalWon > 0) {
             session.balance += totalWon;
             await this.env.DB.prepare(
               'UPDATE blackjack_sessions SET session_state = ? WHERE user_id = ? AND date = ?'
             ).bind(JSON.stringify(session), player.userId, today).run();
-            newBalance = session.balance;
-            player.balance = newBalance;
           }
-        } catch (_) {}
-      }
+          newBalance = session.balance;
+          player.balance = newBalance;
+        }
+      } catch (_) {}
 
       // Upsert roulette_results (increment stats)
       if (totalWagered > 0) {
