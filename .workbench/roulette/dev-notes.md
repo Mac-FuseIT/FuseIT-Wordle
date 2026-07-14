@@ -147,3 +147,58 @@ $ node --input-type=module --check < src/roulette-worker.js
 ### Open Issues
 - `RouletteScreen` stub returns "Coming soon…". Replace with real implementation when the roulette screen task runs.
 - `_roulettePhase` is fetched but not yet used to disable the Join button mid-round — can be wired up when `RouletteScreen` is live.
+
+## Dart Developer Notes — RouletteScreen main game screen
+
+### Files Created
+- `frontend/lib/blackjack/roulette/roulette_screen.dart` — Main roulette game screen. StatefulWidget with full WebSocket message handling, betting table, chip selector, wheel placeholder, phase timer, player list, history dots, and payout results.
+
+### Files Modified
+- None
+
+### Key Decisions
+- Split file creation into 5 sequential inserts to avoid tool size limits, then verified with analyzer.
+- Wheel is a placeholder circle (200×200) — animated wheel deferred to Wave 5 per spec.
+- `_myBets` is updated both from `bet_placed` echo (when userId matches) and locally — this mirrors how the server confirms bets back.
+- `_timeRemaining` is decremented by 1000ms every second via `Timer.periodic`. Server resync on each phase change resets it accurately.
+- `_getProgress()` uses `.clamp(0.0, 1.0)` to prevent `LinearProgressIndicator` value out-of-range errors.
+- Used `getNumberColor()` from `roulette_state.dart` for number grid coloring — no duplication.
+- Outside bets pass `betValue: null` as specified in the WS protocol.
+- History list is prepended on result and capped at 10 entries.
+
+### Packages & Docs Consulted
+- No new packages added. Used `dart:async` for Timer. All Flutter widgets from SDK.
+
+### Analyze & Test Results
+- `analyze_files` → **No errors**
+
+### Open Issues
+- Wheel animation (Wave 5) will replace the placeholder `_buildWheelPlaceholder()` with the `RouletteWheel` CustomPainter widget.
+- `bet_placed` from server doubles up own bets if server echoes back — may need to only add to `_myBets` from the server echo and remove the local add. Depends on whether the server sends an echo or a separate confirmation. Current impl adds on echo for own userId which is the safe default.
+
+## Dart Developer Notes — RouletteWheel animated widget
+
+### Files Created
+- `frontend/lib/blackjack/roulette/widgets/roulette_wheel.dart` — `RouletteWheel` StatefulWidget with `SingleTickerProviderStateMixin`. Draws 37-pocket European wheel via `_WheelPainter` (CustomPainter). Animates spin with `AnimationController` (4s) + `CurvedAnimation(Curves.easeOutCubic)`. Fires `onSpinComplete` on animation end.
+
+### Files Modified
+- `frontend/lib/blackjack/roulette/roulette_screen.dart` — Added `import 'widgets/roulette_wheel.dart'`. Replaced the old `_buildWheelPlaceholder()` body (a plain Circle container) with `RouletteWheel(winningNumber: _winningNumber, phase: _phase)`. Removed now-dead `_getWheelColor()` and `_getWheelText()` helper methods.
+
+### Key Decisions
+- **Angle calculation:** Each spin computes `delta = (targetNorm − currentNorm + 2π) % 2π` to find the shortest positive remaining rotation needed to land the winning pocket at the top, then adds ≥ 5 full rotations for visual effect. This keeps `_currentAngle` accumulating (no modulo reset) so repeated spins never snap backwards.
+- **CurvedAnimation over addListener interpolation:** Using `AnimatedBuilder` + `_curvedAnimation.value` for clean interpolation — avoids removing/re-adding listeners on every spin.
+- **RepaintBoundary:** Wraps the animated Stack so the rest of the screen isn't repainted on every animation frame.
+- **Highlight in result phase:** `_WheelPainter` accepts an optional `highlightNumber`; in `result` phase the winning arc gets a `Colors.yellowAccent` stroke border. The centre hub shows a coloured glow matching the winning pocket colour.
+- **`shouldRepaint`:** Returns true only when `highlightNumber` changes — cheap repaint check.
+- **`withValues(alpha:)` instead of `withOpacity`:** Fixed the one deprecation warning introduced in the new file.
+
+### Packages & Docs Consulted
+- No new packages. All APIs are Flutter SDK (`dart:math`, `AnimationController`, `CurvedAnimation`, `CustomPainter`, `RepaintBoundary`).
+
+### Analyze & Test Results
+- `analyze_files` on `roulette_wheel.dart` → **No errors**
+- `analyze_files` on `roulette_screen.dart` → **No errors**
+- Full project analysis: no new errors introduced (all remaining warnings are pre-existing in other files).
+
+### Open Issues
+- None. Wheel widget is complete and wired in.
