@@ -48,6 +48,7 @@ class _BlackjackScreenState extends State<BlackjackScreen> {
   int _previousDealerCardCount = 0;
   bool _isInitialLoad = true;
   bool _isAnimating = false;
+  bool _showResult = false; // true after delay when result should be displayed
 
   @override
   void initState() {
@@ -172,6 +173,14 @@ class _BlackjackScreenState extends State<BlackjackScreen> {
           _state = 'result';
           _dealerTotal = data['dealerValue'] ?? data['dealer_total'] ?? _calculateHandValue(_dealerCards);
           _result = _resultText(result ?? 'unknown');
+          if (!_isInitialLoad) {
+            _showResult = false; // hide result initially — show after dealer animation
+            Future.delayed(const Duration(seconds: 3), () {
+              if (mounted) setState(() => _showResult = true);
+            });
+          } else {
+            _showResult = true; // on page load, show immediately
+          }
         }
 
         if (_isInitialLoad) {
@@ -391,11 +400,12 @@ class _BlackjackScreenState extends State<BlackjackScreen> {
                       _buildCardTable(),
                       const SizedBox(height: 16),
                       if (_state == 'playing') _buildActionButtons(),
-                      if (_state == 'result' && !_cashedOut) _buildResultUI(),
+                      if (_state == 'result' && !_cashedOut && _showResult) _buildResultUI(),
                     ],
                     const SizedBox(height: 24),
                     if (_cashedOut) _buildCashedOutBanner()
-                    else if (_state != 'playing') _buildCashOutButton(),
+                    else if (_state == 'result' && _showResult) _buildCashOutButton()
+                    else if (_state == 'idle') _buildCashOutButton(),
                   ],
                 ),
               ),
@@ -655,6 +665,20 @@ class _BlackjackScreenState extends State<BlackjackScreen> {
     );
   }
 
+  /// Player wins: Blackjack, You Win!, Dealer Busts!
+  bool _isPlayerWin() {
+    return _result.contains('Blackjack') ||
+        _result.contains('You Win') ||
+        _result.contains('Dealer Busts');
+  }
+
+  /// Dealer wins: You Lose, Bust! (player bust), Dealer Blackjack
+  bool _isDealerWin() {
+    return _result.contains('You Lose') ||
+        _result.contains('Bust!') ||
+        _result.contains('Dealer Blackjack');
+  }
+
   Widget _buildCardTable() {
     return Column(
       children: [
@@ -665,6 +689,12 @@ class _BlackjackScreenState extends State<BlackjackScreen> {
           decoration: BoxDecoration(
             color: const Color(0xFF1A1A1B),
             borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: (_state == 'result' && _showResult && _isDealerWin())
+                  ? widget.theme.correct
+                  : const Color(0xFF3A3A3C),
+              width: (_state == 'result' && _showResult && _isDealerWin()) ? 2 : 1,
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -706,7 +736,12 @@ class _BlackjackScreenState extends State<BlackjackScreen> {
           decoration: BoxDecoration(
             color: const Color(0xFF1A1A1B),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: widget.theme.correct.withOpacity(0.3)),
+            border: Border.all(
+              color: (_state == 'result' && _showResult && _isPlayerWin())
+                  ? widget.theme.correct
+                  : widget.theme.correct.withOpacity(0.3),
+              width: (_state == 'result' && _showResult && _isPlayerWin()) ? 2 : 1,
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -837,6 +872,7 @@ class _BlackjackScreenState extends State<BlackjackScreen> {
             onPressed: _balance > 0 ? () => setState(() {
               _state = 'idle';
               _error = null;
+              _showResult = false;
               _displayedPlayerValue = 0;
               _displayedDealerValue = 0;
               _playerCards = [];
