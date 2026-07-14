@@ -405,7 +405,10 @@ class _BlackjackMpScreenState extends State<BlackjackMpScreen> {
         children: [
           IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: widget.onBack,
+            onPressed: () {
+              _ws.leave();
+              widget.onBack();
+            },
           ),
           Text(
             'Table: $tableId',
