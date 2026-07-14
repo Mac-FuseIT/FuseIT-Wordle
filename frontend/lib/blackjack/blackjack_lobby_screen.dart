@@ -6,14 +6,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/app_theme.dart';
 import 'blackjack_mp_screen.dart';
 import 'blackjack_screen.dart';
+import 'roulette/roulette_screen.dart';
 
-class BlackjackLobbyScreen extends StatefulWidget {
+class CasinoLobbyScreen extends StatefulWidget {
   final AppTheme theme;
   final VoidCallback onBack;
   final String nickname;
   final int userId;
 
-  const BlackjackLobbyScreen({
+  const CasinoLobbyScreen({
     super.key,
     required this.theme,
     required this.onBack,
@@ -22,13 +23,16 @@ class BlackjackLobbyScreen extends StatefulWidget {
   });
 
   @override
-  State<BlackjackLobbyScreen> createState() => _BlackjackLobbyScreenState();
+  State<CasinoLobbyScreen> createState() => _CasinoLobbyScreenState();
 }
 
-class _BlackjackLobbyScreenState extends State<BlackjackLobbyScreen> {
+class _CasinoLobbyScreenState extends State<CasinoLobbyScreen> {
   bool _loading = true;
   bool _playing = false;
   int _lbTab = 0; // 0 = daily, 1 = monthly
+
+  // Toggle state
+  int _selectedTab = 0; // 0 = blackjack, 1 = roulette
 
   // Today's session state
   int? _balance;
@@ -46,6 +50,11 @@ class _BlackjackLobbyScreenState extends State<BlackjackLobbyScreen> {
   bool _mpLoading = false;
   String? _mpGameId; // when non-null, show multiplayer screen
   Timer? _refreshTimer;
+
+  // Roulette state
+  List<Map<String, dynamic>> _roulettePlayers = [];
+  String _roulettePhase = 'idle';
+  bool _playingRoulette = false; // when true, show RouletteScreen
 
   @override
   void initState() {
@@ -115,6 +124,19 @@ class _BlackjackLobbyScreenState extends State<BlackjackLobbyScreen> {
         });
       }
     } catch (_) {}
+
+    // Also poll roulette status
+    try {
+      final headers = await _getHeaders();
+      final rouletteRes = await http.get(Uri.parse('/api/roulette/status'), headers: headers);
+      if (rouletteRes.statusCode == 200 && mounted) {
+        final data = jsonDecode(rouletteRes.body);
+        setState(() {
+          _roulettePlayers = List<Map<String, dynamic>>.from(data['players'] ?? []);
+          _roulettePhase = data['phase'] ?? 'idle';
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _uncashout() async {
@@ -167,6 +189,18 @@ class _BlackjackLobbyScreenState extends State<BlackjackLobbyScreen> {
       );
     }
 
+    if (_playingRoulette) {
+      return RouletteScreen(
+        theme: widget.theme,
+        onBack: () => setState(() {
+          _playingRoulette = false;
+          _load();
+        }),
+        nickname: widget.nickname,
+        userId: widget.userId,
+      );
+    }
+
     return Column(
       children: [
         Padding(
@@ -178,7 +212,7 @@ class _BlackjackLobbyScreenState extends State<BlackjackLobbyScreen> {
                 onPressed: widget.onBack,
               ),
               const Text(
-                'Stack.IT',
+                'Casino',
                 style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
               ),
             ],
@@ -197,13 +231,19 @@ class _BlackjackLobbyScreenState extends State<BlackjackLobbyScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _buildStatusCard(),
-                          const SizedBox(height: 24),
-                          _buildPlayButton(),
-                          const SizedBox(height: 12),
-                          _buildPlayWithFriendsButton(),
-                          if (_mpGames.isNotEmpty) ...[
-                            const SizedBox(height: 24),
-                            _buildOpenTables(),
+                          const SizedBox(height: 16),
+                          _buildToggle(),
+                          const SizedBox(height: 16),
+                          if (_selectedTab == 0) ...[
+                            _buildPlayButton(),
+                            const SizedBox(height: 12),
+                            _buildPlayWithFriendsButton(),
+                            if (_mpGames.isNotEmpty) ...[
+                              const SizedBox(height: 24),
+                              _buildOpenTables(),
+                            ],
+                          ] else ...[
+                            _buildRouletteSection(),
                           ],
                           const SizedBox(height: 32),
                           const Divider(color: Color(0xFF3A3A3C)),
@@ -217,6 +257,93 @@ class _BlackjackLobbyScreenState extends State<BlackjackLobbyScreen> {
             ),
           ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildToggle() {
+    return Row(
+      children: [
+        _buildToggleButton('Blackjack', 0),
+        const SizedBox(width: 8),
+        _buildToggleButton('Roulette', 1),
+      ],
+    );
+  }
+
+  Widget _buildToggleButton(String label, int index) {
+    final selected = _selectedTab == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _selectedTab = index),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: selected ? widget.theme.correct.withOpacity(0.2) : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: selected ? widget.theme.correct : const Color(0xFF3A3A3C),
+            ),
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: selected ? widget.theme.correct : Colors.grey,
+              fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+              fontSize: 14,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRouletteSection() {
+    final canPlay = !_cashedOut;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: ElevatedButton.icon(
+            onPressed: canPlay ? () => setState(() => _playingRoulette = true) : null,
+            icon: const Icon(Icons.casino, color: Colors.white),
+            label: Text(
+              canPlay ? 'Join Roulette Table' : 'Already Cashed Out Today',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: canPlay ? Colors.red.shade700 : const Color(0xFF3A3A3C),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        const Text(
+          'Players at Table',
+          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        if (_roulettePlayers.isEmpty)
+          const Text(
+            'Table is empty \u2014 be the first to play!',
+            style: TextStyle(color: Colors.grey, fontSize: 14),
+          )
+        else
+          ..._roulettePlayers.map((p) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  children: [
+                    const Text('\ud83d\udfe2 ', style: TextStyle(fontSize: 12)),
+                    Text(
+                      p['name']?.toString() ?? 'Player',
+                      style: const TextStyle(color: Colors.white, fontSize: 14),
+                    ),
+                  ],
+                ),
+              )),
       ],
     );
   }
