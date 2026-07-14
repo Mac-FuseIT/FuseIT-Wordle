@@ -113,11 +113,11 @@ class _RouletteWheelState extends State<RouletteWheel>
     final delta = (targetNorm - currentNorm + 2 * pi) % (2 * pi); // always ≥ 0
 
     // At least 5 full rotations for visual effect.
-    // The extra pi/2 shifts the landing position a quarter turn clockwise,
-    // so the winning pocket stops at the RIGHT side where the arrow now sits.
+    // No offset needed — the math already targets angle 0 in screen space,
+    // which is the RIGHT side where the arrow indicator sits.
     const minFullRotations = 5;
     _startAngle = _currentAngle;
-    _endAngle = _currentAngle + minFullRotations * 2 * pi + delta + pi / 2;
+    _endAngle = _currentAngle + minFullRotations * 2 * pi + delta;
 
     _controller.reset();
     _controller.forward();

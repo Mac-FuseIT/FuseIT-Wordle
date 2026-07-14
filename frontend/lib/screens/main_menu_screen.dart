@@ -86,7 +86,7 @@ class MainMenuScreen extends StatelessWidget {
                 const SizedBox(width: 16),
                 _GameCard(title: 'Chess.IT', subtitle: 'Daily chess bot', icon: Symbols.chess_knight_rounded, color: theme.present, fill: 1, onTap: onChessIT),
                 const SizedBox(width: 16),
-                _GameCard(title: 'Stack.IT', subtitle: 'Blackjack', icon: Icons.style, color: theme.correct, onTap: onBlackjackIT),
+                _GameCard(title: 'Gamble.IT', subtitle: 'Its a Casino', icon: Icons.style, color: theme.correct, onTap: onBlackjackIT),
               ],
             ),
             const SizedBox(height: 48),

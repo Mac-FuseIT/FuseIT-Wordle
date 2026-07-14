@@ -212,7 +212,7 @@ class _CasinoLobbyScreenState extends State<CasinoLobbyScreen> {
                 onPressed: widget.onBack,
               ),
               const Text(
-                'Casino',
+                'Gamble.IT',
                 style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
               ),
             ],
@@ -315,7 +315,7 @@ class _CasinoLobbyScreenState extends State<CasinoLobbyScreen> {
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
             ),
             style: ElevatedButton.styleFrom(
-              backgroundColor: canPlay ? Colors.red.shade700 : const Color(0xFF3A3A3C),
+              backgroundColor: canPlay ? widget.theme.correct : const Color(0xFF3A3A3C),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
           ),

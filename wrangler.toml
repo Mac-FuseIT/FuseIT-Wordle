@@ -8,16 +8,6 @@ database_name = "fuseit-wordle-db"
 database_id = "b9d40390-9784-44c1-a05c-ded1ede17ba5"
 
 [[durable_objects.bindings]]
-name = "ICE_GAME"
-class_name = "IceGameSession"
-script_name = "fuseit-wordle-worker"
-
-[[durable_objects.bindings]]
-name = "PONG_GAME"
-class_name = "PongGameSession"
-script_name = "fuseit-pong-worker"
-
-[[durable_objects.bindings]]
 name = "CHESS_GAME"
 class_name = "ChessGameSession"
 script_name = "fuseit-chess-worker"
