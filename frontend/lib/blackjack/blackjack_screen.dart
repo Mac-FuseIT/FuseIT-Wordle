@@ -691,10 +691,10 @@ class _BlackjackScreenState extends State<BlackjackScreen> {
             color: const Color(0xFF1A1A1B),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: (_state == 'result' && _showResult && _isDealerWin())
+              color: (_state == 'result' && _isDealerWin())
                   ? widget.theme.correct
                   : const Color(0xFF3A3A3C),
-              width: (_state == 'result' && _showResult && _isDealerWin()) ? 2 : 1,
+              width: (_state == 'result' && _isDealerWin()) ? 2 : 1,
             ),
           ),
           child: Column(
@@ -715,14 +715,18 @@ class _BlackjackScreenState extends State<BlackjackScreen> {
                 animateNewCards: !_isInitialLoad,
                 delayBetweenCards: const Duration(milliseconds: 550),
                 onCardFlipped: (index) {
-                  setState(() {
-                    // Only count non-hidden cards toward the displayed value
-                    final visibleCards = _dealerCards
-                        .sublist(0, index + 1)
-                        .where((c) => c['rank'] != 'hidden')
-                        .toList();
-                    _displayedDealerValue = _calculateHandValue(visibleCards);
-                  });
+                  // Only update progressively during active play.
+                  // On game over, the value was already set authoritatively from server.
+                  if (_state != 'result') {
+                    setState(() {
+                      // Only count non-hidden cards toward the displayed value
+                      final visibleCards = _dealerCards
+                          .sublist(0, index + 1)
+                          .where((c) => c['rank'] != 'hidden')
+                          .toList();
+                      _displayedDealerValue = _calculateHandValue(visibleCards);
+                    });
+                  }
                 },
                 onAllFlipsComplete: () => setState(() => _isAnimating = false),
               ),
@@ -738,10 +742,10 @@ class _BlackjackScreenState extends State<BlackjackScreen> {
             color: const Color(0xFF1A1A1B),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: (_state == 'result' && _showResult && _isPlayerWin())
+              color: (_state == 'result' && _isPlayerWin())
                   ? widget.theme.correct
                   : widget.theme.correct.withOpacity(0.3),
-              width: (_state == 'result' && _showResult && _isPlayerWin()) ? 2 : 1,
+              width: (_state == 'result' && _isPlayerWin()) ? 2 : 1,
             ),
           ),
           child: Column(
