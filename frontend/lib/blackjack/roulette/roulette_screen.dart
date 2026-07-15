@@ -105,6 +105,11 @@ class _RouletteScreenState extends State<RouletteScreen> {
           _roundNumber = data['roundNumber'] ?? _roundNumber;
           _myBets = [];
           _payouts = null;
+          // Clear all players' bets for the new round
+          for (final player in _players) {
+            player['bets'] = <dynamic>[];
+          }
+          _expandedPlayerId = null;
         });
         break;
 
@@ -720,9 +725,9 @@ class _RouletteScreenState extends State<RouletteScreen> {
             ? Colors.green.shade700
             : Colors.grey.shade900;
 
-    // Calculate total bet on this number
+    // Calculate total bet on this number (handle both 'betType'/'betValue' and 'type'/'value' key formats)
     final betOnThis = _myBets
-        .where((b) => b['betType'] == 'straight' && b['betValue'] == number)
+        .where((b) => (b['betType'] ?? b['type']) == 'straight' && (b['betValue'] ?? b['value']) == number)
         .fold(0, (sum, b) => sum + (b['amount'] as int? ?? 0));
 
     return GestureDetector(
