@@ -403,6 +403,12 @@ export class BlackjackMultiplayerSession extends DurableObject {
       this.broadcast({ type: 'player_bust', userId, name: player.name, hand: player.hand, value: player.value });
       await this.saveState(state);
       await this.nextTurn(state);
+    } else if (player.value === 21) {
+      // Auto-stand on 21 (hitting on 21 is never correct)
+      player.status = 'stood';
+      this.broadcast({ type: 'player_stood', userId, name: player.name, hand: player.hand, value: player.value });
+      await this.saveState(state);
+      await this.nextTurn(state);
     } else {
       await this.saveState(state);
     }
