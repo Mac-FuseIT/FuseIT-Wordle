@@ -43,6 +43,7 @@ class _RouletteScreenState extends State<RouletteScreen> {
   int _selectedChip = 5;
   Timer? _countdownTimer;
   Timer? _errorTimer;
+  int? _expandedPlayerId; // userId of player whose bets are shown
 
   // ---------------------------------------------------------------------------
   // Lifecycle
@@ -317,8 +318,6 @@ class _RouletteScreenState extends State<RouletteScreen> {
                     const SizedBox(height: 12),
                     _buildPhaseTimerBar(),
                     const SizedBox(height: 12),
-                    _buildMyBetsSummary(),
-                    const SizedBox(height: 12),
                     if (_phase == 'result' && _payouts != null) ...[
                       _buildPayouts(),
                       const SizedBox(height: 12),
@@ -492,13 +491,30 @@ class _RouletteScreenState extends State<RouletteScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
-            'Betting Table',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-            ),
+          Row(
+            children: [
+              const Text(
+                'Betting Table',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Spacer(),
+              if (_myBets.isNotEmpty && _phase == 'betting')
+                GestureDetector(
+                  onTap: _ws.clearBets,
+                  child: const Text(
+                    'Cancel All',
+                    style: TextStyle(
+                      color: Colors.redAccent,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+            ],
           ),
           const SizedBox(height: 12),
           _buildChipSelector(),
@@ -622,25 +638,48 @@ class _RouletteScreenState extends State<RouletteScreen> {
     Color bg,
     bool enabled,
   ) {
+    // Calculate total bet on this outside bet type
+    final betOnThis = _myBets
+        .where((b) => (b['betType'] ?? b['type']) == betType)
+        .fold(0, (sum, b) => sum + (b['amount'] as int? ?? 0));
+
     return Expanded(
       child: GestureDetector(
         onTap: enabled
             ? () => _ws.placeBet(betType, betValue, _selectedChip)
             : null,
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
+          padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
             color: bg,
             borderRadius: BorderRadius.circular(6),
+            border: betOnThis > 0
+                ? Border.all(color: Colors.white, width: 1.5)
+                : null,
           ),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: enabled ? Colors.white : Colors.white38,
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
-            ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: enabled ? Colors.white : Colors.white38,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
+              if (betOnThis > 0)
+                Text(
+                  '+\$$betOnThis',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+            ],
           ),
         ),
       ),
@@ -678,8 +717,13 @@ class _RouletteScreenState extends State<RouletteScreen> {
     final bgColor = color == 'red'
         ? Colors.red.shade700
         : color == 'green'
-        ? Colors.green.shade700
-        : Colors.grey.shade900;
+            ? Colors.green.shade700
+            : Colors.grey.shade900;
+
+    // Calculate total bet on this number
+    final betOnThis = _myBets
+        .where((b) => b['betType'] == 'straight' && b['betValue'] == number)
+        .fold(0, (sum, b) => sum + (b['amount'] as int? ?? 0));
 
     return GestureDetector(
       onTap: enabled
@@ -687,20 +731,37 @@ class _RouletteScreenState extends State<RouletteScreen> {
           : null,
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 1),
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.symmetric(vertical: 6),
         decoration: BoxDecoration(
           color: bgColor,
           borderRadius: BorderRadius.circular(4),
-          border: enabled ? null : Border.all(color: Colors.white10),
+          border: betOnThis > 0
+              ? Border.all(color: Colors.white, width: 1.5)
+              : (enabled ? null : Border.all(color: Colors.white10)),
         ),
-        child: Text(
-          '$number',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: enabled ? Colors.white : Colors.white38,
-            fontWeight: FontWeight.bold,
-            fontSize: 12,
-          ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '$number',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: enabled ? Colors.white : Colors.white38,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+            if (betOnThis > 0)
+              Text(
+                '+\$$betOnThis',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 9,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+          ],
         ),
       ),
     );
@@ -781,39 +842,115 @@ class _RouletteScreenState extends State<RouletteScreen> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFF3A3A3C)),
       ),
-      child: Wrap(
-        spacing: 12,
-        runSpacing: 6,
-        children: _players.map((player) {
-          final isMe = player['userId'] == widget.userId;
-          final name = isMe
-              ? 'You'
-              : (player['name'] ?? player['nickname'] ?? 'Player');
-          final total = _playerTotalBets(player);
-          return Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.green,
-                ),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                total > 0 ? '$name · \$$total' : name,
-                style: TextStyle(
-                  color: isMe ? widget.theme.correct : Colors.white,
-                  fontSize: 13,
-                  fontWeight: isMe ? FontWeight.bold : FontWeight.normal,
-                ),
-              ),
-            ],
-          );
-        }).toList(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Players',
+            style: TextStyle(color: Colors.white54, fontSize: 12),
+          ),
+          const SizedBox(height: 8),
+          ..._players.map((player) => _buildPlayerRow(player)),
+        ],
       ),
+    );
+  }
+
+  Widget _buildPlayerRow(Map<String, dynamic> player) {
+    final isMe = player['userId'] == widget.userId;
+    final name = isMe ? 'You' : (player['name'] ?? 'Player');
+    final bets = List<Map<String, dynamic>>.from(player['bets'] ?? []);
+    final totalBet = bets.fold(0, (sum, b) => sum + (b['amount'] as int? ?? 0));
+    final isExpanded = _expandedPlayerId == player['userId'];
+    final hasBets = bets.isNotEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        GestureDetector(
+          onTap: hasBets
+              ? () => setState(() {
+                    _expandedPlayerId = isExpanded ? null : player['userId'];
+                  })
+              : null,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Row(
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.green,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    name,
+                    style: TextStyle(
+                      color: isMe ? widget.theme.correct : Colors.white,
+                      fontSize: 13,
+                      fontWeight:
+                          isMe ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                ),
+                if (isMe && _balance > 0)
+                  Text(
+                    '${_balance - 100 >= 0 ? '+' : ''}\$${_balance - 100}',
+                    style: TextStyle(
+                      color: _balance - 100 >= 0 ? Colors.green : Colors.red,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                const SizedBox(width: 12),
+                if (hasBets)
+                  Text(
+                    'Bet: \$$totalBet',
+                    style: TextStyle(
+                      color: widget.theme.present,
+                      fontSize: 12,
+                    ),
+                  )
+                else
+                  const Text(
+                    'No bet',
+                    style: TextStyle(color: Colors.white38, fontSize: 12),
+                  ),
+                if (hasBets) ...[
+                  const SizedBox(width: 4),
+                  Icon(
+                    isExpanded ? Icons.expand_less : Icons.expand_more,
+                    color: Colors.white38,
+                    size: 18,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        // Expanded dropdown showing individual bets
+        if (isExpanded && hasBets)
+          Padding(
+            padding: const EdgeInsets.only(left: 16, bottom: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: bets.map((bet) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Text(
+                    _betLabel(bet),
+                    style: const TextStyle(
+                        color: Colors.white54, fontSize: 12),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+      ],
     );
   }
 
