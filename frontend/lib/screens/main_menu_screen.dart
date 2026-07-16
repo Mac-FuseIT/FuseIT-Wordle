@@ -46,8 +46,7 @@ class MainMenuScreen extends StatelessWidget {
             )),
             const SizedBox(height: 8),
             Text('Daily games for FuseIT', style: TextStyle(color: theme.textColor.withValues(alpha: 0.5), fontSize: 14)),
-            const SizedBox(height: 48),
-            const SizedBox(height: 48),
+            const SizedBox(height: 32),
             // Word Games
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -68,45 +67,62 @@ class MainMenuScreen extends StatelessWidget {
                 _GameCard(title: 'Span.IT', subtitle: 'Word strands', icon: Icons.link, color: theme.correct, onTap: onGramIT),
               ],
             ),
-            const SizedBox(height: 32),
-            // Classic Games
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text('Classic Games', style: TextStyle(color: theme.textColor.withValues(alpha: 0.5), fontSize: 13, letterSpacing: 1)),
-                const SizedBox(width: 12),
-                SizedBox(width: 200, child: Divider(color: theme.textColor.withValues(alpha: 0.15))),
-              ],
-            ),
             const SizedBox(height: 16),
+            // Classic Games + The Lounge — two side-by-side sections
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _GameCard(title: 'Invade.IT', subtitle: 'Space invaders', icon: Icons.rocket_launch, color: theme.correct, onTap: onInvadeIT),
-                const SizedBox(width: 16),
-                _GameCard(title: 'Deal.IT', subtitle: 'Daily solitaire', icon: Icons.layers, color: theme.present, onTap: onDealIT),
+                // Classic Games section
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('Classic Games', style: TextStyle(color: theme.textColor.withValues(alpha: 0.5), fontSize: 13, letterSpacing: 1)),
+                        const SizedBox(width: 12),
+                        SizedBox(width: 100, child: Divider(color: theme.textColor.withValues(alpha: 0.15))),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _GameCard(title: 'Invade.IT', subtitle: 'Space invaders', icon: Icons.rocket_launch, color: theme.correct, onTap: onInvadeIT),
+                        const SizedBox(width: 16),
+                        _GameCard(title: 'Deal.IT', subtitle: 'Daily solitaire', icon: Icons.layers, color: theme.present, onTap: onDealIT),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 52),
+                // The Lounge section
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('The Lounge', style: TextStyle(color: theme.textColor.withValues(alpha: 0.5), fontSize: 13, letterSpacing: 1)),
+                        const SizedBox(width: 12),
+                        SizedBox(width: 100, child: Divider(color: theme.textColor.withValues(alpha: 0.15))),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _GameCard(title: 'Chess.IT', subtitle: 'Daily chess bot', icon: Symbols.chess_knight_rounded, color: theme.present, fill: 1, onTap: onChessIT),
+                        const SizedBox(width: 16),
+                        _GameCard(title: 'Gamble.IT', subtitle: 'Its a Casino', icon: Icons.style, color: theme.correct, onTap: onBlackjackIT),
+                      ],
+                    ),
+                  ],
+                ),
               ],
             ),
             const SizedBox(height: 32),
-            // The Lounge
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text('The Lounge', style: TextStyle(color: theme.textColor.withValues(alpha: 0.5), fontSize: 13, letterSpacing: 1)),
-                const SizedBox(width: 12),
-                SizedBox(width: 200, child: Divider(color: theme.textColor.withValues(alpha: 0.15))),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _GameCard(title: 'Chess.IT', subtitle: 'Daily chess bot', icon: Symbols.chess_knight_rounded, color: theme.present, fill: 1, onTap: onChessIT),
-                const SizedBox(width: 16),
-                _GameCard(title: 'Gamble.IT', subtitle: 'Its a Casino', icon: Icons.style, color: theme.correct, onTap: onBlackjackIT),
-              ],
-            ),
-            const SizedBox(height: 48),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
