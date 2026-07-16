@@ -89,3 +89,51 @@ File created and committed on `feat/solitaire` (commit d089099).
 
 ### Open Issues
 None.
+
+## Developer Notes — GET /api/solitaire/today endpoint
+
+### Files Created
+- `functions/api/solitaire/today.js` — GET endpoint that returns today's solitaire game state (or creates one if none exists). Also exports `onRequestOptions` for CORS preflight handling.
+
+### Files Modified
+- None
+
+### Key Decisions
+- Matches the exact code provided in the task spec verbatim — no deviations needed.
+- If a `solitaire_results` row exists for today, returns completed state (won/gave_up) with no game board data.
+- If no session exists, calls `dealGame(today)` from `src/solitaire-deck.js` and inserts a new row.
+- Hidden cards are never sent to the client — only counts are returned.
+- `elapsed_seconds` is 0 when `started_at` is null (timer not yet started).
+- `waste_top` returns up to 3 most-recently-drawn cards (slice(-3)), empty array when waste is empty.
+
+### Library Docs Consulted (Context7)
+- None — no third-party libraries used. All imports are local project modules.
+
+### Build & Test Results
+- No build step required for Cloudflare Pages Functions (plain ESM JS).
+- File committed to `feat/solitaire` at `7f4717e`.
+
+### Open Issues
+- None. Endpoint is straightforward — depends on `src/solitaire-deck.js` (already present) and `solitaire_sessions`/`solitaire_results` tables (schema in `migrations/0021_solitaire.sql`).
+
+## Developer Notes — give-up endpoint
+
+### Files Created
+- `functions/api/solitaire/give-up.js` — POST endpoint to voluntarily end a solitaire game; marks session status as `gave_up`, records 1 point in `solitaire_results`
+
+### Files Modified
+None.
+
+### Key Decisions
+- Used `INSERT OR IGNORE` to avoid duplicate result rows if the endpoint is called more than once (idempotent-safe).
+- Time is calculated from `started_at` stored in the session row; falls back to 0 if absent.
+- Moves count is read from the current in-memory state, consistent with how other endpoints track it.
+
+### Library Docs Consulted (Context7)
+None — no third-party libraries touched; purely Cloudflare Pages Functions / D1 patterns already established in the project.
+
+### Build & Test Results
+No build step required for Cloudflare Pages Functions JS files. File created and committed cleanly.
+
+### Open Issues
+None.
