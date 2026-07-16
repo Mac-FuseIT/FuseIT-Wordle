@@ -372,63 +372,57 @@ class _SolitaireGameScreenState extends State<SolitaireGameScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: widget.theme.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(),
-            if (_error != null) _buildErrorBanner(),
-            Expanded(
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 500),
-                  child: _buildBody(),
-                ),
-              ),
+    // Show result screen
+    if (_status == 'won' || _status == 'gave_up') {
+      return _buildResultScreen();
+    }
+
+    return Column(
+      children: [
+        _buildHeader(),
+        const Divider(color: Color(0xFF3A3A3C), height: 1),
+        if (_error != null) _buildErrorBanner(),
+        Expanded(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 500),
+              child: _buildBody(),
             ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 
   Widget _buildHeader() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      color: widget.theme.absent,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
           IconButton(
-            icon: Icon(Icons.arrow_back, color: widget.theme.textColor),
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
             onPressed: widget.onBack,
           ),
-          Text(
+          const Text(
             'Deal.IT',
-            style: TextStyle(
-              color: widget.theme.correct,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
           ),
           const Spacer(),
           Text(
             'Moves: $_moves',
-            style: TextStyle(color: widget.theme.textColor, fontSize: 13),
+            style: const TextStyle(color: Colors.white70, fontSize: 13),
           ),
           const SizedBox(width: 16),
-          Icon(Icons.timer_outlined, color: widget.theme.textColor, size: 16),
+          const Icon(Icons.timer_outlined, color: Colors.white70, size: 16),
           const SizedBox(width: 4),
           Text(
             _formatTime(_elapsedSeconds),
-            style: TextStyle(
-              color: widget.theme.textColor,
+            style: const TextStyle(
+              color: Colors.white70,
               fontSize: 13,
               fontFamily: 'monospace',
             ),
           ),
-          const Spacer(),
         ],
       ),
     );
@@ -454,10 +448,6 @@ class _SolitaireGameScreenState extends State<SolitaireGameScreen> {
       );
     }
 
-    if (_status == 'won' || _status == 'gave_up') {
-      return _buildResultScreen();
-    }
-
     return Column(
       children: [
         const SizedBox(height: 8),
@@ -471,50 +461,59 @@ class _SolitaireGameScreenState extends State<SolitaireGameScreen> {
 
   Widget _buildResultScreen() {
     final isWon = _status == 'won';
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              isWon ? '🎉 You Won!' : 'Game Over',
-              style: TextStyle(
-                color: isWon ? widget.theme.correct : widget.theme.textColor,
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _buildHeader(),
+        const Divider(color: Color(0xFF3A3A3C), height: 1),
+        Expanded(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    isWon ? '🎉 You Won!' : 'Game Over',
+                    style: TextStyle(
+                      color: isWon ? widget.theme.correct : widget.theme.textColor,
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  if (_resultPoints != null)
+                    Text(
+                      'Points earned: $_resultPoints',
+                      style: TextStyle(
+                          color: widget.theme.present,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold),
+                    ),
+                  const SizedBox(height: 8),
+                  if (_resultMoves != null)
+                    Text('Moves: $_resultMoves',
+                        style: TextStyle(
+                            color: widget.theme.textColor, fontSize: 16)),
+                  if (_resultTime != null)
+                    Text('Time: ${_formatTime(_resultTime!)}',
+                        style: TextStyle(
+                            color: widget.theme.textColor, fontSize: 16)),
+                  const SizedBox(height: 32),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: widget.theme.correct,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: widget.onBack,
+                    child: const Text('Back to Lobby'),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 16),
-            if (_resultPoints != null)
-              Text(
-                'Points earned: $_resultPoints',
-                style: TextStyle(
-                    color: widget.theme.present,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold),
-              ),
-            const SizedBox(height: 8),
-            if (_resultMoves != null)
-              Text('Moves: $_resultMoves',
-                  style: TextStyle(
-                      color: widget.theme.textColor, fontSize: 16)),
-            if (_resultTime != null)
-              Text('Time: ${_formatTime(_resultTime!)}',
-                  style: TextStyle(
-                      color: widget.theme.textColor, fontSize: 16)),
-            const SizedBox(height: 32),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: widget.theme.correct,
-                foregroundColor: Colors.white,
-              ),
-              onPressed: widget.onBack,
-              child: const Text('Back to Lobby'),
-            ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 
