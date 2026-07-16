@@ -97,7 +97,11 @@ class PlayingCard extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(6),
           border: Border.all(
-            color: selected ? theme.present : Colors.grey.shade300,
+            color: selected
+                ? theme.present
+                : (!compact
+                    ? theme.present.withOpacity(0.6)
+                    : Colors.grey.shade300),
             width: selected ? 2 : 1,
           ),
           boxShadow: selected

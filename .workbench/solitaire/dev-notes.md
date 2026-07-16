@@ -1,62 +1,179 @@
-# Dev Notes — Solitaire API Service and Widgets
+# Solitaire Dev Notes
 
-## Dart Developer Notes — solitaire service + base widgets
-
-### Files Created
-- `frontend/lib/solitaire/solitaire_service.dart` — Static HTTP client with `getToday`, `move`, `draw`, `recycle`, `giveUp`, `getLeaderboard` methods. All use Bearer token from SharedPreferences, return decoded JSON maps.
-- `frontend/lib/solitaire/widgets/playing_card.dart` — Stateless card widget handling face-up, face-down, selected, and empty-slot states. White face with rank+suit text, green back from `theme.correct`, amber border glow when selected.
-- `frontend/lib/solitaire/widgets/solitaire_help_dialog.dart` — AlertDialog with scrollable rules, controls, daily challenge, and scoring info. Matches the spec's Help Dialog Content section verbatim.
+## Dart Developer Notes — menu-wiring
 
 ### Files Modified
-None.
+- `frontend/lib/main.dart` — Added `solitaireGame` to `AppView` enum; imported `SolitaireLobbyScreen`; added `onDealIT` callback to `MainMenuScreen` constructor call; added routing case for `AppView.solitaireGame` → `SolitaireLobbyScreen`
+- `frontend/lib/screens/main_menu_screen.dart` — Added `onDealIT` `VoidCallback` field and required constructor param; added "Deal.IT" `_GameCard` to the Classic Games row with `Icons.layers` and `theme.present` colour
 
 ### Key Decisions
-- `SolitaireService` uses the same static helper + inline `http.get`/`http.post` pattern as `CasinoLobbyScreen` (blackjack lobby). No new class hierarchy introduced.
-- `PlayingCard` takes an `AppTheme` for the green back color (`theme.correct`) and amber selection glow (`theme.present`), consistent with how other widgets use theming in this codebase.
-- Suit symbols use Unicode escape sequences (`\u2665` etc.) to avoid encoding issues.
-- `_getRank` and `_getSuit` helper methods handle both 2-char cards ("Ah") and 3-char cards ("10s") correctly via `substring(0, length-1)` / `substring(length-1)`.
+- Named callback `onDealIT` to match the in-game branding ("Deal.IT") and mirror the existing naming convention (`onBlackjackIT`, `onChessIT`, etc.)
+- Used `Icons.layers` icon for Deal.IT — visually evokes a deck of cards, distinct from `Icons.style` already used by Gamble.IT
+- Used `theme.present` colour to alternate with `theme.correct` in the Classic Games row, matching the alternating pattern already used (Invade.IT = correct, Chess.IT = present, Gamble.IT = correct → Deal.IT = present)
+- `SolitaireLobbyScreen` takes identical params to `ChessLobbyScreen` / `CasinoLobbyScreen` so no adapter layer needed
 
 ### Packages & Docs Consulted
-- No new packages added. Uses `http` and `shared_preferences` already present in the project's `pubspec.yaml`.
-- No Context7 lookups needed; APIs are straightforward and consistent with existing usage patterns.
+None — no new packages added. Pattern was read directly from existing source files.
 
 ### Analyze & Test Results
-```
-No errors
-```
-(Analyzer run on all three files — clean.)
+`analyze_files` on both files: **No errors**
 
 ### Open Issues
-- Remaining widgets (`card_stack.dart`, `foundation_pile.dart`, `stock_waste.dart`) and screens (`solitaire_lobby_screen.dart`, `solitaire_game_screen.dart`) are out of scope for this sub-task.
-- No tests exist in the project's Flutter frontend for any game — consistent with project norms.
+None — wiring is complete and clean.
 
----
-
-## Dart Developer Notes — solitaire_lobby_screen.dart
+## Dart Developer Notes — SolitaireGameScreen
 
 ### Files Created
-- `frontend/lib/solitaire/solitaire_lobby_screen.dart` — `StatefulWidget` lobby for Deal.IT. Loads today's status and leaderboard on init, shows status card + play button + leaderboard. Navigates to `SolitaireGameScreen` when `_playing` is true.
-
-### Files Modified
-None.
+- `frontend/lib/solitaire/solitaire_game_screen.dart` — Main game board: state management, tap-to-move interaction loop, stock/waste/foundation/tableau rendering, timer, give-up dialog, result screen.
 
 ### Key Decisions
-- Followed the `CasinoLobbyScreen` pattern exactly: same `Column > Divider > Expanded > Center > ConstrainedBox(maxWidth:500) > SingleChildScrollView` skeleton.
-- Header has `IconButton(arrow_back)` on the left, "Deal.IT" title in the `Expanded`, and `IconButton(help_outline)` on the right — matches the spec's "back arrow + title + ? help button (top right)" layout.
-- Status card uses a `switch` on the `_status` string (`not_started` / `in_progress` / `won` / `gave_up`) and picks icon, color, and subtitle accordingly.
-- Play button is green (`theme.correct`) when `_canPlay` and grey + disabled when status is `won` or `gave_up`.
-- Daily leaderboard row: rank, nickname, points, moves, time. Monthly row: rank, nickname, total_points, games_won/games_played.
-- `_completed` is derived from either `today['completed'] == true` or `status == 'won'` to handle both API response shapes gracefully.
-- Used `(row['x'] as num?)?.toInt() ?? 0` throughout to safely cast JSON integers that may arrive as `int` or `double`.
+- **Selection model**: `_Selection` value class carries zone + col + cardIndex + suit + card. Allows checking "tap same card → deselect" and building API payloads cleanly.
+- **Tableau highlighting**: all visible cards at index >= selectedCard.cardIndex in the same column are shown selected (matches "select stack" rule).
+- **Waste fan**: renders up to 3 waste cards fanned with 14px horizontal offset; only topmost is tappable.
+- **Empty column tap**: renders `PlayingCard(isEmpty: true)` as a tappable King-drop target.
+- **Result screen**: replaces game board when status is `won` or `gave_up`; shows points/moves/time.
+- **Timer**: `Timer.periodic` runs every second in state; only increments when `_started && _status == 'in_progress'`.
+- **Column height**: computed as `hidden * 12 + (visible.length-1) * 22 + 70` so the Stack has a real height and doesn't clip.
+- Kept under ~800 lines (file is 788 lines with blank lines/comments).
 
 ### Packages & Docs Consulted
-- No new packages. No Context7 or pub.dev lookups needed.
+- Read spec.md, solitaire_service.dart, playing_card.dart, app_theme.dart directly — no external docs needed.
 
 ### Analyze & Test Results
-```
-No errors
-```
-(Analyzed `lib/solitaire/solitaire_lobby_screen.dart` and full `lib/solitaire/` directory — both clean.)
+- `analyze_files`: **No errors**
+- Tests: no unit tests added (UI-only widget; integration testing requires running device).
 
 ### Open Issues
-- `solitaire_game_screen.dart` is imported but not yet created — analyzer passes because the file is referenced only as a direct import (no analysis of its symbols here). It will need to be created next to keep the build green.
+- No move animation (card slides) — deferred to v2 per spec non-goal.
+- Auto-move shortcut (tap Ace → auto-foundation) not wired client-side; server handles auto-move after each POST /move response via `auto_moved` field — client currently ignores that field (no animation).
+- `wasteCount` tracked locally from draw/recycle responses but not used for UI display currently (waste fan uses `_wasteTop` list length).
+
+## Dart Developer Notes — Fix header width and centering
+
+### Files Modified
+- `frontend/lib/solitaire/solitaire_game_screen.dart` — moved `_buildHeader()` outside `Center > ConstrainedBox`, updated `_buildBody()` to live inside `Expanded > Center > ConstrainedBox`, added second `Spacer()` to center moves/time
+
+### Key Decisions
+- `build()` restructured: header now sits in a top-level `Column` above an `Expanded` that contains the `Center > ConstrainedBox > _buildBody()` so the header spans full screen width
+- Two `Spacer()` widgets in the header `Row` (one after title, one after time) symmetrically push moves+time to the horizontal center
+- Added `width: double.infinity` to the header `Container` for explicit full-width guarantee
+- Increased `SizedBox` gap between Moves and timer icon from 12 → 16 to match spec
+
+### Packages & Docs Consulted
+None — pure Flutter layout change.
+
+### Analyze & Test Results
+`analyze_files` → No errors
+
+### Open Issues
+None.
+
+## Dart Developer Notes — fix card stacking overlap visibility
+
+### Files Modified
+- `frontend/lib/solitaire/widgets/playing_card.dart` — Replaced centered two-text layout (rank + suit on separate lines, `mainAxisAlignment: center`) with a single `Padding(left:4, top:3)` + `Column(crossAxisAlignment: start)` showing `"$rank$suitSymbol"` (e.g. "5♦") in the top-left corner. Removed unused `pipColor` variable.
+- `frontend/lib/solitaire/solitaire_game_screen.dart` — Increased `visibleOverlap` constant from `22.0` to `25.0` for slightly more breathing room between stacked face-up cards.
+
+### Key Decisions
+- Combined rank and suit symbol into one `Text` widget (`"$rank$suitSymbol"`) rather than keeping two separate widgets — simpler and fits the narrow 25px visible strip.
+- Top-left positioning ensures the label is always visible in the exposed strip of each stacked card regardless of overlap amount.
+
+### Packages & Docs Consulted
+- None — pure widget layout change, no new packages.
+
+### Analyze & Test Results
+- `analyze_files` on both files: **No errors**
+- Committed on `feat/solitaire` as `f2b5ed4`
+
+### Open Issues
+- None.
+
+## Dart Developer Notes — fix-bg-header: remove Scaffold, standard header style
+
+### Files Modified
+- `frontend/lib/solitaire/solitaire_game_screen.dart` — Removed own `Scaffold` + `SafeArea`; `build()` now returns a plain `Column` (or `_buildResultScreen()` Column). Updated `_buildHeader()` to match the blackjack/roulette pattern: transparent background, `Padding(horizontal:16, vertical:12)`, white text, `Colors.white70` stats. Added `Divider(color: Color(0xFF3A3A3C), height:1)` below header. `_buildResultScreen()` now returns a full `Column` with header + divider + centered content, instead of a bare `Center`. Removed dead result-check from `_buildBody()`.
+
+### Key Decisions
+- `build()` short-circuits to `_buildResultScreen()` when status is won/gave_up, so the result view still shows the consistent header + wavy background from the parent Scaffold.
+- Kept `_buildResultScreen()` as a separate method (rather than inlining into `build()`) for readability and to match the task spec.
+- Removed the extra trailing `Spacer()` from the header Row — single `Spacer()` after the title pushes stats to the right, matching blackjack exactly.
+- No new packages introduced.
+
+### Packages & Docs Consulted
+- None — read `blackjack_screen.dart` directly for the reference pattern.
+
+### Analyze & Test Results
+- `analyze_files` on `lib/solitaire/solitaire_game_screen.dart`: **No errors**
+- Committed on `feat/solitaire` as `80a583d`
+
+### Open Issues
+- None.
+
+## Dart Developer Notes — compact card display (fully visible vs overlapped)
+
+### Files Modified
+- `frontend/lib/solitaire/widgets/playing_card.dart` — added `compact` prop (default `false`). When `true`, renders rank+suit top-left (compact, for overlapped cards). When `false`, renders rank and suit symbol centered (for fully visible cards).
+- `frontend/lib/solitaire/solitaire_game_screen.dart` — `_buildVisibleCard` passes `compact: i < visible.length - 1` so only the bottom (fully visible) tableau card gets the centered layout. Waste pile fanned cards get `compact: true`; the top (playable) card gets `compact: false`.
+
+### Key Decisions
+- Default for `compact` is `false` (centered), so foundation cards and any other standalone usages automatically show the full centered layout without needing a change.
+- The `compact` condition in waste is `i < topIndex` which is equivalent to "not the last card" — consistent with the tableau logic.
+
+### Packages & Docs Consulted
+None — pure Flutter widget change, no third-party packages involved.
+
+### Analyze & Test Results
+`analyze_files` → No errors on both files.
+
+### Open Issues
+None.
+
+## Dart Developer Notes — subtle theme.present border for interactive cards
+
+### Files Modified
+- `frontend/lib/solitaire/widgets/playing_card.dart` — updated face-up card border logic
+
+### What Changed
+The `border` property inside the face-up card `BoxDecoration` was updated from a two-way toggle (selected vs grey) to a three-way expression:
+
+| State | Border color | Width |
+|---|---|---|
+| `selected == true` | `theme.present` (solid) | 2 |
+| `selected == false && compact == false` | `theme.present.withOpacity(0.5)` | 1 |
+| `selected == false && compact == true` | `Colors.grey.shade300` | 1 |
+
+### Key Decisions
+- Used inline ternary inside `Border.all(color: …)` — consistent with the pre-existing style in the file.
+- No change to `boxShadow` or any other property.
+
+### Packages & Docs Consulted
+None — pure logic change using existing Flutter/Dart APIs.
+
+### Analyze & Test Results
+`analyze_files` → **No errors**
+
+### Open Issues
+None.
+
+## Dart Developer Notes — reorganize-menu: Classic Games + The Lounge
+
+### Files Modified
+- `frontend/lib/screens/main_menu_screen.dart` — Replaced single "Classic Games" row (4 cards: Invade.IT, Chess.IT, Gamble.IT, Deal.IT) with two distinct sections:
+  - **Classic Games**: Invade.IT + Deal.IT
+  - **The Lounge** (new section): Chess.IT + Gamble.IT
+  - Column order is now: Word Games → Classic Games → The Lounge → footer
+
+### Key Decisions
+- Removed commented-out Pong.IT cards (were dead code inside the old row).
+- Renamed section comment from `// Arcade Games` to `// Classic Games` to match the visible heading.
+- Added `const SizedBox(height: 32)` between Classic Games and The Lounge — matches the existing spacing between Word Games and Classic Games.
+- No new widgets, packages, or callbacks added — all existing `onTap` callbacks were already wired.
+
+### Packages & Docs Consulted
+None — pure layout restructure using existing code.
+
+### Analyze & Test Results
+`analyze_files` on `lib/screens/main_menu_screen.dart`: **No errors**
+
+### Open Issues
+None.
