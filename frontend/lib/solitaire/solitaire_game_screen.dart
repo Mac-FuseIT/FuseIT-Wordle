@@ -710,7 +710,7 @@ class _SolitaireGameScreenState extends State<SolitaireGameScreen> {
     }
 
     const hiddenOverlap = 12.0;
-    const visibleOverlap = 22.0;
+    const visibleOverlap = 25.0;
     final totalHeight = hidden * hiddenOverlap +
         (visible.isEmpty ? 0 : (visible.length - 1) * visibleOverlap + 70);
 

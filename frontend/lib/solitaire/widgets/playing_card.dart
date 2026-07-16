@@ -82,7 +82,6 @@ class PlayingCard extends StatelessWidget {
     final suit = _getSuit(card!);
     final suitSymbol = _getSuitSymbol(suit);
     final isRed = suit == 'h' || suit == 'd';
-    final pipColor = isRed ? Colors.red : Colors.black;
 
     return GestureDetector(
       onTap: onTap,
@@ -106,22 +105,22 @@ class PlayingCard extends StatelessWidget {
                 ]
               : null,
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              rank,
-              style: TextStyle(
-                color: pipColor,
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
+        child: Padding(
+          padding: const EdgeInsets.only(left: 4, top: 3),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '$rank$suitSymbol',
+                style: TextStyle(
+                  color: isRed ? Colors.red : Colors.black,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  height: 1,
+                ),
               ),
-            ),
-            Text(
-              suitSymbol,
-              style: TextStyle(color: pipColor, fontSize: 12),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
