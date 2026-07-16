@@ -375,17 +375,19 @@ class _SolitaireGameScreenState extends State<SolitaireGameScreen> {
     return Scaffold(
       backgroundColor: widget.theme.background,
       body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 500),
-            child: Column(
-              children: [
-                _buildHeader(),
-                if (_error != null) _buildErrorBanner(),
-                Expanded(child: _buildBody()),
-              ],
+        child: Column(
+          children: [
+            _buildHeader(),
+            if (_error != null) _buildErrorBanner(),
+            Expanded(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 500),
+                  child: _buildBody(),
+                ),
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -393,6 +395,7 @@ class _SolitaireGameScreenState extends State<SolitaireGameScreen> {
 
   Widget _buildHeader() {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       color: widget.theme.absent,
       child: Row(
@@ -414,9 +417,8 @@ class _SolitaireGameScreenState extends State<SolitaireGameScreen> {
             'Moves: $_moves',
             style: TextStyle(color: widget.theme.textColor, fontSize: 13),
           ),
-          const SizedBox(width: 12),
-          Icon(Icons.timer_outlined,
-              color: widget.theme.textColor, size: 16),
+          const SizedBox(width: 16),
+          Icon(Icons.timer_outlined, color: widget.theme.textColor, size: 16),
           const SizedBox(width: 4),
           Text(
             _formatTime(_elapsedSeconds),
@@ -426,6 +428,7 @@ class _SolitaireGameScreenState extends State<SolitaireGameScreen> {
               fontFamily: 'monospace',
             ),
           ),
+          const Spacer(),
         ],
       ),
     );
