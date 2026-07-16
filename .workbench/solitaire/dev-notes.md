@@ -161,3 +161,32 @@ None.
 
 ### Open Issues
 - none
+
+## Developer Notes — move endpoint (Task 4)
+
+### Files Created
+- `functions/api/solitaire/move.js` — POST /api/solitaire/move; validates and applies card moves, runs auto-move logic, detects win, persists state
+
+### Files Modified
+None.
+
+### Key Decisions
+- Implements all move types from spec: waste→tableau, waste→foundation, tableau→tableau, tableau→foundation, foundation→tableau
+- Source extraction handles `cardIndex` defaulting to top of visible stack; slices entire sub-stack for tableau→tableau moves
+- Tableau destination validation: empty column accepts only Kings; non-empty column requires one rank lower + opposite colour
+- Foundation validation: empty pile accepts only Ace; non-empty requires same suit and exactly next rank
+- `splice(cardIndex)` removes cards from source tableau column starting at the picked index (removes picked card and everything above)
+- Auto-move loop restarts from scratch after each auto-move (breaks inner for-loop and re-enters while) to catch chains (e.g. moving 2 exposes another Ace)
+- Win check runs after auto-move so auto-moved cards count toward the 52-card total
+- `INSERT OR IGNORE` on `solitaire_results` prevents duplicate records if win is somehow detected twice
+- `started_at` set lazily on first action, consistent with all other solitaire endpoints
+- CORS OPTIONS handler included
+
+### Library Docs Consulted (Context7)
+None — no third-party libraries touched.
+
+### Build & Test Results
+File created (269 lines) and committed to `feat/solitaire` (commit 6caeb5d).
+
+### Open Issues
+None.
