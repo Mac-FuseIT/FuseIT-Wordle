@@ -137,3 +137,27 @@ No build step required for Cloudflare Pages Functions JS files. File created and
 
 ### Open Issues
 None.
+
+## Developer Notes — solitaire leaderboard endpoint
+
+### Files Created
+- `functions/api/solitaire/leaderboard.js` — GET /api/solitaire/leaderboard; returns daily and monthly leaderboards from `solitaire_results`, requires auth
+
+### Files Modified
+- none
+
+### Key Decisions
+- Daily board orders by `points DESC, time_seconds ASC` (higher score wins, ties broken by faster time)
+- Monthly board aggregates `SUM(points)`, `COUNT(*)`, `SUM(completed)` grouped by `user_id`, ordered by total points then wins
+- Both queries capped at 50 rows
+- CORS OPTIONS handler included consistent with other solitaire endpoints
+
+### Library Docs Consulted (Context7)
+- none (no third-party libraries touched)
+
+### Build & Test Results
+- File created, committed to `feat/solitaire` (commit 46cfa14)
+- No build step available for plain JS Cloudflare Pages Functions
+
+### Open Issues
+- none
