@@ -604,6 +604,7 @@ class _SolitaireGameScreenState extends State<SolitaireGameScreen> {
               child: PlayingCard(
                 card: display[i],
                 faceDown: false,
+                compact: i < topIndex, // compact for fanned cards, full for top (playable) card
                 selected: i == topIndex &&
                     (_selectedCard?.zone == 'waste'),
                 theme: widget.theme,
@@ -761,6 +762,7 @@ class _SolitaireGameScreenState extends State<SolitaireGameScreen> {
 
     return PlayingCard(
       card: visible[i],
+      compact: i < visible.length - 1, // compact for all except the last (fully visible) card
       selected: isSelected,
       theme: widget.theme,
       onTap: () => _handleTap('tableau', col: col, cardIndex: i),

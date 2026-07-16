@@ -23,6 +23,10 @@ class PlayingCard extends StatelessWidget {
   /// App theme for color values.
   final AppTheme theme;
 
+  /// When true, show rank+suit in top-left (for overlapped cards).
+  /// When false, show rank and suit centered (for fully visible cards).
+  final bool compact;
+
   const PlayingCard({
     super.key,
     this.card,
@@ -31,6 +35,7 @@ class PlayingCard extends StatelessWidget {
     this.isEmpty = false,
     this.onTap,
     required this.theme,
+    this.compact = false,
   });
 
   @override
@@ -105,23 +110,44 @@ class PlayingCard extends StatelessWidget {
                 ]
               : null,
         ),
-        child: Padding(
-          padding: const EdgeInsets.only(left: 4, top: 3),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '$rank$suitSymbol',
-                style: TextStyle(
-                  color: isRed ? Colors.red : Colors.black,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  height: 1,
+        child: compact
+            ? Padding(
+                padding: const EdgeInsets.only(left: 4, top: 3),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '$rank$suitSymbol',
+                      style: TextStyle(
+                        color: isRed ? Colors.red : Colors.black,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        height: 1,
+                      ),
+                    ),
+                  ],
                 ),
+              )
+            : Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    rank,
+                    style: TextStyle(
+                      color: isRed ? Colors.red : Colors.black,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    suitSymbol,
+                    style: TextStyle(
+                      color: isRed ? Colors.red : Colors.black,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
       ),
     );
   }
