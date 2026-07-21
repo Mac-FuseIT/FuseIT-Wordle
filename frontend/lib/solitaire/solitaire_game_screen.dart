@@ -62,6 +62,7 @@ class _SolitaireGameScreenState extends State<SolitaireGameScreen> {
     'spades': 0,
   };
   List<Map<String, dynamic>> _tableau = [];
+  String? _reserve; // card in the reserve slot (null if empty)
   int _moves = 0;
   int _elapsedSeconds = 0;
   String _status = 'in_progress';
@@ -138,6 +139,7 @@ class _SolitaireGameScreenState extends State<SolitaireGameScreen> {
     _wasteCount = data['waste_count'] ?? 0;
     _moves = data['moves'] ?? 0;
     _elapsedSeconds = data['elapsed_seconds'] ?? 0;
+    _reserve = data['reserve'] as String?;
 
     // waste_top: null | List
     final rawWaste = data['waste_top'];
@@ -193,6 +195,33 @@ class _SolitaireGameScreenState extends State<SolitaireGameScreen> {
     // Tap stock → draw or recycle
     if (zone == 'stock') {
       _drawFromStock();
+      return;
+    }
+
+    // Handle reserve zone
+    if (zone == 'reserve') {
+      if (_selectedCard != null) {
+        // Tapping reserve while something is selected
+        if (_selectedCard!.zone == 'reserve') {
+          // Deselect
+          setState(() => _selectedCard = null);
+        } else if (_selectedCard!.zone == 'waste' && _reserve == null) {
+          // Move waste top card to empty reserve
+          _attemptMove(
+            from: _selectedCard!,
+            toZone: 'reserve',
+          );
+        }
+        // Other selections → do nothing (reserve only accepts waste→reserve)
+      } else {
+        // Select the reserve card
+        if (_reserve != null) {
+          setState(() => _selectedCard = _Selection(
+                zone: 'reserve',
+                card: _reserve!,
+              ));
+        }
+      }
       return;
     }
 
@@ -528,6 +557,8 @@ class _SolitaireGameScreenState extends State<SolitaireGameScreen> {
           _buildStock(),
           const SizedBox(width: 4),
           _buildWaste(),
+          const SizedBox(width: 8),
+          _buildReserve(),
           const Spacer(),
           ..._buildFoundations(),
         ],
@@ -613,6 +644,51 @@ class _SolitaireGameScreenState extends State<SolitaireGameScreen> {
                     : null,
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReserve() {
+    final hasCard = _reserve != null;
+    final isSelected = _selectedCard?.zone == 'reserve';
+
+    return GestureDetector(
+      onTap: () => _handleTap('reserve'),
+      child: Column(
+        children: [
+          hasCard
+              ? PlayingCard(
+                  card: _reserve,
+                  selected: isSelected,
+                  theme: widget.theme,
+                  onTap: () => _handleTap('reserve'),
+                )
+              : Container(
+                  width: 50,
+                  height: 70,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: isSelected ? widget.theme.present : Colors.white24,
+                      style: BorderStyle.solid,
+                    ),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'R',
+                      style: TextStyle(
+                          color: Colors.white24,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+          const SizedBox(height: 2),
+          const Text(
+            'Reserve',
+            style: TextStyle(color: Colors.white38, fontSize: 9),
+          ),
         ],
       ),
     );
