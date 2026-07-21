@@ -4,12 +4,12 @@
 
 ### Files Modified
 - `frontend/lib/main.dart` — Added `solitaireGame` to `AppView` enum; imported `SolitaireLobbyScreen`; added `onDealIT` callback to `MainMenuScreen` constructor call; added routing case for `AppView.solitaireGame` → `SolitaireLobbyScreen`
-- `frontend/lib/screens/main_menu_screen.dart` — Added `onDealIT` `VoidCallback` field and required constructor param; added "Deal.IT" `_GameCard` to the Classic Games row with `Icons.layers` and `theme.present` colour
+- `frontend/lib/screens/main_menu_screen.dart` — Added `onDealIT` `VoidCallback` field and required constructor param; added "Klond.IT" `_GameCard` to the Classic Games row with `Icons.layers` and `theme.present` colour
 
 ### Key Decisions
-- Named callback `onDealIT` to match the in-game branding ("Deal.IT") and mirror the existing naming convention (`onBlackjackIT`, `onChessIT`, etc.)
-- Used `Icons.layers` icon for Deal.IT — visually evokes a deck of cards, distinct from `Icons.style` already used by Gamble.IT
-- Used `theme.present` colour to alternate with `theme.correct` in the Classic Games row, matching the alternating pattern already used (Invade.IT = correct, Chess.IT = present, Gamble.IT = correct → Deal.IT = present)
+- Named callback `onDealIT` to match the in-game branding ("Klond.IT") and mirror the existing naming convention (`onBlackjackIT`, `onChessIT`, etc.)
+- Used `Icons.layers` icon for Klond.IT — visually evokes a deck of cards, distinct from `Icons.style` already used by Gamble.IT
+- Used `theme.present` colour to alternate with `theme.correct` in the Classic Games row, matching the alternating pattern already used (Invade.IT = correct, Chess.IT = present, Gamble.IT = correct → Klond.IT = present)
 - `SolitaireLobbyScreen` takes identical params to `ChessLobbyScreen` / `CasinoLobbyScreen` so no adapter layer needed
 
 ### Packages & Docs Consulted
@@ -158,8 +158,8 @@ None.
 ## Dart Developer Notes — reorganize-menu: Classic Games + The Lounge
 
 ### Files Modified
-- `frontend/lib/screens/main_menu_screen.dart` — Replaced single "Classic Games" row (4 cards: Invade.IT, Chess.IT, Gamble.IT, Deal.IT) with two distinct sections:
-  - **Classic Games**: Invade.IT + Deal.IT
+- `frontend/lib/screens/main_menu_screen.dart` — Replaced single "Classic Games" row (4 cards: Invade.IT, Chess.IT, Gamble.IT, Klond.IT) with two distinct sections:
+  - **Classic Games**: Invade.IT + Klond.IT
   - **The Lounge** (new section): Chess.IT + Gamble.IT
   - Column order is now: Word Games → Classic Games → The Lounge → footer
 
@@ -174,6 +174,34 @@ None — pure layout restructure using existing code.
 
 ### Analyze & Test Results
 `analyze_files` on `lib/screens/main_menu_screen.dart`: **No errors**
+
+### Open Issues
+None.
+
+## Developer Notes — add reserve slot to solitaire backend
+
+### Files Modified
+- `src/solitaire-deck.js` — Added `reserve: null` to the `dealGame` return object so all new sessions start with an empty reserve slot.
+- `functions/api/solitaire/today.js` — Added `reserve: state.reserve || null` to the GET response after `waste_count`, so the client knows the current reserve card on load.
+- `functions/api/solitaire/move.js` — Full reserve support:
+  - **Source extraction**: Added `from.zone === 'reserve'` branch that sets `movingCards = [state.reserve]` (errors if reserve is empty).
+  - **Tableau destination**: Added `from.zone === 'reserve'` case in the "remove from source" block to clear `state.reserve = null` on successful move.
+  - **Foundation destination**: Same — added `from.zone === 'reserve'` case to clear `state.reserve = null`.
+  - **Reserve destination**: New `to.zone === 'reserve'` destination block with rules: single card only, reserve must be empty, card must come from waste. Sets `state.reserve = movingCards[0]` and pops the waste on success.
+  - **Response**: Added `reserve: state.reserve` to the state object in the move response.
+
+### Key Decisions
+- Reserve can only be filled from waste (not from tableau), keeping the mechanic constrained and balanced.
+- Reserve can be moved to either tableau or foundation, giving maximum utility.
+- `state.reserve` is stored as a raw card string (e.g. `"5h"`) matching the existing card format throughout the codebase.
+- `reserve: null` is the sentinel for empty — consistent with how it's initialised in `dealGame`.
+
+### Library Docs Consulted (Context7)
+None — no third-party libraries touched; pure JS logic change.
+
+### Build & Test Results
+- `node --check` on all 3 files: **no syntax errors**
+- Committed: `9d429a8` — `feat(solitaire): add reserve slot to backend state and move logic`
 
 ### Open Issues
 None.
