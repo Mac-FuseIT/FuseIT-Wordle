@@ -59,7 +59,8 @@ function dealGame(dateStr) {
     tableau,
     moves: 0,
     status: 'in_progress',
-    drawPointer: 0
+    drawPointer: 0,
+    reserve: null
   };
 }
 

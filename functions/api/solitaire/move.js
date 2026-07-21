@@ -122,6 +122,9 @@ export async function onRequestPost({ request, env }) {
     const pile = state.foundations[from.suit];
     if (!pile || pile.length === 0) return errorResponse('Foundation is empty', 400);
     movingCards = [pile[pile.length - 1]];
+  } else if (from.zone === 'reserve') {
+    if (!state.reserve) return errorResponse('Reserve is empty', 400);
+    movingCards = [state.reserve];
   } else {
     return errorResponse('Invalid from zone', 400);
   }
@@ -160,6 +163,8 @@ export async function onRequestPost({ request, env }) {
         }
       } else if (from.zone === 'foundation') {
         state.foundations[from.suit].pop();
+      } else if (from.zone === 'reserve') {
+        state.reserve = null;
       }
       // Add to destination
       destCol.visible.push(...movingCards);
@@ -191,9 +196,19 @@ export async function onRequestPost({ request, env }) {
         }
       } else if (from.zone === 'foundation') {
         state.foundations[from.suit].pop();
+      } else if (from.zone === 'reserve') {
+        state.reserve = null;
       }
       pile.push(card);
     }
+  } else if (to.zone === 'reserve') {
+    if (movingCards.length !== 1) return errorResponse('Can only reserve one card', 400);
+    if (state.reserve !== null) return errorResponse('Reserve is already occupied', 400);
+    if (from.zone !== 'waste') return errorResponse('Can only reserve from waste', 400);
+    valid = true;
+    // Remove from waste
+    state.waste.pop();
+    state.reserve = movingCards[0];
   } else {
     return errorResponse('Invalid destination zone', 400);
   }
@@ -231,6 +246,7 @@ export async function onRequestPost({ request, env }) {
       stock_count: state.stock.length,
       waste_top: state.waste.slice(-3),
       waste_count: state.waste.length,
+      reserve: state.reserve,
       foundations: {
         hearts: state.foundations.hearts.length,
         diamonds: state.foundations.diamonds.length,

@@ -47,6 +47,7 @@ export async function onRequestGet({ request, env }) {
     stock_count: state.stock.length,
     waste_top: state.waste.length > 0 ? state.waste.slice(-3) : [],
     waste_count: state.waste.length,
+    reserve: state.reserve || null,
     foundations: {
       hearts: state.foundations.hearts.length,
       diamonds: state.foundations.diamonds.length,
