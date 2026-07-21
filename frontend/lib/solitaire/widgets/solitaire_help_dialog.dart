@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Help/rules modal for Deal.IT (Daily Solitaire).
+/// Help/rules modal for Klond.IT (Daily Solitaire).
 class SolitaireHelpDialog extends StatelessWidget {
   const SolitaireHelpDialog({super.key});
 
@@ -9,7 +9,7 @@ class SolitaireHelpDialog extends StatelessWidget {
     return AlertDialog(
       backgroundColor: const Color(0xFF1A1A1B),
       title: const Text(
-        'How to Play Deal.IT',
+        'How to Play Klond.IT',
         style: TextStyle(
           color: Colors.white,
           fontWeight: FontWeight.bold,

@@ -118,7 +118,7 @@ class _SolitaireLobbyScreenState extends State<SolitaireLobbyScreen> {
               ),
               const Expanded(
                 child: Text(
-                  'Deal.IT',
+                  'Klond.IT',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 22,

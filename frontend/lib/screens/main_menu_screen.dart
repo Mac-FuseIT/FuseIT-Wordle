@@ -91,7 +91,7 @@ class MainMenuScreen extends StatelessWidget {
                       children: [
                         _GameCard(title: 'Invade.IT', subtitle: 'Space invaders', icon: Icons.rocket_launch, color: theme.correct, onTap: onInvadeIT),
                         const SizedBox(width: 16),
-                        _GameCard(title: 'Deal.IT', subtitle: 'Daily solitaire', icon: Icons.layers, color: theme.present, onTap: onDealIT),
+                        _GameCard(title: 'Klond.IT', subtitle: 'Daily solitaire', icon: Icons.layers, color: theme.present, onTap: onDealIT),
                       ],
                     ),
                   ],

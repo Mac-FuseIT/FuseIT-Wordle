@@ -404,7 +404,7 @@ class _SolitaireGameScreenState extends State<SolitaireGameScreen> {
             onPressed: widget.onBack,
           ),
           const Text(
-            'Deal.IT',
+            'Klond.IT',
             style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
           ),
           const Spacer(),
