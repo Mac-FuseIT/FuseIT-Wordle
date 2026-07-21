@@ -205,3 +205,41 @@ None — no third-party libraries touched; pure JS logic change.
 
 ### Open Issues
 None.
+
+## Dart Developer Notes — add reserve slot to solitaire frontend
+
+### Files Modified
+- `frontend/lib/solitaire/solitaire_game_screen.dart` — Added full reserve slot support: state variable, API parsing, UI widget, tap logic.
+
+### Changes Made
+
+1. **State variable**: Added `String? _reserve` to `_SolitaireGameScreenState`.
+
+2. **API parsing**: `_applyState()` now reads `_reserve = data['reserve'] as String?` from the state map (covers both `_loadState` today endpoint and `_attemptMove` move/state response — `_applyState` is the single parse point).
+
+3. **`_handleTap` reserve zone**: Inserted a dedicated `zone == 'reserve'` branch before the general selection logic:
+   - Nothing selected + tap reserve with card → select it.
+   - Waste selected + tap empty reserve → `_attemptMove(from: waste, toZone: 'reserve')`.
+   - Reserve selected + tap reserve again → deselect.
+   - Other selection + tap reserve → no-op (reserve only accepts waste cards per backend rule).
+
+4. **`_attemptMove`**: Cleaned up the setState block — removed a redundant explicit `_reserve =` assignment since `_applyState` already handles it.
+
+5. **`_buildTopRow()`**: Inserted `_buildReserve()` + `SizedBox(width:8)` between waste and the Spacer.
+
+6. **`_buildReserve()`**: New method rendering either a `PlayingCard` (card present) or an empty placeholder container with a bold 'R' label and a `Colors.white24` dashed-style border. A 'Reserve' caption sits below (9px, `Colors.white38`). Entire slot wrapped in `GestureDetector → _handleTap('reserve')`.
+
+### Key Decisions
+- `_applyState` is the single parse point for all state fields including `_reserve` — avoids double-assignment scattered across multiple call sites.
+- Reserve tap handling inserted before the generic "something is selected" block so it short-circuits cleanly and returns, preventing unintended fall-through to the selection logic.
+- Empty reserve slot shows a plain border + 'R' text (no dashes — Flutter's `BorderStyle.dashed` is not supported on all platforms); matches the overall placeholder style in the codebase.
+
+### Packages & Docs Consulted
+None — no new packages. Pure Dart/Flutter change using existing APIs.
+
+### Analyze & Test Results
+- `analyze_files` on `lib/solitaire/solitaire_game_screen.dart`: **No errors**
+- Committed: `14ea267` — `feat(solitaire): add reserve slot to frontend UI` on branch `fix/solitaire`
+
+### Open Issues
+None.
