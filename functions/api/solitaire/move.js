@@ -203,7 +203,7 @@ export async function onRequestPost({ request, env }) {
     }
   } else if (to.zone === 'reserve') {
     if (movingCards.length !== 1) return errorResponse('Can only reserve one card', 400);
-    if (state.reserve !== null) return errorResponse('Reserve is already occupied', 400);
+    if (state.reserve) return errorResponse('Reserve is already occupied', 400);
     if (from.zone !== 'waste') return errorResponse('Can only reserve from waste', 400);
     valid = true;
     // Remove from waste
