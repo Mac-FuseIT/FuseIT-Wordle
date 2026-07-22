@@ -72,13 +72,20 @@ const List<String> allColors = [
 ];
 
 // ---------------------------------------------------------------------------
-// Grid generation — pattern-based
+// Difficulty
 // ---------------------------------------------------------------------------
 
-/// Signature for a pattern generator function.
+/// Difficulty levels for Code.IT puzzles.
 ///
-/// Each pattern picks its own colors from [rng] and returns a filled 5×5 grid.
-typedef PatternFn = List<List<String>> Function(SeededRng rng);
+/// Each level controls how many distinct colors appear in the target grid:
+/// - [easy]: 2 colors — straightforward binary patterns.
+/// - [mild]: 3 colors — requires an extra condition or variable.
+/// - [challenging]: 4 colors — needs more nuanced logic to reproduce.
+enum Difficulty { easy, mild, challenging }
+
+// ---------------------------------------------------------------------------
+// Grid generation — pattern-based
+// ---------------------------------------------------------------------------
 
 /// Picks [count] distinct colors from [allColors] using a Fisher-Yates shuffle
 /// driven by [rng].
@@ -101,144 +108,157 @@ List<List<String>> _makeGrid(String Function(int x, int y) cellFn) {
   return List.generate(5, (y) => List.generate(5, (x) => cellFn(x, y)));
 }
 
-/// All available pattern generators.
+/// 20 geometric patterns, each expressed as a mapping from (x, y) to a
+/// [colors] index.  Patterns are designed to remain sensible regardless of
+/// whether [colors] has 2, 3, or 4 entries:
 ///
-/// Each entry is a closure that picks colors from [rng] and fills the grid
-/// according to a simple geometric rule. The patterns are ordered by
-/// complexity so they are easy to reason about.
-final List<PatternFn> _patterns = [
-  // 1. Checkerboard — (x + y) % 2 determines color.
-  (rng) {
-    final c = _pickColors(rng, 2);
-    return _makeGrid((x, y) => (x + y) % 2 == 0 ? c[0] : c[1]);
-  },
-  // 2. Vertical stripes — alternates on x.
-  (rng) {
-    final c = _pickColors(rng, 2);
-    return _makeGrid((x, y) => x % 2 == 0 ? c[0] : c[1]);
-  },
-  // 3. Horizontal stripes — alternates on y.
-  (rng) {
-    final c = _pickColors(rng, 2);
-    return _makeGrid((x, y) => y % 2 == 0 ? c[0] : c[1]);
-  },
-  // 4. Main diagonal — cells where x == y get color A.
-  (rng) {
-    final c = _pickColors(rng, 2);
-    return _makeGrid((x, y) => x == y ? c[0] : c[1]);
-  },
-  // 5. Anti-diagonal — cells where x + y == 4 get color A.
-  (rng) {
-    final c = _pickColors(rng, 2);
-    return _makeGrid((x, y) => x + y == 4 ? c[0] : c[1]);
-  },
-  // 6. Border — outer edge cells get color A, inner cells get color B.
-  (rng) {
-    final c = _pickColors(rng, 2);
-    return _makeGrid(
-      (x, y) => (x == 0 || x == 4 || y == 0 || y == 4) ? c[0] : c[1],
-    );
-  },
-  // 7. Quadrants — top-left triangle (x + y < 4) → A, bottom-right → B,
-  //    the diagonal itself is also color A.
-  (rng) {
-    final c = _pickColors(rng, 2);
-    return _makeGrid((x, y) => x + y <= 4 ? c[0] : c[1]);
-  },
-  // 8. Cross — center column (x==2) or center row (y==2) → A, rest → B.
-  (rng) {
-    final c = _pickColors(rng, 2);
-    return _makeGrid((x, y) => (x == 2 || y == 2) ? c[0] : c[1]);
-  },
-  // 9. Three vertical stripes — left two cols, middle col, right two cols.
-  (rng) {
-    final c = _pickColors(rng, 3);
-    return _makeGrid((x, y) => x < 2 ? c[0] : (x > 2 ? c[2] : c[1]));
-  },
-  // 10. Three horizontal stripes — top two rows, middle row, bottom two rows.
-  (rng) {
-    final c = _pickColors(rng, 3);
-    return _makeGrid((x, y) => y < 2 ? c[0] : (y > 2 ? c[2] : c[1]));
-  },
-  // 11. Modulo-3 checkerboard — (x + y) % 3 cycles through three colors.
-  (rng) {
-    final c = _pickColors(rng, 3);
-    return _makeGrid((x, y) => c[(x + y) % 3]);
-  },
-  // 12. Diamond — Manhattan distance from center ≤ 2 → A, else B.
-  (rng) {
-    final c = _pickColors(rng, 2);
-    return _makeGrid(
-      (x, y) => (x - 2).abs() + (y - 2).abs() <= 2 ? c[0] : c[1],
-    );
-  },
-  // 13. X pattern — both diagonals combined → A, rest → B.
-  (rng) {
-    final c = _pickColors(rng, 2);
-    return _makeGrid((x, y) => (x == y || x + y == 4) ? c[0] : c[1]);
-  },
-  // 14. Column cycling — x % 3 selects among three colors.
-  (rng) {
-    final c = _pickColors(rng, 3);
-    return _makeGrid((x, y) => c[x % 3]);
-  },
-  // 15. Row cycling — y % 3 selects among three colors.
-  (rng) {
-    final c = _pickColors(rng, 3);
-    return _makeGrid((x, y) => c[y % 3]);
-  },
-  // 16. Inner diamond + border (3 colors):
-  //     outer border → A, tight center diamond → C, rest → B.
-  (rng) {
-    final c = _pickColors(rng, 3);
-    return _makeGrid((x, y) {
-      if (x == 0 || x == 4 || y == 0 || y == 4) return c[0];
-      if ((x - 2).abs() + (y - 2).abs() <= 1) return c[2];
-      return c[1];
-    });
-  },
-  // 17. Thick vertical stripes (2 columns wide).
-  (rng) {
-    final c = _pickColors(rng, 2);
-    return _makeGrid((x, y) => (x ~/ 2) % 2 == 0 ? c[0] : c[1]);
-  },
-  // 18. Thick horizontal stripes (2 rows tall).
-  (rng) {
-    final c = _pickColors(rng, 2);
-    return _makeGrid((x, y) => (y ~/ 2) % 2 == 0 ? c[0] : c[1]);
-  },
-  // 19. Four corners — corner cells → A, everything else → B.
-  (rng) {
-    final c = _pickColors(rng, 2);
-    return _makeGrid(
-      (x, y) =>
-          ((x == 0 || x == 4) && (y == 0 || y == 4)) ? c[0] : c[1],
-    );
-  },
-  // 20. Top-heavy split — top 3 rows → A, bottom 2 rows → B.
-  (rng) {
-    final c = _pickColors(rng, 2);
-    return _makeGrid((x, y) => y < 3 ? c[0] : c[1]);
-  },
-];
+/// - Patterns 0–7  are fundamentally binary but gracefully use extra colors
+///   when [n] > 2 (e.g. modulo index keeps cycling).
+/// - Patterns 8–10 stripe / cycle in 3 parts, using `n` for the modulus.
+/// - Patterns 11–19 mix two-region and multi-region logic; indices are
+///   clamped so they are always within [colors] bounds.
+List<List<String>> _generateWithColors(
+  SeededRng rng,
+  int patternIndex,
+  List<String> colors,
+) {
+  final n = colors.length;
+  switch (patternIndex % 20) {
+    // 0. Checkerboard — (x + y) % 2 alternates.
+    case 0:
+      return _makeGrid((x, y) => colors[(x + y) % 2 == 0 ? 0 : 1]);
+    // 1. Vertical stripes — alternates on x.
+    case 1:
+      return _makeGrid((x, y) => colors[x % 2]);
+    // 2. Horizontal stripes — alternates on y.
+    case 2:
+      return _makeGrid((x, y) => colors[y % 2]);
+    // 3. Main diagonal — cells where x == y get color 0.
+    case 3:
+      return _makeGrid((x, y) => colors[x == y ? 0 : 1]);
+    // 4. Anti-diagonal — cells where x + y == 4 get color 0.
+    case 4:
+      return _makeGrid((x, y) => colors[(x + y == 4) ? 0 : 1]);
+    // 5. Border — outer edge → color 0, interior → color 1.
+    case 5:
+      return _makeGrid(
+        (x, y) =>
+            colors[(x == 0 || x == 4 || y == 0 || y == 4) ? 0 : 1],
+      );
+    // 6. Triangle split — x + y <= 4 → color 0, rest → color 1.
+    case 6:
+      return _makeGrid((x, y) => colors[x + y <= 4 ? 0 : 1]);
+    // 7. Cross — center column or row → color 0, rest → color 1.
+    case 7:
+      return _makeGrid(
+        (x, y) => colors[(x == 2 || y == 2) ? 0 : 1],
+      );
+    // 8. Three vertical stripes — left/middle/right using n as modulus.
+    case 8:
+      return _makeGrid(
+        (x, y) => colors[x < 2 ? 0 : (x > 2 ? (n > 2 ? 2 : 1) : 1)],
+      );
+    // 9. Three horizontal stripes — top/middle/bottom using n.
+    case 9:
+      return _makeGrid(
+        (x, y) => colors[y < 2 ? 0 : (y > 2 ? (n > 2 ? 2 : 1) : 1)],
+      );
+    // 10. Modulo cycling — (x + y) % n cycles through all colors.
+    case 10:
+      return _makeGrid((x, y) => colors[(x + y) % n]);
+    // 11. Diamond — Manhattan distance from center ≤ 2 → color 0, else 1.
+    case 11:
+      return _makeGrid(
+        (x, y) =>
+            colors[(x - 2).abs() + (y - 2).abs() <= 2 ? 0 : 1],
+      );
+    // 12. X pattern — both diagonals → color 0, rest → color 1.
+    case 12:
+      return _makeGrid(
+        (x, y) => colors[(x == y || x + y == 4) ? 0 : 1],
+      );
+    // 13. Column cycling — x % n selects color.
+    case 13:
+      return _makeGrid((x, y) => colors[x % n]);
+    // 14. Row cycling — y % n selects color.
+    case 14:
+      return _makeGrid((x, y) => colors[y % n]);
+    // 15. Inner diamond + border (uses up to 3 colors):
+    //     outer border → color 0, tight center → color 2 (or 0), rest → color 1.
+    case 15:
+      return _makeGrid((x, y) {
+        if (x == 0 || x == 4 || y == 0 || y == 4) return colors[0];
+        if ((x - 2).abs() + (y - 2).abs() <= 1) return colors[n > 2 ? 2 : 0];
+        return colors[1];
+      });
+    // 16. Thick vertical stripes (2 columns wide).
+    case 16:
+      return _makeGrid((x, y) => colors[(x ~/ 2) % 2]);
+    // 17. Thick horizontal stripes (2 rows tall).
+    case 17:
+      return _makeGrid((x, y) => colors[(y ~/ 2) % 2]);
+    // 18. Four corners only → color 0, everything else → color 1.
+    case 18:
+      return _makeGrid(
+        (x, y) =>
+            colors[((x == 0 || x == 4) && (y == 0 || y == 4)) ? 0 : 1],
+      );
+    // 19. Top-heavy split — top 3 rows → color 0, bottom 2 rows → color 1.
+    case 19:
+      return _makeGrid((x, y) => colors[y < 3 ? 0 : 1]);
+    default:
+      return _makeGrid((x, y) => colors[0]);
+  }
+}
 
-/// Generates the target 5×5 grid for [date].
+/// Generates the target 5×5 grid for [date] at the given [difficulty].
 ///
 /// Algorithm:
-/// 1. Derive an integer seed from the date string.
-/// 2. Pick one of the [_patterns] deterministically via the seeded RNG.
-/// 3. The chosen pattern picks its own colors from the same RNG and fills
-///    the grid according to a simple geometric rule.
+/// 1. Build a date string with a difficulty suffix so each level gets a
+///    distinct seed (and therefore a distinct grid) for the same day.
+/// 2. Hash the string into a 31-bit seed for [SeededRng].
+/// 3. Pick [numColors] distinct colors from [allColors] via [_pickColors].
+/// 4. Pick one of 20 geometric patterns deterministically.
+/// 5. Fill the 5×5 grid using [_generateWithColors], which maps (x, y) to
+///    a color index — always within the bounds of the chosen palette.
 ///
-/// Every puzzle therefore has an elegant one- or two-line solution using
-/// loops and a condition, rather than a fully random arrangement.
+/// Color counts by difficulty:
+/// - [Difficulty.easy]        → 2 colors
+/// - [Difficulty.mild]        → 3 colors
+/// - [Difficulty.challenging] → 4 colors
 ///
-/// The result is a row-major list: `grid[row][col]`, where both indices are
-/// in the range 0–4, and every value is a lowercase color name from [allColors].
-List<List<String>> generateTarget(DateTime date) {
-  final rng = SeededRng(_dateToSeed(date));
-  final patternIndex = rng.nextInt(_patterns.length);
-  return _patterns[patternIndex](rng);
+/// The result is row-major: `grid[row][col]`, indices 0–4, values are
+/// lowercase color names from [allColors].
+List<List<String>> generateTarget(
+  DateTime date, [
+  Difficulty difficulty = Difficulty.easy,
+]) {
+  // Append a suffix so Easy/Mild/Challenging each get a different seed.
+  final suffix = switch (difficulty) {
+    Difficulty.easy => '-easy',
+    Difficulty.mild => '-mild',
+    Difficulty.challenging => '-hard',
+  };
+  final dateStr =
+      '${date.year}-'
+      '${date.month.toString().padLeft(2, '0')}-'
+      '${date.day.toString().padLeft(2, '0')}'
+      '$suffix';
+  int hash = 0;
+  for (int i = 0; i < dateStr.length; i++) {
+    hash = (hash * 31 + dateStr.codeUnitAt(i)) & 0x7FFFFFFF;
+  }
+  final rng = SeededRng(hash);
+
+  final numColors = switch (difficulty) {
+    Difficulty.easy => 2,
+    Difficulty.mild => 3,
+    Difficulty.challenging => 4,
+  };
+
+  final colors = _pickColors(rng, numColors);
+  final patternIndex = rng.nextInt(20);
+  return _generateWithColors(rng, patternIndex, colors);
 }
 
 // ---------------------------------------------------------------------------

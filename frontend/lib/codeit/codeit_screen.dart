@@ -36,8 +36,10 @@ class CodeItScreen extends StatefulWidget {
 
 class _CodeItScreenState extends State<CodeItScreen> {
   late final TextEditingController _codeController;
-  late final List<List<String>> _target;
+  late List<List<String>> _target;
   late final int _puzzleNum;
+
+  Difficulty _difficulty = Difficulty.easy;
 
   List<List<String>> _userGrid =
       List.generate(5, (_) => List.generate(5, (_) => 'black'));
@@ -54,7 +56,7 @@ class _CodeItScreenState extends State<CodeItScreen> {
     super.initState();
     _codeController = TextEditingController();
     final now = DateTime.now();
-    _target = generateTarget(now);
+    _target = generateTarget(now, _difficulty);
     _puzzleNum = puzzleNumber(now);
     _loadSavedCode();
   }
@@ -69,7 +71,8 @@ class _CodeItScreenState extends State<CodeItScreen> {
 
   String _todayKey() {
     final now = DateTime.now();
-    return 'codeit_code_${now.year}-${now.month}-${now.day}';
+    // Include difficulty in key so each level persists independently.
+    return 'codeit_code_${now.year}-${now.month}-${now.day}_${_difficulty.name}';
   }
 
   Future<void> _loadSavedCode() async {
@@ -81,12 +84,35 @@ class _CodeItScreenState extends State<CodeItScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _codeController.text = saved;
       });
+    } else {
+      // Clear editor when switching to a difficulty with no saved code.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _codeController.clear();
+      });
     }
   }
 
   Future<void> _saveCode() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_todayKey(), _codeController.text);
+  }
+
+  // ── Difficulty ───────────────────────────────────────────────────────────
+
+  /// Switches to [d] and resets all game state for the new puzzle.
+  void _changeDifficulty(Difficulty d) {
+    if (_difficulty == d) return;
+    setState(() {
+      _difficulty = d;
+      _target = generateTarget(DateTime.now(), d);
+      _userGrid = List.generate(5, (_) => List.generate(5, (_) => 'black'));
+      _matchOverlay = null;
+      _consoleMsg = '';
+      _consoleType = ConsoleType.info;
+      _solved = false;
+      _attempts = 0;
+    });
+    _loadSavedCode();
   }
 
   // ── Game actions ─────────────────────────────────────────────────────────
@@ -192,6 +218,9 @@ class _CodeItScreenState extends State<CodeItScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    const SizedBox(height: 8),
+                    _buildDifficultyTabs(),
+                    const SizedBox(height: 8),
                     _buildCheatSheet(),
                     const SizedBox(height: 12),
                     _buildGridRow(),
@@ -247,13 +276,58 @@ class _CodeItScreenState extends State<CodeItScreen> {
     );
   }
 
+  // ── Difficulty tabs ───────────────────────────────────────────────────────
+
+  Widget _buildDifficultyTabs() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _buildDiffTab('Easy', Difficulty.easy),
+        const SizedBox(width: 8),
+        _buildDiffTab('Mild', Difficulty.mild),
+        const SizedBox(width: 8),
+        _buildDiffTab('Challenging', Difficulty.challenging),
+      ],
+    );
+  }
+
+  Widget _buildDiffTab(String label, Difficulty d) {
+    final selected = _difficulty == d;
+    return GestureDetector(
+      onTap: () => _changeDifficulty(d),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color:
+              selected
+                  ? widget.theme.correct.withValues(alpha: 0.2)
+                  : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color:
+                selected ? widget.theme.correct : const Color(0xFF3A3A3C),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? widget.theme.correct : Colors.grey,
+            fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+            fontSize: 12,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Grid row ──────────────────────────────────────────────────────────────
+
   Widget _buildGridRow() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         PixelGrid(
           grid: _userGrid,
-          matchOverlay: _matchOverlay,
           label: 'Your Output',
         ),
         const SizedBox(width: 16),
@@ -276,7 +350,9 @@ class _CodeItScreenState extends State<CodeItScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: widget.theme.correct,
               foregroundColor: Colors.white,
-              disabledBackgroundColor: widget.theme.correct.withValues(alpha: 0.4),
+              disabledBackgroundColor: widget.theme.correct.withValues(
+                alpha: 0.4,
+              ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
