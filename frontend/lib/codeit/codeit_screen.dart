@@ -192,6 +192,8 @@ class _CodeItScreenState extends State<CodeItScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    _buildCheatSheet(),
+                    const SizedBox(height: 12),
                     _buildGridRow(),
                     const SizedBox(height: 16),
                     CodeEditor(
@@ -296,6 +298,68 @@ class _CodeItScreenState extends State<CodeItScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildCheatSheet() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E1E),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFF3A3A3C)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Quick Reference',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _refRow('set_pixel(x, y, \'color\')', 'Set one cell'),
+          _refRow('fill(\'color\')', 'Fill entire grid'),
+          _refRow('for x in range(5):', 'Loop x from 0 to 4'),
+          _refRow('if x == 2:', 'Condition check'),
+          _refRow('if (x + y) % 2 == 0:', 'Modulo pattern'),
+          _refRow('if x > y:', 'Comparison (>, <, >=, <=, !=)'),
+          const SizedBox(height: 6),
+          const Text(
+            'Colors: black, red, blue, yellow, green, white, purple, orange',
+            style: TextStyle(color: Colors.white38, fontSize: 10),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _refRow(String code, String desc) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Expanded(
+            child: SelectableText(
+              code,
+              style: const TextStyle(
+                fontFamily: 'Courier New',
+                fontSize: 11,
+                color: Color(0xFFDCDCAA),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            desc,
+            style: const TextStyle(color: Colors.white38, fontSize: 10),
+          ),
+        ],
+      ),
     );
   }
 }
