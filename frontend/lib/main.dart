@@ -18,6 +18,7 @@ import 'invade/invade_lobby_screen.dart';
 import 'chess/chess_lobby_screen.dart';
 import 'blackjack/blackjack_lobby_screen.dart'; // class renamed to CasinoLobbyScreen
 import 'solitaire/solitaire_lobby_screen.dart';
+import 'codeit/codeit_screen.dart';
 import 'widgets/wavy_background.dart';
 
 void main() => runApp(const FuseArcadeApp());
@@ -36,7 +37,7 @@ class FuseArcadeApp extends StatelessWidget {
   }
 }
 
-enum AppView { login, menu, guessGame, guessLeaderboard, crossGame, crossLeaderboard, strandsGame, strandsLeaderboard, pongGame, invadeGame, chessGame, blackjackGame, solitaireGame, profile }
+enum AppView { login, menu, guessGame, guessLeaderboard, crossGame, crossLeaderboard, strandsGame, strandsLeaderboard, pongGame, invadeGame, chessGame, blackjackGame, solitaireGame, codeItGame, profile }
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -130,6 +131,7 @@ class _AppShellState extends State<AppShell> {
                 onChessIT: () => setState(() => _view = AppView.chessGame),
                 onBlackjackIT: () => setState(() => _view = AppView.blackjackGame),
                 onDealIT: () => setState(() => _view = AppView.solitaireGame),
+                onCodeIT: () => setState(() => _view = AppView.codeItGame),
                 onProfile: () => setState(() => _view = AppView.profile),
                 onLogout: _logout,
               ),
@@ -188,6 +190,12 @@ class _AppShellState extends State<AppShell> {
                 nickname: _name!,
                 userId: _userId!,
                 theme: _theme,
+                onBack: () => setState(() => _view = AppView.menu),
+              ),
+              AppView.codeItGame => CodeItScreen(
+                theme: _theme,
+                userId: _userId!,
+                nickname: _name!,
                 onBack: () => setState(() => _view = AppView.menu),
               ),
               AppView.profile => ProfileScreen(

@@ -13,6 +13,7 @@ class MainMenuScreen extends StatelessWidget {
   final VoidCallback onChessIT;
   final VoidCallback onBlackjackIT;
   final VoidCallback onDealIT;
+  final VoidCallback onCodeIT;
   final VoidCallback onProfile;
   final VoidCallback onLogout;
 
@@ -28,6 +29,7 @@ class MainMenuScreen extends StatelessWidget {
     required this.onChessIT,
     required this.onBlackjackIT,
     required this.onDealIT,
+    required this.onCodeIT,
     required this.onProfile,
     required this.onLogout,
   });
@@ -116,6 +118,8 @@ class MainMenuScreen extends StatelessWidget {
                         _GameCard(title: 'Chess.IT', subtitle: 'Daily chess bot', icon: Symbols.chess_knight_rounded, color: theme.present, fill: 1, onTap: onChessIT),
                         const SizedBox(width: 16),
                         _GameCard(title: 'Gamble.IT', subtitle: 'Its a Casino', icon: Icons.style, color: theme.correct, onTap: onBlackjackIT),
+                        const SizedBox(width: 16),
+                        _GameCard(title: 'Code.IT', subtitle: 'Daily code puzzle', icon: Icons.code, color: theme.present, onTap: onCodeIT),
                       ],
                     ),
                   ],
