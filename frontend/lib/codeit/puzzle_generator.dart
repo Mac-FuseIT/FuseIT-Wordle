@@ -72,25 +72,17 @@ const List<String> allColors = [
 ];
 
 // ---------------------------------------------------------------------------
-// Grid generation
+// Grid generation — pattern-based
 // ---------------------------------------------------------------------------
 
-/// Generates the target 5×5 grid for [date].
+/// Signature for a pattern generator function.
 ///
-/// Algorithm:
-/// 1. Derive an integer seed from the date string.
-/// 2. Pick 2–4 colors via Fisher-Yates shuffle of [allColors].
-/// 3. Fill every cell of the grid by randomly sampling the chosen palette.
-///
-/// The result is a row-major list: `grid[row][col]`, where both indices are
-/// in the range 0–4, and every value is a lowercase color name from [allColors].
-List<List<String>> generateTarget(DateTime date) {
-  final rng = SeededRng(_dateToSeed(date));
+/// Each pattern picks its own colors from [rng] and returns a filled 5×5 grid.
+typedef PatternFn = List<List<String>> Function(SeededRng rng);
 
-  // Pick 2–4 colors for today's puzzle (nextInt(3) → 0, 1, or 2 → +2 = 2, 3, 4).
-  final numColors = 2 + rng.nextInt(3);
-
-  // Fisher-Yates shuffle to randomise the color list, then take the first N.
+/// Picks [count] distinct colors from [allColors] using a Fisher-Yates shuffle
+/// driven by [rng].
+List<String> _pickColors(SeededRng rng, int count) {
   final shuffled = List<String>.from(allColors);
   for (int i = shuffled.length - 1; i > 0; i--) {
     final j = rng.nextInt(i + 1);
@@ -98,13 +90,155 @@ List<List<String>> generateTarget(DateTime date) {
     shuffled[i] = shuffled[j];
     shuffled[j] = tmp;
   }
-  final palette = shuffled.sublist(0, numColors);
+  return shuffled.sublist(0, count);
+}
 
-  // Fill the 5×5 grid by sampling the palette with the seeded RNG.
-  return List.generate(
-    5,
-    (row) => List.generate(5, (_) => palette[rng.nextInt(numColors)]),
-  );
+/// Builds a 5×5 grid by calling [cellFn] for every (x, y) position.
+///
+/// x is the column index (0–4, left→right).
+/// y is the row index (0–4, top→bottom).
+List<List<String>> _makeGrid(String Function(int x, int y) cellFn) {
+  return List.generate(5, (y) => List.generate(5, (x) => cellFn(x, y)));
+}
+
+/// All available pattern generators.
+///
+/// Each entry is a closure that picks colors from [rng] and fills the grid
+/// according to a simple geometric rule. The patterns are ordered by
+/// complexity so they are easy to reason about.
+final List<PatternFn> _patterns = [
+  // 1. Checkerboard — (x + y) % 2 determines color.
+  (rng) {
+    final c = _pickColors(rng, 2);
+    return _makeGrid((x, y) => (x + y) % 2 == 0 ? c[0] : c[1]);
+  },
+  // 2. Vertical stripes — alternates on x.
+  (rng) {
+    final c = _pickColors(rng, 2);
+    return _makeGrid((x, y) => x % 2 == 0 ? c[0] : c[1]);
+  },
+  // 3. Horizontal stripes — alternates on y.
+  (rng) {
+    final c = _pickColors(rng, 2);
+    return _makeGrid((x, y) => y % 2 == 0 ? c[0] : c[1]);
+  },
+  // 4. Main diagonal — cells where x == y get color A.
+  (rng) {
+    final c = _pickColors(rng, 2);
+    return _makeGrid((x, y) => x == y ? c[0] : c[1]);
+  },
+  // 5. Anti-diagonal — cells where x + y == 4 get color A.
+  (rng) {
+    final c = _pickColors(rng, 2);
+    return _makeGrid((x, y) => x + y == 4 ? c[0] : c[1]);
+  },
+  // 6. Border — outer edge cells get color A, inner cells get color B.
+  (rng) {
+    final c = _pickColors(rng, 2);
+    return _makeGrid(
+      (x, y) => (x == 0 || x == 4 || y == 0 || y == 4) ? c[0] : c[1],
+    );
+  },
+  // 7. Quadrants — top-left triangle (x + y < 4) → A, bottom-right → B,
+  //    the diagonal itself is also color A.
+  (rng) {
+    final c = _pickColors(rng, 2);
+    return _makeGrid((x, y) => x + y <= 4 ? c[0] : c[1]);
+  },
+  // 8. Cross — center column (x==2) or center row (y==2) → A, rest → B.
+  (rng) {
+    final c = _pickColors(rng, 2);
+    return _makeGrid((x, y) => (x == 2 || y == 2) ? c[0] : c[1]);
+  },
+  // 9. Three vertical stripes — left two cols, middle col, right two cols.
+  (rng) {
+    final c = _pickColors(rng, 3);
+    return _makeGrid((x, y) => x < 2 ? c[0] : (x > 2 ? c[2] : c[1]));
+  },
+  // 10. Three horizontal stripes — top two rows, middle row, bottom two rows.
+  (rng) {
+    final c = _pickColors(rng, 3);
+    return _makeGrid((x, y) => y < 2 ? c[0] : (y > 2 ? c[2] : c[1]));
+  },
+  // 11. Modulo-3 checkerboard — (x + y) % 3 cycles through three colors.
+  (rng) {
+    final c = _pickColors(rng, 3);
+    return _makeGrid((x, y) => c[(x + y) % 3]);
+  },
+  // 12. Diamond — Manhattan distance from center ≤ 2 → A, else B.
+  (rng) {
+    final c = _pickColors(rng, 2);
+    return _makeGrid(
+      (x, y) => (x - 2).abs() + (y - 2).abs() <= 2 ? c[0] : c[1],
+    );
+  },
+  // 13. X pattern — both diagonals combined → A, rest → B.
+  (rng) {
+    final c = _pickColors(rng, 2);
+    return _makeGrid((x, y) => (x == y || x + y == 4) ? c[0] : c[1]);
+  },
+  // 14. Column cycling — x % 3 selects among three colors.
+  (rng) {
+    final c = _pickColors(rng, 3);
+    return _makeGrid((x, y) => c[x % 3]);
+  },
+  // 15. Row cycling — y % 3 selects among three colors.
+  (rng) {
+    final c = _pickColors(rng, 3);
+    return _makeGrid((x, y) => c[y % 3]);
+  },
+  // 16. Inner diamond + border (3 colors):
+  //     outer border → A, tight center diamond → C, rest → B.
+  (rng) {
+    final c = _pickColors(rng, 3);
+    return _makeGrid((x, y) {
+      if (x == 0 || x == 4 || y == 0 || y == 4) return c[0];
+      if ((x - 2).abs() + (y - 2).abs() <= 1) return c[2];
+      return c[1];
+    });
+  },
+  // 17. Thick vertical stripes (2 columns wide).
+  (rng) {
+    final c = _pickColors(rng, 2);
+    return _makeGrid((x, y) => (x ~/ 2) % 2 == 0 ? c[0] : c[1]);
+  },
+  // 18. Thick horizontal stripes (2 rows tall).
+  (rng) {
+    final c = _pickColors(rng, 2);
+    return _makeGrid((x, y) => (y ~/ 2) % 2 == 0 ? c[0] : c[1]);
+  },
+  // 19. Four corners — corner cells → A, everything else → B.
+  (rng) {
+    final c = _pickColors(rng, 2);
+    return _makeGrid(
+      (x, y) =>
+          ((x == 0 || x == 4) && (y == 0 || y == 4)) ? c[0] : c[1],
+    );
+  },
+  // 20. Top-heavy split — top 3 rows → A, bottom 2 rows → B.
+  (rng) {
+    final c = _pickColors(rng, 2);
+    return _makeGrid((x, y) => y < 3 ? c[0] : c[1]);
+  },
+];
+
+/// Generates the target 5×5 grid for [date].
+///
+/// Algorithm:
+/// 1. Derive an integer seed from the date string.
+/// 2. Pick one of the [_patterns] deterministically via the seeded RNG.
+/// 3. The chosen pattern picks its own colors from the same RNG and fills
+///    the grid according to a simple geometric rule.
+///
+/// Every puzzle therefore has an elegant one- or two-line solution using
+/// loops and a condition, rather than a fully random arrangement.
+///
+/// The result is a row-major list: `grid[row][col]`, where both indices are
+/// in the range 0–4, and every value is a lowercase color name from [allColors].
+List<List<String>> generateTarget(DateTime date) {
+  final rng = SeededRng(_dateToSeed(date));
+  final patternIndex = rng.nextInt(_patterns.length);
+  return _patterns[patternIndex](rng);
 }
 
 // ---------------------------------------------------------------------------
