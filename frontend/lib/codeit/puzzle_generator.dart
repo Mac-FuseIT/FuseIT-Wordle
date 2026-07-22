@@ -19,9 +19,15 @@ class SeededRng {
   SeededRng(this._state);
 
   /// Returns a non-negative pseudorandom integer in [0, max).
+  ///
+  /// Uses the upper 15 bits of the LCG state (`_state >> 16`) rather than the
+  /// raw low bits. Low bits of a standard LCG have notoriously short periods
+  /// (bit 0 alternates every step), which causes uniform-looking grids when
+  /// the palette size is a power of two. Shifting right by 16 discards those
+  /// weak low bits and uses the higher-quality upper portion of the state.
   int nextInt(int max) {
     _state = (_state * 1103515245 + 12345) & 0x7FFFFFFF;
-    return _state % max;
+    return (_state >> 16) % max; // Use upper bits for better distribution
   }
 }
 
