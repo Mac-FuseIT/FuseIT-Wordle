@@ -165,3 +165,47 @@ No errors
 
 ### Open Issues
 - None from this task. The stale `widget_test.dart` should be replaced or deleted in a future chore task.
+
+## Dart Developer Notes — Add difficulty tabs to Code.IT
+
+### Files Modified
+- `frontend/lib/codeit/puzzle_generator.dart` — Added `Difficulty` enum; replaced `generateTarget` with a difficulty-aware version using per-difficulty seed suffixes (`-easy`/`-mild`/`-hard`). Removed the old `_patterns` list (dead code). Added `_generateWithColors` that handles 20 geometric patterns with arbitrary palette sizes (2–4 colors).
+- `frontend/lib/codeit/codeit_screen.dart` — Added `_difficulty` state field (defaults to `Difficulty.easy`); added `_changeDifficulty` to reset game state + reload saved code for the new difficulty; updated `_todayKey` to embed `_difficulty.name` so each difficulty persists independently; added `_buildDifficultyTabs` / `_buildDiffTab` pill-style tab row rendered above the cheat sheet; updated `initState` to pass `_difficulty` to `generateTarget`; changed `_target` from `late final` to `late` (mutable for difficulty switching).
+
+### Key Decisions
+- **Per-difficulty seed suffix**: Each difficulty hashes a different string (`2026-07-22-easy`, `2026-07-22-mild`, `2026-07-22-hard`), guaranteeing 3 completely distinct grids per day without any shared state between levels.
+- **`_generateWithColors` instead of patching `_patterns`**: The old `_patterns` list had each closure call `_pickColors` internally with a hard-coded count — there was no clean way to override it without rewriting. The new function takes a pre-built `colors` list and maps (x, y) → index, always safe within bounds. The 20 patterns are kept equivalent in geometry.
+- **`withValues(alpha:)` not `withOpacity`**: Used `Color.withValues` to match the existing code style in the screen (avoids the deprecated `withOpacity` lint).
+- **Early return in `_changeDifficulty`**: Guard `if (_difficulty == d) return;` prevents unnecessary state resets when the user taps the already-selected tab.
+
+### Packages & Docs Consulted
+None — no new packages. No Context7 queries required.
+
+### Analyze & Test Results
+`analyze_files` on both files: **No errors**.
+
+### Open Issues
+None.
+
+## Dart Developer Notes — Fix challenging difficulty patterns
+
+### Files Modified
+- `frontend/lib/codeit/puzzle_generator.dart` — Replaced the trivial `validPatterns = [10, 13, 14]` branch (patterns 10/13/14 are `(x+y)%4`, `x%4`, `y%4` — all solvable with one modulo) with 8 dedicated 4-color composite patterns inlined directly in `generateTarget`. Also refactored the easy/mild branches to avoid the now-unnecessary `final List<int> validPatterns` late variable.
+
+### Key Decisions
+- **Composite layering**: Each of the 8 patterns assigns a distinct color to a geometrically distinct region using `if/else if/else` chains. This forces players to write multiple conditional branches, not a single modulo expression.
+- **Patterns chosen**: border+diagonal+cross (A), corner hierarchy (B), triangular quadrants (C), row zones + diagonal override (D), checkerboard + cross override (E), four quadrants (F), diamond + anti-diagonal + border (G), stripe + modulo mix (H).
+- **No `_generateWithColors` for challenging**: The new patterns are richer than what the shared helper supports and are expressed directly as closures over `_makeGrid`. Keeps the helper untouched (still used by easy and mild).
+- **Deterministic selection**: `rng.nextInt(fourColorPatterns.length)` picks one of 8 patterns using the same seeded RNG already in use — same date → same pattern, same colors.
+
+### Packages & Docs Consulted
+None.
+
+### Analyze & Test Results
+- `analyze_files` on `lib/codeit/puzzle_generator.dart`: **No errors**
+
+### Commits
+- `feat(codeit): replace trivial 4-color patterns with composite challenging patterns` (31f3680)
+
+### Open Issues
+None.
