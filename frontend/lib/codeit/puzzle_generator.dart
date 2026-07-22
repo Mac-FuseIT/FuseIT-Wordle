@@ -260,19 +260,90 @@ List<List<String>> generateTarget(
   // Pick patterns that actually USE all colors for this difficulty.
   // 2-color patterns: most work fine (indices 0-7, 11, 12, 16-19)
   // 3-color patterns: 8, 9, 10, 13, 14, 15
-  // 4-color patterns: 10, 13, 14 (modulo-cycling ones)
-  final List<int> validPatterns;
   if (numColors == 2) {
-    validPatterns = [0, 1, 2, 3, 4, 5, 6, 7, 11, 12, 16, 17, 18, 19];
+    final validPatterns = [0, 1, 2, 3, 4, 5, 6, 7, 11, 12, 16, 17, 18, 19];
+    final patternIndex = validPatterns[rng.nextInt(validPatterns.length)];
+    return _generateWithColors(rng, patternIndex, colors);
   } else if (numColors == 3) {
-    validPatterns = [8, 9, 10, 13, 14, 15];
+    final validPatterns = [8, 9, 10, 13, 14, 15];
+    final patternIndex = validPatterns[rng.nextInt(validPatterns.length)];
+    return _generateWithColors(rng, patternIndex, colors);
   } else {
-    // 4 colors — only patterns that cycle through n
-    validPatterns = [10, 13, 14];
-  }
+    // 4 colors: composite patterns that layer different conditions.
+    // Each pattern assigns a distinct color to a geometrically distinct region,
+    // forcing the player to write multiple if/else branches — not a single
+    // modulo expression.
+    final fourColorPatterns = <List<List<String>> Function(List<String> c)>[
+      // Pattern A: border=0, main diagonal=1, center cross=2, rest=3
+      (c) => _makeGrid((x, y) {
+            if (x == 0 || x == 4 || y == 0 || y == 4) return c[0];
+            if (x == y) return c[1];
+            if (x == 2 || y == 2) return c[2];
+            return c[3];
+          }),
+      // Pattern B: corners=0, non-corner edges=1, center cell=3, inner ring=2
+      (c) => _makeGrid((x, y) {
+            if ((x == 0 || x == 4) && (y == 0 || y == 4)) return c[0];
+            if (x == 0 || x == 4 || y == 0 || y == 4) return c[1];
+            if (x == 2 && y == 2) return c[3];
+            return c[2];
+          }),
+      // Pattern C: four triangular quadrants split by diagonals
+      //   top-left triangle=0, top-right triangle=1,
+      //   bottom-left triangle=2, bottom-right triangle=3
+      (c) => _makeGrid((x, y) {
+            if (x <= y && x + y <= 4) return c[0];
+            if (x > y && x + y <= 4) return c[1];
+            if (x <= y && x + y > 4) return c[2];
+            return c[3];
+          }),
+      // Pattern D: row-based zones with diagonal override
+      //   diagonal=3, top 2 rows=0, middle row=1, bottom 2 rows=2
+      (c) => _makeGrid((x, y) {
+            if (x == y) return c[3];
+            if (y < 2) return c[0];
+            if (y == 2) return c[1];
+            return c[2];
+          }),
+      // Pattern E: checkerboard base overridden by center cross and center cell
+      //   center cell=3, rest of cross=2, even checkerboard=0, odd=1
+      (c) => _makeGrid((x, y) {
+            if (x == 2 && y == 2) return c[3];
+            if (x == 2 || y == 2) return c[2];
+            if ((x + y) % 2 == 0) return c[0];
+            return c[1];
+          }),
+      // Pattern F: four quadrants split at the midpoint
+      //   top-left=0, top-right=1, bottom-left=2, bottom-right=3
+      //   middle row/col assigned to the nearest quadrant
+      (c) => _makeGrid((x, y) {
+            if (x < 2 && y < 2) return c[0];
+            if (x > 2 && y < 2) return c[1];
+            if (x < 2 && y > 2) return c[2];
+            if (x > 2 && y > 2) return c[3];
+            if (x == 2) return c[(y < 2) ? 0 : 2];
+            if (y == 2) return c[(x < 2) ? 0 : 1];
+            return c[0];
+          }),
+      // Pattern G: diamond center=0, anti-diagonal=1, border=2, rest=3
+      (c) => _makeGrid((x, y) {
+            if ((x - 2).abs() + (y - 2).abs() <= 1) return c[0];
+            if (x + y == 4) return c[1];
+            if (x == 0 || x == 4 || y == 0 || y == 4) return c[2];
+            return c[3];
+          }),
+      // Pattern H: top/bottom rows=0, even columns=1, even rows (mid)=2, rest=3
+      (c) => _makeGrid((x, y) {
+            if (y == 0 || y == 4) return c[0];
+            if (x % 2 == 0) return c[1];
+            if (y % 2 == 0) return c[2];
+            return c[3];
+          }),
+    ];
 
-  final patternIndex = validPatterns[rng.nextInt(validPatterns.length)];
-  return _generateWithColors(rng, patternIndex, colors);
+    final idx = rng.nextInt(fourColorPatterns.length);
+    return fourColorPatterns[idx](colors);
+  }
 }
 
 // ---------------------------------------------------------------------------
