@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// A 5×5 grid of colored cells for Code.IT.
+/// A 5×5 grid of colored cells for Pixel.IT.
 ///
 /// [grid] is a column-major list: `grid[x][y]` where x is the column (0–4)
 /// and y is the row (0–4).  Each value is a lowercase color name.

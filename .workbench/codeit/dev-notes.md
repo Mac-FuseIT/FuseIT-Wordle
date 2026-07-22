@@ -1,4 +1,4 @@
-## Dart Developer Notes — Pattern-based puzzle generation for Code.IT
+## Dart Developer Notes — Pattern-based puzzle generation for Pixel.IT
 
 ### Files Created
 - none

@@ -138,7 +138,7 @@ class _HighlightController extends TextEditingController {
   _HighlightController({super.text});
 
   // DSL keyword set — drives purple/pink highlighting.
-  static const _keywords = {'for', 'in', 'range', 'if', 'else'};
+  static const _keywords = {'for', 'in', 'range', 'if', 'else', 'and', 'or'};
 
   // DSL built-in function set — drives yellow highlighting.
   static const _builtins = {'set_pixel', 'fill'};

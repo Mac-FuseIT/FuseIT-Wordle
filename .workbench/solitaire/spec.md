@@ -1,4 +1,4 @@
-# Deal.IT — Daily Solitaire Design Spec
+# Klond.IT — Daily Solitaire Design Spec
 
 ## Overview
 
@@ -35,7 +35,7 @@ A daily Klondike Solitaire (Draw 3) game for Fuse Arcade. Every player gets the 
 ┌─────────────────────────────────────────────────────────────┐
 │  Flutter Web Frontend                                        │
 │  ┌───────────────────┐  ┌─────────────────────────────────┐ │
-│  │ Deal.IT Lobby      │  │ Solitaire Game Screen           │ │
+│  │ Klond.IT Lobby      │  │ Solitaire Game Screen           │ │
 │  │ - Today's status   │  │ - Stock + Waste (top-left)      │ │
 │  │ - Play button      │→ │ - 4 Foundations (top-right)     │ │
 │  │ - Leaderboard      │  │ - 7 Tableau columns             │ │
@@ -615,7 +615,7 @@ frontend/lib/solitaire/
 ### Lobby Screen (`solitaire_lobby_screen.dart`)
 
 Layout:
-- Title: "Deal.IT" with themed glow
+- Title: "Klond.IT" with themed glow
 - Status card: "Not started" / "In progress (34 moves)" / "Completed! 18 pts"
 - **Play** button (green/`theme.correct`) — disabled if already completed
 - **Leaderboard** section with daily/monthly tabs
@@ -762,7 +762,7 @@ Not implemented in v1. Player must manually move all remaining cards even if the
 
 ## Help Dialog Content
 
-Title: **How to Play Deal.IT**
+Title: **How to Play Klond.IT**
 
 ```
 🃏 GOAL
@@ -801,8 +801,8 @@ building each suit up from Ace to King.
 
 ## Design Decisions
 
-### 1. "Deal.IT" as the name
-**Choice:** "Deal.IT" over "Soli.IT" or "Stack.IT"
+### 1. "Klond.IT" as the name
+**Choice:** "Klond.IT" over "Soli.IT" or "Stack.IT"
 **Rationale:** "Deal" is a card-specific verb (dealing cards), fits the .IT pattern naturally, and avoids confusion with "Stack.IT" which could imply a different game. "Soli.IT" sounds awkward spoken aloud.
 
 ### 2. Tap-to-move over drag-and-drop
@@ -853,7 +853,7 @@ building each suit up from Ace to King.
 14. **Create `frontend/lib/solitaire/widgets/foundation_pile.dart`** — Foundation pile widget — S
 15. **Create `frontend/lib/solitaire/widgets/stock_waste.dart`** — Stock + waste area — S
 16. **Create `frontend/lib/solitaire/widgets/solitaire_help_dialog.dart`** — Help/rules modal — S
-17. **Wire into main menu** — Add Deal.IT card to 'Classic Games' section, route to lobby — S
+17. **Wire into main menu** — Add Klond.IT card to 'Classic Games' section, route to lobby — S
 18. **Add CORS handler** — `onRequestOptions` export in each endpoint — S
 
 ---

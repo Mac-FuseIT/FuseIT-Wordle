@@ -1,4 +1,4 @@
-/// Deterministic puzzle generation for Code.IT.
+/// Deterministic puzzle generation for Pixel.IT.
 ///
 /// The target grid is derived entirely from the current date — every client
 /// running the same date produces the identical 5×5 grid, with no backend
@@ -75,7 +75,7 @@ const List<String> allColors = [
 // Difficulty
 // ---------------------------------------------------------------------------
 
-/// Difficulty levels for Code.IT puzzles.
+/// Difficulty levels for Pixel.IT puzzles.
 ///
 /// Each level controls how many distinct colors appear in the target grid:
 /// - [easy]: 2 colors — straightforward binary patterns.
@@ -355,6 +355,6 @@ List<List<String>> generateTarget(
 /// Puzzle #1 is 2026-07-22 (launch day). Negative values are possible for
 /// dates before launch but are not expected in production.
 int puzzleNumber(DateTime date) {
-  final epoch = DateTime(2026, 7, 22); // Code.IT launch date
+  final epoch = DateTime(2026, 7, 22); // Pixel.IT launch date
   return date.difference(epoch).inDays + 1;
 }

@@ -1,7 +1,7 @@
-# Task: Implement Deal.IT (Daily Solitaire) for Fuse Arcade
+# Task: Implement Klond.IT (Daily Solitaire) for Fuse Arcade
 
 ## User Request
-Implement a daily Klondike Solitaire (Draw 3) game called "Deal.IT" with server-validated moves, deterministic daily decks, tap-to-move interaction, scoring, and leaderboards. Full spec at `.workbench/solitaire/spec.md`.
+Implement a daily Klondike Solitaire (Draw 3) game called "Klond.IT" with server-validated moves, deterministic daily decks, tap-to-move interaction, scoring, and leaderboards. Full spec at `.workbench/solitaire/spec.md`.
 
 ## Codebase Summary
 - **Stack**: Cloudflare Pages Functions (vanilla JS, ESM), D1 (SQLite), Flutter Web (Dart 3.11+, `http`, `shared_preferences`)
@@ -23,7 +23,7 @@ Implement a daily Klondike Solitaire (Draw 3) game called "Deal.IT" with server-
 | `migrations/0020_roulette.sql` | Writing migration — table + index pattern |
 | `frontend/lib/blackjack/blackjack_lobby_screen.dart` | Writing lobby — API calls, status card, leaderboard display |
 | `frontend/lib/blackjack/blackjack_screen.dart` | Writing game screen — state mgmt, API-driven UI updates |
-| `frontend/lib/screens/main_menu_screen.dart` | Adding Deal.IT to menu — `_GameCard`, callbacks, `AppView` |
+| `frontend/lib/screens/main_menu_screen.dart` | Adding Klond.IT to menu — `_GameCard`, callbacks, `AppView` |
 | `frontend/lib/main.dart` | Routing — `AppView` enum, switch expression |
 | `.workbench/solitaire/spec.md` | Everything — the source of truth |
 
@@ -58,7 +58,7 @@ All frontend files can be developed together since the service is a simple HTTP 
 | Create help dialog | dart-developer | `frontend/lib/solitaire/widgets/solitaire_help_dialog.dart` | Modal dialog with game rules, controls, scoring info. Content from spec's "Help Dialog Content" section. Match existing `help_dialog.dart` pattern. |
 | Create lobby screen | dart-developer | `frontend/lib/solitaire/solitaire_lobby_screen.dart` | Props: `theme`, `onBack`, `nickname`, `userId`. Load today's status + leaderboard on init. Show status card (not started / in progress with move count / completed with points). Play button (disabled if completed). Leaderboard with daily/monthly tabs. Help (?) button top-right. Internal `_playing` bool state — when true, show `SolitaireGameScreen` instead. |
 | Create game screen | dart-developer | `frontend/lib/solitaire/solitaire_game_screen.dart` | Props: `theme`, `onBack`, `nickname`, `userId`. The main board: header (back, moves, timer), stock+waste top-left, 4 foundations top-right, 7 tableau columns below, give-up button bottom. State: full game state from API, `_selectedCard` (zone+index), timer (elapsed from `started_at`). Tap-to-move logic: first tap selects, second tap attempts move via API. Stock tap calls draw. Empty stock tap calls recycle. Auto-move on Aces/2s (tap selects + auto-moves). Show confirmation dialog before give-up. Animate card flips and moves. On win: celebration overlay with points. |
-| Wire into main menu + routing | dart-developer | `frontend/lib/screens/main_menu_screen.dart`, `frontend/lib/main.dart` | Add `AppView.solitaireGame` to enum. Add `onDealIT` callback to `MainMenuScreen`. Add `_GameCard(title: 'Deal.IT', subtitle: 'Daily solitaire', icon: Icons.style, ...)` in the Classic Games row. Add routing case in `main.dart` switch to show `SolitaireLobbyScreen`. |
+| Wire into main menu + routing | dart-developer | `frontend/lib/screens/main_menu_screen.dart`, `frontend/lib/main.dart` | Add `AppView.solitaireGame` to enum. Add `onDealIT` callback to `MainMenuScreen`. Add `_GameCard(title: 'Klond.IT', subtitle: 'Daily solitaire', icon: Icons.style, ...)` in the Classic Games row. Add routing case in `main.dart` switch to show `SolitaireLobbyScreen`. |
 
 ### Wave 3: Review
 

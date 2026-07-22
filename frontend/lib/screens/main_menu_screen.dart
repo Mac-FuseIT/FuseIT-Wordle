@@ -119,7 +119,7 @@ class MainMenuScreen extends StatelessWidget {
                         const SizedBox(width: 16),
                         _GameCard(title: 'Gamble.IT', subtitle: 'Its a Casino', icon: Icons.style, color: theme.correct, onTap: onBlackjackIT),
                         const SizedBox(width: 16),
-                        _GameCard(title: 'Code.IT', subtitle: 'Daily code puzzle', icon: Icons.code, color: theme.present, onTap: onCodeIT),
+                        _GameCard(title: 'Pixel.IT', subtitle: 'Daily code puzzle', icon: Icons.code, color: theme.present, onTap: onCodeIT),
                       ],
                     ),
                   ],

@@ -11,7 +11,7 @@ import 'widgets/code_editor.dart';
 import 'widgets/console_output.dart';
 import 'widgets/pixel_grid.dart';
 
-/// The Code.IT daily coding puzzle screen.
+/// The Pixel.IT daily coding puzzle screen.
 ///
 /// Players write a small Python-like DSL program to reproduce a
 /// deterministically generated 5×5 target grid.  All execution is
@@ -259,7 +259,7 @@ class _CodeItScreenState extends State<CodeItScreen> {
             tooltip: 'Back',
           ),
           Text(
-            'Code.IT',
+            'Pixel.IT',
             style: TextStyle(
               color: widget.theme.correct,
               fontSize: 22,
@@ -404,6 +404,7 @@ class _CodeItScreenState extends State<CodeItScreen> {
           _refRow('if x == 2:', 'Condition check'),
           _refRow('if (x + y) % 2 == 0:', 'Modulo pattern'),
           _refRow('if x > y:', 'Comparison (>, <, >=, <=, !=)'),
+          _refRow('if x > 0 and y < 4:', 'Combine with and / or'),
           const SizedBox(height: 6),
           const Text(
             'Colors: black, red, blue, yellow, green, white, purple, orange',

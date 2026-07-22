@@ -55,7 +55,7 @@
 ## Dart Developer Notes — Puzzle Generator
 
 ### Files Created
-- `frontend/lib/codeit/puzzle_generator.dart` — Deterministic 5×5 grid generator for Code.IT. Exposes `SeededRng`, `allColors`, `generateTarget(DateTime)`, and `puzzleNumber(DateTime)`.
+- `frontend/lib/codeit/puzzle_generator.dart` — Deterministic 5×5 grid generator for Pixel.IT. Exposes `SeededRng`, `allColors`, `generateTarget(DateTime)`, and `puzzleNumber(DateTime)`.
 
 ### Files Modified
 - None.
@@ -105,7 +105,7 @@
 - Executor tests not yet written.
 - All four DSL files (`tokenizer.dart`, `parser.dart`, `ast.dart`, `executor.dart`) are now in place. Next step is wiring them together in `codeit_screen.dart` or writing integration tests.
 
-## Dart Developer Notes — Code.IT game screen and widgets
+## Dart Developer Notes — Pixel.IT game screen and widgets
 
 ### Files Created
 - `frontend/lib/codeit/widgets/pixel_grid.dart` — 5×5 colored grid widget with optional green/red match overlay per cell
@@ -166,7 +166,7 @@ No errors
 ### Open Issues
 - None from this task. The stale `widget_test.dart` should be replaced or deleted in a future chore task.
 
-## Dart Developer Notes — Add difficulty tabs to Code.IT
+## Dart Developer Notes — Add difficulty tabs to Pixel.IT
 
 ### Files Modified
 - `frontend/lib/codeit/puzzle_generator.dart` — Added `Difficulty` enum; replaced `generateTarget` with a difficulty-aware version using per-difficulty seed suffixes (`-easy`/`-mild`/`-hard`). Removed the old `_patterns` list (dead code). Added `_generateWithColors` that handles 20 geometric patterns with arbitrary palette sizes (2–4 colors).
