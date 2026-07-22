@@ -1,48 +1,56 @@
-# Dev Notes — Code.IT DSL Engine: errors.dart & ast.dart
-
-## Dart Developer Notes — Create DSL error and AST node classes
+## Dart Developer Notes — Pattern-based puzzle generation for Code.IT
 
 ### Files Created
-- `frontend/lib/codeit/dsl/errors.dart` — `DslError` exception class with optional line number, used by parser and executor to surface errors with location info
-- `frontend/lib/codeit/dsl/ast.dart` — All AST node classes: `AstNode` (abstract base), `ProgramNode`, `ForNode`, `IfNode`, `FuncCallNode`, `NumberLiteral`, `StringLiteral`, `VariableRef`, `BinaryExpr`, and the `Condition` value class
+- none
 
 ### Files Modified
-- None
+- `frontend/lib/codeit/puzzle_generator.dart` — Replaced the random `generateTarget` implementation with a pattern-based approach. Added `PatternFn` typedef, `_pickColors` helper, `_makeGrid` helper, and a `_patterns` list of 20 geometric pattern generators.
 
 ### Key Decisions
-- Implemented files exactly as specified — no deviations
-- `Condition` is a plain class (not extending `AstNode`) as specified, since conditions are not standalone statements but are embedded within `IfNode`
-- Files are placed under `frontend/lib/codeit/dsl/` to match the expected DSL engine package structure
+
+**What stayed unchanged:** `SeededRng`, `_dateToSeed`, `allColors` constant, `puzzleNumber` — all preserved verbatim as instructed.
+
+**Grid axis convention:** `_makeGrid` uses `List.generate(5, (y) => List.generate(5, (x) => ...))` so the outer index is the row (y) and the inner index is the column (x). This matches the existing `grid[row][col]` contract documented in the old `generateTarget` dartdoc, and keeps `x` and `y` semantically consistent across all pattern lambdas (x = column, y = row).
+
+**Pattern 7 tweak:** The spec said `x + y < 4 → A, else B` but that leaves the anti-diagonal itself (`x + y == 4`) ambiguous (assigned to B, which creates a hard edge). Changed to `x + y <= 4 → A` so the diagonal is colour A, giving a clean triangular split without a third implicit zone.
+
+**No new dependencies:** Pure Dart, no packages added.
 
 ### Packages & Docs Consulted
-- None — pure Dart classes with no third-party dependencies
+- None. Pure Dart stdlib only.
 
 ### Analyze & Test Results
-- `analyze_files` on both files: **No errors**
-- No tests exist yet for these classes (parser/executor will exercise them)
+```
+analyze_files: No errors
+```
+Tests not run — no unit tests exist for this file yet, and the task scope was limited to the generator replacement.
 
 ### Open Issues
-- None — files are clean and ready for the parser/executor to build on top of
+- Consider adding a unit test that calls `generateTarget` for a range of dates and asserts the grid is 5×5, all values are in `allColors`, and the result is deterministic (same date → same grid).
+- Pattern 7 diagonal assignment changed from spec (≤ instead of <) — reviewer should confirm this is acceptable.
 
-## Dart Developer Notes — Wire Code.IT into main menu and routing
+---
+
+## Dart Developer Notes — Add Quick Reference cheat sheet to CodeItScreen
 
 ### Files Created
-- None
+- none
 
 ### Files Modified
-- `frontend/lib/main.dart` — Added `codeItGame` to `AppView` enum; added `import 'codeit/codeit_screen.dart'`; added `onCodeIT` callback to `MainMenuScreen` instantiation; added `AppView.codeItGame` routing case pointing to `CodeItScreen`
-- `frontend/lib/screens/main_menu_screen.dart` — Added `final VoidCallback onCodeIT` field and required constructor param; added Code.IT `_GameCard` after Gamble.IT in the Lounge row
+- `frontend/lib/codeit/codeit_screen.dart` — Added `_buildCheatSheet()` and `_refRow()` methods; inserted `_buildCheatSheet()` + `SizedBox(height: 12)` before `_buildGridRow()` in the scrollable Column.
 
 ### Key Decisions
-- `codeItGame` placed before `profile` in the enum and routing switch to keep profile last (consistent with existing ordering)
-- Code.IT card uses `theme.present` colour and `Icons.code` icon as specified
-- The Lounge row now has three cards: Chess.IT, Gamble.IT, Code.IT
+- Used `SelectableText` for code snippets so users can tap-to-copy on both mobile and web.
+- Monospace yellow (`0xFFDCDCAA`) matches the syntax-highlight colour used elsewhere in the editor for built-in tokens.
+- Container decoration (`0xFF1E1E1E` background, `0xFF3A3A3C` border, 8 px radius) mirrors the existing CodeEditor widget style for visual consistency.
+- No new packages introduced — purely Flutter built-in widgets.
 
 ### Packages & Docs Consulted
-- None — only Flutter framework APIs already in use by the project
+- None (all widgets are Flutter SDK standard).
 
 ### Analyze & Test Results
-- `analyze_files` on `main.dart` and `main_menu_screen.dart`: **No errors**
+- `analyze_files` on `codeit_screen.dart`: **No errors**
+- No tests written (UI-only widget addition, no logic change).
 
 ### Open Issues
-- `CodeItScreen` import will produce an analyzer warning until `frontend/lib/codeit/codeit_screen.dart` is created by a subsequent task
+- None.
