@@ -233,7 +233,6 @@ List<List<String>> generateTarget(
   DateTime date, [
   Difficulty difficulty = Difficulty.easy,
 ]) {
-  // Append a suffix so Easy/Mild/Challenging each get a different seed.
   final suffix = switch (difficulty) {
     Difficulty.easy => '-easy',
     Difficulty.mild => '-mild',
@@ -257,7 +256,22 @@ List<List<String>> generateTarget(
   };
 
   final colors = _pickColors(rng, numColors);
-  final patternIndex = rng.nextInt(20);
+
+  // Pick patterns that actually USE all colors for this difficulty.
+  // 2-color patterns: most work fine (indices 0-7, 11, 12, 16-19)
+  // 3-color patterns: 8, 9, 10, 13, 14, 15
+  // 4-color patterns: 10, 13, 14 (modulo-cycling ones)
+  final List<int> validPatterns;
+  if (numColors == 2) {
+    validPatterns = [0, 1, 2, 3, 4, 5, 6, 7, 11, 12, 16, 17, 18, 19];
+  } else if (numColors == 3) {
+    validPatterns = [8, 9, 10, 13, 14, 15];
+  } else {
+    // 4 colors — only patterns that cycle through n
+    validPatterns = [10, 13, 14];
+  }
+
+  final patternIndex = validPatterns[rng.nextInt(validPatterns.length)];
   return _generateWithColors(rng, patternIndex, colors);
 }
 

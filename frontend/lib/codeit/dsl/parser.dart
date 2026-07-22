@@ -221,7 +221,8 @@ class _Parser {
 
   // ─── Primary ────────────────────────────────────────────────────────────
 
-  /// Parses a number literal, string literal, or variable reference.
+  /// Parses a number literal, string literal, variable reference, or a
+  /// parenthesized expression `( expr )`.
   AstNode _parsePrimary() {
     switch (_current.type) {
       case TokenType.number:
@@ -230,6 +231,11 @@ class _Parser {
         return StringLiteral(_advance().value);
       case TokenType.identifier:
         return VariableRef(_advance().value);
+      case TokenType.lparen:
+        _advance(); // consume '('
+        final expr = _parseExpr();
+        _expect(TokenType.rparen, "Expected ')'");
+        return expr;
       default:
         throw DslError(
           "Unexpected token '${_current.value}'",
