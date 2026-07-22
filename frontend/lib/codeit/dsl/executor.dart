@@ -130,6 +130,18 @@ class DslExecutor {
   }
 
   bool _evalCondition(Condition cond) {
+    final result = _evalSimpleCondition(cond);
+
+    if (cond.logicalOp != null && cond.next != null) {
+      final nextResult = _evalCondition(cond.next!);
+      if (cond.logicalOp == 'and') return result && nextResult;
+      if (cond.logicalOp == 'or') return result || nextResult;
+    }
+
+    return result;
+  }
+
+  bool _evalSimpleCondition(Condition cond) {
     final left = _evalExpr(cond.left);
     final right = _evalExpr(cond.right);
     switch (cond.op) {

@@ -60,9 +60,15 @@ class BinaryExpr extends AstNode {
 }
 
 /// Condition in if statements: `x == 2`, `y != 0`, `x % 2 == 0`
+///
+/// Can be chained with `and` / `or` via the optional [logicalOp] + [next]
+/// fields.  `x > 0 and y < 5` is represented as:
+///   Condition(x, '>', 0, 'and', Condition(y, '<', 5))
 class Condition {
   final AstNode left;
   final String op; // '==', '!=', '>', '<', '>=', '<='
   final AstNode right;
-  Condition(this.left, this.op, this.right);
+  final String? logicalOp; // 'and' or 'or', null for a simple condition
+  final Condition? next; // next condition in the chain
+  Condition(this.left, this.op, this.right, [this.logicalOp, this.next]);
 }

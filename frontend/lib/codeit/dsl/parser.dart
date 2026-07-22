@@ -178,10 +178,29 @@ class _Parser {
 
   // ─── Condition ──────────────────────────────────────────────────────────
 
-  /// Parses: `expr COMP_OP expr`
+  /// Parses a condition, including optional `and` / `or` chaining.
+  ///
+  /// Grammar: `singleCondition ( ( 'and' | 'or' ) singleCondition )*`
+  ///
+  /// Chaining is right-associative via recursion, preserving the full chain
+  /// as a linked list on [Condition.next].
+  Condition _parseCondition() {
+    final first = _parseSingleCondition();
+
+    if (_current.type == TokenType.andKeyword ||
+        _current.type == TokenType.orKeyword) {
+      final logicalOp = _advance().value; // consume 'and' or 'or'
+      final rest = _parseCondition(); // recursive: handles further chaining
+      return Condition(first.left, first.op, first.right, logicalOp, rest);
+    }
+
+    return first;
+  }
+
+  /// Parses a single `expr COMP_OP expr` condition.
   ///
   /// COMP_OP is one of `==`, `!=`, `>`, `<`, `>=`, `<=`.
-  Condition _parseCondition() {
+  Condition _parseSingleCondition() {
     final left = _parseExpr();
 
     final op = _current;

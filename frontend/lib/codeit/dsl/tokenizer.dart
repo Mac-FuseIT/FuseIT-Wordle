@@ -7,6 +7,8 @@ enum TokenType {
   rangeKeyword,
   ifKeyword,
   elseKeyword,
+  andKeyword,
+  orKeyword,
   identifier,
   number,
   string,
@@ -157,6 +159,10 @@ void _tokenizeLine(String content, int line, List<Token> tokens) {
           tokens.add(Token(TokenType.ifKeyword, word, line));
         case 'else':
           tokens.add(Token(TokenType.elseKeyword, word, line));
+        case 'and':
+          tokens.add(Token(TokenType.andKeyword, word, line));
+        case 'or':
+          tokens.add(Token(TokenType.orKeyword, word, line));
         default:
           tokens.add(Token(TokenType.identifier, word, line));
       }
