@@ -104,3 +104,64 @@
 ### Open Issues
 - Executor tests not yet written.
 - All four DSL files (`tokenizer.dart`, `parser.dart`, `ast.dart`, `executor.dart`) are now in place. Next step is wiring them together in `codeit_screen.dart` or writing integration tests.
+
+## Dart Developer Notes — Code.IT game screen and widgets
+
+### Files Created
+- `frontend/lib/codeit/widgets/pixel_grid.dart` — 5×5 colored grid widget with optional green/red match overlay per cell
+- `frontend/lib/codeit/widgets/code_editor.dart` — monospace multi-line TextField; intercepts Tab → 4 spaces via KeyboardListener
+- `frontend/lib/codeit/widgets/console_output.dart` — styled output panel (info/success/error states with matching border tint)
+- `frontend/lib/codeit/codeit_screen.dart` — main StatefulWidget composing all three widgets; handles tokenize → parse → execute pipeline, match comparison, SharedPreferences persistence of code per day
+
+### Files Modified
+- none
+
+### Key Decisions
+- **`withValues(alpha:)` instead of deprecated `withOpacity`** — used throughout to avoid analyzer deprecation warnings
+- **`FocusNode(skipTraversal: true, canRequestFocus: false)`** on the `KeyboardListener` wrapping the editor — prevents it from capturing focus and fighting the inner `TextField`; Tab handling is event-based so this works correctly
+- **`WidgetsBinding.instance.addPostFrameCallback`** for `_loadSavedCode` — defers the `TextEditingController` write until after the widget is mounted, avoiding any "controller used before build" edge cases
+- **Column-major grid indexing (`grid[x][y]`)** — matches the spec and executor convention; `PixelGrid` iterates `y` in the outer loop and `x` in the inner to render rows correctly
+- **`_puzzleNum` and `_target` as `late final`** — computed once in `initState` from `DateTime.now()` so they never change during the session
+
+### Packages & Docs Consulted
+- `shared_preferences` — already in pubspec; used for daily code persistence (key `codeit_code_YYYY-M-D`)
+- Dart MCP `analyze_files` — confirmed zero errors across all 4 files
+
+### Analyze & Test Results
+```
+No errors
+```
+(analyzed: codeit_screen.dart, pixel_grid.dart, code_editor.dart, console_output.dart)
+
+### Open Issues
+- `CodeItScreen` is not yet wired into `main.dart` / `main_menu_screen.dart` — that integration is a separate task per the spec
+- No celebration animation (confetti / glow) — spec marks this as a follow-up (task 11)
+- Optional backend completion tracking (`codeit_service.dart`, POST /api/codeit/complete) not implemented — separate task per spec
+
+## Dart Developer Notes — Fix RNG + Syntax Highlighting
+
+### Files Modified
+- `frontend/lib/codeit/puzzle_generator.dart` — Changed `nextInt` to use `(_state >> 16) % max` instead of `_state % max`. Low bits of a standard LCG have very short periods (bit 0 strictly alternates every step); shifting right by 16 discards the weak low bits and uses the upper, higher-quality portion of the 31-bit state. This prevents the grid-fill loop from sampling only alternating colours when the palette size is 2.
+- `frontend/lib/codeit/widgets/code_editor.dart` — Converted from a plain `StatelessWidget` wrapping a plain `TextField` to a `StatefulWidget` with a private `_HighlightController` (a `TextEditingController` subclass). The controller overrides `buildTextSpan` to tokenise the source text character-by-character and emit coloured `TextSpan` children. Bidirectional sync listeners keep the parent's external controller and the internal highlight controller in step. `KeyboardListener` replaced with `Focus` + `onKeyEvent` (which returns a `KeyEventResult`) to properly consume Tab events.
+
+### Key Decisions
+- **Upper bits for LCG**: `>> 16` discards the 16 weak low bits; the remaining 15 bits `(0..32767)` are then reduced with `% max`. This is the standard fix cited in Numerical Recipes and the glibc manual.
+- **`_HighlightController` kept package-private** (prefixed `_`) — the parent widget only needs to see `CodeEditor` and a plain `TextEditingController`. No public API surface change.
+- **Bidirectional sync via `addListener`**: The parent continues to use its own `TextEditingController` for `_run()` and `_saveCode()` — zero changes needed in `codeit_screen.dart`.
+- **`Focus` over `KeyboardListener`**: `Focus.onKeyEvent` returns `KeyEventResult.handled` which stops the Tab event propagating to the focus system and changing focus. `KeyboardListener.onKeyEvent` has no return value so the event always keeps propagating — the old approach was already correct by luck (the `FocusNode(canRequestFocus: false)` trick), but `Focus` is the idiomatic solution.
+- **Minimal token set**: Keywords `{for, in, range, if, else}` and builtins `{set_pixel, fill}` match exactly the DSL spec. Easy to extend by editing the two `static const` sets.
+
+### Packages & Docs Consulted
+- None. No third-party packages added or used.
+
+### Analyze & Test Results
+- `analyze_files` on `lib/codeit/puzzle_generator.dart` + `lib/codeit/widgets/code_editor.dart`: **No errors**
+- `analyze_files` on `lib/codeit/` (full folder): **No errors**
+- `run_tests`: pre-existing boilerplate `widget_test.dart` failure (`MyApp` not found) — unrelated to these changes; all other tests pass.
+
+### Commits
+- `fix: use upper LCG bits in nextInt for better randomness` (e68ffdd)
+- `feat: add syntax highlighting to CodeEditor via _HighlightController` (4b197f4)
+
+### Open Issues
+- None from this task. The stale `widget_test.dart` should be replaced or deleted in a future chore task.
