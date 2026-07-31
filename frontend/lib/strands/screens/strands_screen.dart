@@ -117,7 +117,7 @@ class _StrandsScreenState extends State<StrandsScreen> {
         final bc = res['bonusCount'] ?? 0;
         _showMessage('${res['word']} — bonus word! (${bc % 3}/3 to hint)', Colors.grey);
       } else if (type == 'already_found') {
-        _showMessage('Already found!', Colors.grey);
+        _showMessage('Already tried!', Colors.grey);
       } else {
         _showMessage('Not a valid word', Colors.redAccent);
       }

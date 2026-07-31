@@ -35,7 +35,7 @@ export async function onRequestPost({ request, env }) {
   let hintCharges = state ? state.hint_charges : 0;
   const hintsUsed = state ? state.hints_used : 0;
 
-  if (foundWords.some(f => f.word === word && f.type === 'target')) return jsonResponse({ type: 'already_found' });
+  if (foundWords.some(f => f.word === word)) return jsonResponse({ type: 'already_found' });
 
   const targetMatch = puzzle.words.find(w => w.word === word);
   if (targetMatch) {
