@@ -35,10 +35,12 @@ export async function onRequestPost({ request, env }) {
   let hintCharges = state ? state.hint_charges : 0;
   const hintsUsed = state ? state.hints_used : 0;
 
-  if (foundWords.some(f => f.word === word)) return jsonResponse({ type: 'already_found' });
-
   const targetMatch = puzzle.words.find(w => w.word === word);
   if (targetMatch) {
+    // Check if already found as a target specifically
+    if (foundWords.some(f => f.word === word && f.type === 'target')) {
+      return jsonResponse({ type: 'already_found' });
+    }
     const isSpangram = word === puzzle.spangram;
     foundWords.push({ word, type: 'target', isSpangram, path });
     await saveState(env.DB, auth.userId, date, foundWords, hintCharges, hintsUsed);
@@ -49,6 +51,9 @@ export async function onRequestPost({ request, env }) {
     }
     return jsonResponse({ type: 'target', word, isSpangram, completed, found: foundWords.filter(f => f.type === 'target').length, total: puzzle.words.length });
   }
+
+  // Not a target word — check if already tried (bonus words)
+  if (foundWords.some(f => f.word === word)) return jsonResponse({ type: 'already_found' });
 
   if (word.length >= 4 && !foundWords.some(f => f.word === word)) {
     try {
