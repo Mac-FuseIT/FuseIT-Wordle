@@ -140,8 +140,8 @@ export async function onRequestPost({ request, env }) {
     if (!destCol) return errorResponse('Invalid destination column', 400);
 
     if (destCol.visible.length === 0 && destCol.hidden.length === 0) {
-      // Empty column: only King can go
-      if (getRank(bottomCard) === 'K') valid = true;
+      // Empty column: any card can go
+      valid = true;
     } else if (destCol.visible.length > 0) {
       const topCard = destCol.visible[destCol.visible.length - 1];
       // Must be one rank lower and opposite color

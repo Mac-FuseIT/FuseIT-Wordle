@@ -184,21 +184,6 @@ async function fetchWordsForSpangram(spangram, topic) {
     }
   }
 
-  // Fallback: if tight sources produced fewer than 15 words, allow ml (strict freq)
-  if (Object.keys(scored).length < 15) {
-    for (const w of mlRes) {
-      if (isProperNoun(w)) continue;
-      const word = w.word.toLowerCase();
-      if (!/^[a-z]+$/.test(word) || word.length < 4 || word.length > 8) continue;
-      if (word === spangram || word === topic || word === singular) continue;
-      if (scored[word]) continue; // already scored
-      const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
-      const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
-      if (freq < 3.0) continue; // stricter freq for fallback
-      scored[word] = 1000; // very low score — only used if nothing better exists
-    }
-  }
-
   // Words that appear in multiple signal sources get a bonus multiplier
   const signalCounts = {};
   function countSignal(results) {
