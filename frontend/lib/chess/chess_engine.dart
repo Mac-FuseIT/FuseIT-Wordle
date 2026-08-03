@@ -47,16 +47,12 @@ class ChessEngine {
 
     _worker!.onmessage = (web.MessageEvent event) {
       final data = event.data;
-      if (data == null) return;
-      // Nuclear fix: in dart2js, Worker.postMessage strings arrive as native
-      // JS strings. The package:web type system exposes them as JSAny?, and
-      // every strongly-typed cast (isA<JSString>(), `as JSString`, dynamic
-      // cast) has proven unreliable at runtime. String interpolation compiles
-      // to JS's `'' + value` which calls the JS engine's implicit toString —
-      // for a plain JS string this returns the string itself, and it cannot
-      // throw. For non-string messages it returns '[object Object]', which
-      // won't match any UCI keyword so _onMessage will safely ignore it.
+      if (data == null) {
+        print('[ChessEngine] onmessage: data is null');
+        return;
+      }
       final line = '$data';
+      print('[ChessEngine] received: "$line" (length=${line.length})');
       if (line.isEmpty || line == 'null') return;
       _onMessage(line);
     }.toJS;
@@ -67,12 +63,13 @@ class ChessEngine {
     await _readyCompleter!.future.timeout(
       const Duration(seconds: 15),
       onTimeout: () {
-        // Engine took too long — mark as timed-out but don't crash.
+        print('[ChessEngine] TIMEOUT: engine did not respond in 15s');
         _readyCompleter = null;
       },
     );
 
     _ready = true;
+    print('[ChessEngine] init complete, ready=$_ready');
   }
 
   /// Returns the best UCI move string (e.g. `'e2e4'`, `'e7e8q'`) for [fen]
@@ -108,12 +105,15 @@ class ChessEngine {
   // ---------------------------------------------------------------------------
 
   void _onMessage(String line) {
+    print('[ChessEngine] _onMessage: "$line"');
     // Use startsWith rather than equality so that engines which append '\n'
     // or trailing whitespace still match correctly.
     if (line.startsWith('uciok')) {
+      print('[ChessEngine] Got uciok! Sending isready...');
       // Engine acknowledged UCI mode — ask if it's ready to accept commands.
       _sendCommand('isready');
     } else if (line.startsWith('readyok')) {
+      print('[ChessEngine] Got readyok! Init complete.');
       // Only complete the init handshake once; ignore subsequent 'readyok'
       // responses (e.g. those triggered inside _configureElo).
       if (_readyCompleter != null && !_readyCompleter!.isCompleted) {
@@ -124,6 +124,7 @@ class ChessEngine {
       // "bestmove e2e4 ponder d7d5"  →  parts[1] == 'e2e4'
       final parts = line.split(' ');
       final move = parts.length > 1 ? parts[1] : '';
+      print('[ChessEngine] Got bestmove: $move');
       if (_moveCompleter != null && !_moveCompleter!.isCompleted) {
         _moveCompleter!.complete(move);
       }
@@ -178,6 +179,7 @@ class ChessEngine {
   // ---------------------------------------------------------------------------
 
   void _sendCommand(String cmd) {
+    print('[ChessEngine] sending: "$cmd"');
     _worker?.postMessage(cmd.toJS);
   }
 }
