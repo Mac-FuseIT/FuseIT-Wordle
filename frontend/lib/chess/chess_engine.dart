@@ -48,11 +48,16 @@ class ChessEngine {
     _worker!.onmessage = (web.MessageEvent event) {
       final data = event.data;
       if (data == null) return;
-      // The engine posts plain strings via postMessage(line).
-      // Use isA<JSString>() for a safe type-check before casting;
-      // silently ignore any non-string messages (e.g. ArrayBuffer progress).
-      if (!data.isA<JSString>()) return;
-      final line = (data as JSString).toDart;
+      // Nuclear fix: in dart2js, Worker.postMessage strings arrive as native
+      // JS strings. The package:web type system exposes them as JSAny?, and
+      // every strongly-typed cast (isA<JSString>(), `as JSString`, dynamic
+      // cast) has proven unreliable at runtime. String interpolation compiles
+      // to JS's `'' + value` which calls the JS engine's implicit toString —
+      // for a plain JS string this returns the string itself, and it cannot
+      // throw. For non-string messages it returns '[object Object]', which
+      // won't match any UCI keyword so _onMessage will safely ignore it.
+      final line = '$data';
+      if (line.isEmpty || line == 'null') return;
       _onMessage(line);
     }.toJS;
 
