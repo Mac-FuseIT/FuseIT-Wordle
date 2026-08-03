@@ -259,15 +259,81 @@ List<List<String>> generateTarget(
 
   // Pick patterns that actually USE all colors for this difficulty.
   // 2-color patterns: most work fine (indices 0-7, 11, 12, 16-19)
-  // 3-color patterns: 8, 9, 10, 13, 14, 15
   if (numColors == 2) {
     final validPatterns = [0, 1, 2, 3, 4, 5, 6, 7, 11, 12, 16, 17, 18, 19];
     final patternIndex = validPatterns[rng.nextInt(validPatterns.length)];
     return _generateWithColors(rng, patternIndex, colors);
   } else if (numColors == 3) {
-    final validPatterns = [8, 9, 10, 13, 14, 15];
-    final patternIndex = validPatterns[rng.nextInt(validPatterns.length)];
-    return _generateWithColors(rng, patternIndex, colors);
+    // Mild: 2 combined patterns with 3 colors.
+    // Each pattern assigns one color to a region, a second pattern assigns
+    // another color, and everything else becomes the third color.
+    // This requires the player to write 2 if-conditions to solve it.
+    final mildPatterns = <List<List<String>> Function(List<String> c)>[
+      // Pattern 1: diagonal + border
+      (c) => _makeGrid((x, y) {
+            if (x == y) return c[0];
+            if (x == 0 || x == 4 || y == 0 || y == 4) return c[1];
+            return c[2];
+          }),
+      // Pattern 2: cross + corners
+      (c) => _makeGrid((x, y) {
+            if (x == 2 || y == 2) return c[0];
+            if ((x == 0 || x == 4) && (y == 0 || y == 4)) return c[1];
+            return c[2];
+          }),
+      // Pattern 3: checkerboard + top row override
+      (c) => _makeGrid((x, y) {
+            if (y == 0) return c[2];
+            if ((x + y) % 2 == 0) return c[0];
+            return c[1];
+          }),
+      // Pattern 4: diamond + anti-diagonal
+      (c) => _makeGrid((x, y) {
+            if ((x - 2).abs() + (y - 2).abs() <= 1) return c[0];
+            if (x + y == 4) return c[1];
+            return c[2];
+          }),
+      // Pattern 5: vertical halves + middle column
+      (c) => _makeGrid((x, y) {
+            if (x == 2) return c[2];
+            if (x < 2) return c[0];
+            return c[1];
+          }),
+      // Pattern 6: horizontal bands + diagonal override
+      (c) => _makeGrid((x, y) {
+            if (x == y) return c[2];
+            if (y < 2) return c[0];
+            return c[1];
+          }),
+      // Pattern 7: X-pattern + center
+      (c) => _makeGrid((x, y) {
+            if (x == 2 && y == 2) return c[2];
+            if (x == y || x + y == 4) return c[0];
+            return c[1];
+          }),
+      // Pattern 8: even rows + first column override
+      (c) => _makeGrid((x, y) {
+            if (x == 0) return c[2];
+            if (y % 2 == 0) return c[0];
+            return c[1];
+          }),
+      // NEW Pattern 9: spiral-like outer edges
+      // top row + right col → c[0]; bottom row + left col → c[1]; interior → c[2]
+      (c) => _makeGrid((x, y) {
+            if (y == 0 || x == 4) return c[0];
+            if (y == 4 || x == 0) return c[1];
+            return c[2];
+          }),
+      // NEW Pattern 10: zigzag rows
+      // even rows left-heavy → c[0]; odd rows right-heavy → c[1]; rest → c[2]
+      (c) => _makeGrid((x, y) {
+            if (y % 2 == 0 && x < 3) return c[0];
+            if (y % 2 == 1 && x >= 2) return c[1];
+            return c[2];
+          }),
+    ];
+    final idx = rng.nextInt(mildPatterns.length);
+    return mildPatterns[idx](colors);
   } else {
     // 4 colors: composite patterns that layer different conditions.
     // Each pattern assigns a distinct color to a geometrically distinct region,
@@ -338,6 +404,36 @@ List<List<String>> generateTarget(
             if (x % 2 == 0) return c[1];
             if (y % 2 == 0) return c[2];
             return c[3];
+          }),
+      // NEW Pattern I: zigzag + modulo
+      // 4 zones based on row parity AND column parity/position
+      (c) => _makeGrid((x, y) {
+            if (y % 2 == 0 && x % 2 == 0) return c[0];
+            if (y % 2 == 0 && x % 2 == 1) return c[1];
+            if (y % 2 == 1 && x < 3) return c[2];
+            return c[3];
+          }),
+      // NEW Pattern J: concentric rings — Chebyshev distance from center
+      // center cell=0, inner ring (dist=1)=1, outer ring (dist=2)=2, corners=3
+      (c) => _makeGrid((x, y) {
+            final dist =
+                (x - 2).abs() > (y - 2).abs()
+                    ? (x - 2).abs()
+                    : (y - 2).abs();
+            if (dist == 0) return c[0];
+            if (dist == 1) return c[1];
+            if (dist == 2) return c[2];
+            return c[3]; // safety fallback (unreachable in 5×5)
+          }),
+      // NEW Pattern K: corner 2×2 blocks + middle cross cycling
+      // top-left 2×2=0, top-right 2×2=1, bottom-left 2×2=2, bottom-right 2×2=3
+      // middle cross cells cycle through colors by (x+y)%4
+      (c) => _makeGrid((x, y) {
+            if (x <= 1 && y <= 1) return c[0];
+            if (x >= 3 && y <= 1) return c[1];
+            if (x <= 1 && y >= 3) return c[2];
+            if (x >= 3 && y >= 3) return c[3];
+            return c[(x + y) % 4];
           }),
     ];
 
