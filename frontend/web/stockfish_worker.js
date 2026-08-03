@@ -5,14 +5,14 @@
 // the Dart main thread and the engine.
 //
 // Expected assets (must be placed manually by user):
-//   frontend/web/stockfish/stockfish-nnue-16-single.js   (~1.8 MB)
-//   frontend/web/stockfish/stockfish-nnue-16-single.wasm (~1.8 MB)
+//   frontend/web/stockfish/stockfish-18-lite-single.js   (~1.8 MB)
+//   frontend/web/stockfish/stockfish-18-lite-single.wasm (~1.8 MB)
 //
 // Download from: https://github.com/nmrugg/stockfish.js/releases
 //
-// How this works (nmrugg/stockfish.js v16+ API):
+// How this works (nmrugg/stockfish.js v18+ API):
 //
-// The stockfish-nnue-16-single.js engine script, when loaded inside a Web
+// The stockfish-18-lite-single.js engine script, when loaded inside a Web
 // Worker via importScripts, reads the WASM path from self.location.hash.
 // The engine then sets up its own onmessage/postMessage hooks directly on
 // the Worker global scope:
@@ -24,7 +24,7 @@
 // the script. The Dart caller must spawn this worker with the WASM path
 // appended as a URL hash fragment:
 //
-//   Worker('stockfish_worker.js#./stockfish/stockfish-nnue-16-single.wasm')
+//   Worker('stockfish_worker.js#./stockfish/stockfish-18-lite-single.wasm')
 //
 // If no hash is provided, the engine will attempt to resolve the WASM file
 // relative to the worker script location using the default naming convention
@@ -55,7 +55,7 @@
     // Load the Stockfish engine script.
     // After this call, the engine has hooked itself into self.onmessage and
     // will call postMessage() for all UCI output lines.
-    importScripts('./stockfish/stockfish-nnue-16-single.js');
+    importScripts('./stockfish/stockfish-18-lite-single.js');
     engineLoaded = true;
 
     // --- Newer API fallback ---
