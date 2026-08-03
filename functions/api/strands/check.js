@@ -56,16 +56,27 @@ export async function onRequestPost({ request, env }) {
   if (foundWords.some(f => f.word === word)) return jsonResponse({ type: 'already_found' });
 
   if (word.length >= 4 && !foundWords.some(f => f.word === word)) {
-    try {
-      const dictRes = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word.toLowerCase()}`);
-      if (dictRes.ok) {
-        foundWords.push({ word, type: 'bonus', path });
-        const bonusCount = foundWords.filter(f => f.type === 'bonus').length;
-        if (bonusCount % 3 === 0) hintCharges++;
-        await saveState(env.DB, auth.userId, date, foundWords, hintCharges, hintsUsed);
-        return jsonResponse({ type: 'bonus', word, hintCharges, bonusCount });
+    let dictOk = false;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const dictRes = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word.toLowerCase()}`);
+        if (dictRes.ok) {
+          dictOk = true;
+          break;
+        }
+        if (dictRes.status === 404) break; // genuinely not a word, don't retry
+      } catch (_) {
+        // Network error — retry
+        if (attempt === 0) await new Promise(r => setTimeout(r, 300));
       }
-    } catch (_) {}
+    }
+    if (dictOk) {
+      foundWords.push({ word, type: 'bonus', path });
+      const bonusCount = foundWords.filter(f => f.type === 'bonus').length;
+      if (bonusCount % 3 === 0) hintCharges++;
+      await saveState(env.DB, auth.userId, date, foundWords, hintCharges, hintsUsed);
+      return jsonResponse({ type: 'bonus', word, hintCharges, bonusCount });
+    }
   }
 
   return jsonResponse({ type: 'invalid' });
