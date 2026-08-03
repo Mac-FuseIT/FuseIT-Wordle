@@ -34,7 +34,15 @@ class ChessEngine {
   ///   2. Engine replies 'uciok' → we send 'isready'
   ///   3. Engine replies 'readyok' → init complete
   Future<void> init() async {
-    _worker = web.Worker('stockfish_worker.js'.toJS);
+    // The hash tells the Stockfish engine where to find its WASM file.
+    // When stockfish-18-lite-single.js runs inside the worker via importScripts,
+    // it reads self.location.hash to locate the WASM:
+    //   e = self.location.hash.substr(1).split(",")
+    //   a = decodeURIComponent(e[0] || fallback)
+    // Passing the path here avoids copying the WASM to the web root.
+    _worker = web.Worker(
+      'stockfish_worker.js#stockfish/stockfish-18-lite-single.wasm'.toJS,
+    );
     _readyCompleter = Completer<void>();
 
     _worker!.onmessage = (web.MessageEvent event) {
