@@ -48,6 +48,10 @@ class ChessEngine {
     _worker!.onmessage = (web.MessageEvent event) {
       final data = event.data;
       if (data == null) return;
+      // The engine posts plain strings via postMessage(line).
+      // Use isA<JSString>() for a safe type-check before casting;
+      // silently ignore any non-string messages (e.g. ArrayBuffer progress).
+      if (!data.isA<JSString>()) return;
       final line = (data as JSString).toDart;
       _onMessage(line);
     }.toJS;
@@ -99,10 +103,12 @@ class ChessEngine {
   // ---------------------------------------------------------------------------
 
   void _onMessage(String line) {
-    if (line == 'uciok') {
+    // Use startsWith rather than equality so that engines which append '\n'
+    // or trailing whitespace still match correctly.
+    if (line.startsWith('uciok')) {
       // Engine acknowledged UCI mode — ask if it's ready to accept commands.
       _sendCommand('isready');
-    } else if (line == 'readyok') {
+    } else if (line.startsWith('readyok')) {
       // Only complete the init handshake once; ignore subsequent 'readyok'
       // responses (e.g. those triggered inside _configureElo).
       if (_readyCompleter != null && !_readyCompleter!.isCompleted) {
