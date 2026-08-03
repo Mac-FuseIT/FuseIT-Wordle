@@ -64,10 +64,9 @@ async function fetchSpangramCandidates(topic) {
   }
 
   // Strategy 3: Plural form fits (add 's' to topic)
-  const plural = lower + 's';
-  if (lower.length === 5 && /^[a-z]+$/.test(plural) && !candidates.length) {
-    // Only use plurals that make linguistic sense
-    // (not "chesss" or "icees" — only regular plurals of 5-letter nouns)
+  // Only if topic doesn't already end in 's'
+  if (lower.length === 5 && !lower.endsWith('s') && !candidates.length) {
+    const plural = lower + 's';
     candidates.push(plural);
   }
 
@@ -163,7 +162,7 @@ async function fetchWordsForSpangram(spangram, topic) {
   // Higher bonus = more likely to be picked. Tight relations outrank loose ones.
   processResults(allResults.gen, 100000);  // hyponyms (types of)
   processResults(allResults.com, 90000);   // parts/comprises
-  processResults(allResults.trg, 80000);   // co-occurrence
+  processResults(allResults.trg, 50000);   // co-occurrence (lower — often noisy)
   processResults(allResults.jjb, 70000);   // adjectives
 
   // ml as amplifier only: boost words already scored from tight sources
