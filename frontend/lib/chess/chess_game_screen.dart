@@ -3,7 +3,7 @@ import 'package:chess/chess.dart' as chess;
 import 'package:material_symbols_icons/symbols.dart';
 import '../models/app_theme.dart';
 import '../services/api_service.dart';
-import 'chess_ai.dart';
+import 'chess_engine.dart';
 import 'chess_board_widget.dart';
 
 class ChessGameScreen extends StatefulWidget {
@@ -22,7 +22,7 @@ class ChessGameScreen extends StatefulWidget {
 
 class _ChessGameScreenState extends State<ChessGameScreen> {
   late chess.Chess _game;
-  late ChessAI _ai;
+  late ChessEngine _engine;
   List<String> _moveHistory = [];
   int _moveCount = 0;
   int _redosLeft = 2;
@@ -42,7 +42,8 @@ class _ChessGameScreenState extends State<ChessGameScreen> {
   @override
   void initState() {
     super.initState();
-    _ai = ChessAI(widget.botLevel);
+    _engine = ChessEngine();
+    _engine.init(); // fire-and-forget init
     _playerSide = widget.playerColor == 'black' ? chess.Color.BLACK : chess.Color.WHITE;
 
     if (widget.session != null) {
@@ -60,6 +61,12 @@ class _ChessGameScreenState extends State<ChessGameScreen> {
       }
     }
     _checkGameEnd();
+  }
+
+  @override
+  void dispose() {
+    _engine.dispose();
+    super.dispose();
   }
 
   bool get _isViewingHistory => _viewingIndex != null;
@@ -238,20 +245,34 @@ class _ChessGameScreenState extends State<ChessGameScreen> {
 
   void _makeBotMove() async {
     if (_gameOver) return;
-    await Future.delayed(const Duration(milliseconds: 50));
-    final move = _ai.getMove(_game);
-    if (move != null) {
-      // Get from/to before making the move
-      final verbose = _game.moves({'verbose': true});
-      for (final m in verbose) {
-        if (m['san'] == move) { _lastMoveFrom = m['from']; _lastMoveTo = m['to']; break; }
-      }
-      _moveHistory.add(move);
-      _game.move(move);
-      setState(() {});
-      _checkGameEnd();
-      _saveSession();
-    }
+
+    // Small delay for "thinking" feel
+    await Future.delayed(const Duration(milliseconds: 200));
+    if (!mounted) return;
+
+    final fen = _game.fen;
+    final bestMove = await _engine.getBestMove(fen, widget.botLevel);
+    if (!mounted || bestMove.isEmpty) return;
+
+    // Parse UCI move (e.g., 'e2e4' or 'e7e8q' for promotion)
+    final from = bestMove.substring(0, 2);
+    final to = bestMove.substring(2, 4);
+    final promotion = bestMove.length > 4 ? bestMove[4] : null;
+
+    // Track last move highlights before applying
+    _lastMoveFrom = from;
+    _lastMoveTo = to;
+
+    // Get SAN notation for move history
+    final san = _getMoveAsSan(from, to, promotion);
+    _moveHistory.add(san ?? bestMove);
+
+    // Apply the move
+    _game.move({'from': from, 'to': to, if (promotion != null) 'promotion': promotion});
+
+    setState(() {});
+    _checkGameEnd();
+    _saveSession();
   }
 
   void _checkGameEnd() {
