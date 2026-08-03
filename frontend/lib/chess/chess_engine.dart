@@ -48,16 +48,19 @@ class ChessEngine {
     _worker!.onmessage = (web.MessageEvent event) {
       final data = event.data;
       if (data == null) return;
-      // The engine posts plain strings via postMessage(line).
-      // Cast to JSString and extract the Dart string; if the message is not a
-      // string (e.g. an ArrayBuffer progress event) the cast throws — ignore it.
+      // In dart2js (Flutter web), Worker.postMessage strings arrive as native
+      // JS strings which ARE Dart strings at runtime — the JSString interop
+      // wrapper is a compile-time type only. Casting `data as JSString` throws
+      // a TypeError that the catch block silently swallows, discarding every
+      // engine message. Instead, go through `dynamic` so dart2js emits a
+      // plain JS identity cast, then call `.toString()` which is always safe.
       final String line;
       try {
-        line = (data as JSString).toDart;
+        line = (data as dynamic).toString();
       } catch (_) {
-        // Non-string message — ignore.
         return;
       }
+      if (line.isEmpty) return;
       _onMessage(line);
     }.toJS;
 
