@@ -48,19 +48,16 @@ class ChessEngine {
     _worker!.onmessage = (web.MessageEvent event) {
       final data = event.data;
       if (data == null) return;
-      // In dart2js (Flutter web), Worker.postMessage strings arrive as native
-      // JS strings which ARE Dart strings at runtime — the JSString interop
-      // wrapper is a compile-time type only. Casting `data as JSString` throws
-      // a TypeError that the catch block silently swallows, discarding every
-      // engine message. Instead, go through `dynamic` so dart2js emits a
-      // plain JS identity cast, then call `.toString()` which is always safe.
-      final String line;
-      try {
-        line = (data as dynamic).toString();
-      } catch (_) {
-        return;
-      }
-      if (line.isEmpty) return;
+      // Nuclear fix: in dart2js, Worker.postMessage strings arrive as native
+      // JS strings. The package:web type system exposes them as JSAny?, and
+      // every strongly-typed cast (isA<JSString>(), `as JSString`, dynamic
+      // cast) has proven unreliable at runtime. String interpolation compiles
+      // to JS's `'' + value` which calls the JS engine's implicit toString —
+      // for a plain JS string this returns the string itself, and it cannot
+      // throw. For non-string messages it returns '[object Object]', which
+      // won't match any UCI keyword so _onMessage will safely ignore it.
+      final line = '$data';
+      if (line.isEmpty || line == 'null') return;
       _onMessage(line);
     }.toJS;
 
