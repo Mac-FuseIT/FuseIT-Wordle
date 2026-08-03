@@ -38,12 +38,13 @@ class _ChessGameScreenState extends State<ChessGameScreen> {
   int? _viewingIndex;
 
   late chess.Color _playerSide;
+  late Future<void> _engineReady;
 
   @override
   void initState() {
     super.initState();
     _engine = ChessEngine();
-    _engine.init(); // fire-and-forget init
+    _engineReady = _engine.init(); // store Future so _makeBotMove can await it
     _playerSide = widget.playerColor == 'black' ? chess.Color.BLACK : chess.Color.WHITE;
 
     if (widget.session != null) {
@@ -245,6 +246,8 @@ class _ChessGameScreenState extends State<ChessGameScreen> {
 
   void _makeBotMove() async {
     if (_gameOver) return;
+    await _engineReady;
+    if (!mounted || _gameOver) return;
 
     // Small delay for "thinking" feel
     await Future.delayed(const Duration(milliseconds: 200));
