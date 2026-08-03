@@ -49,14 +49,19 @@ class ChessEngine {
       final data = event.data;
       if (data == null) return;
       // The engine posts plain strings via postMessage(line).
-      // Use isA<JSString>() for a safe type-check before casting;
-      // silently ignore any non-string messages (e.g. ArrayBuffer progress).
-      if (!data.isA<JSString>()) return;
-      final line = (data as JSString).toDart;
+      // Cast to JSString and extract the Dart string; if the message is not a
+      // string (e.g. an ArrayBuffer progress event) the cast throws — ignore it.
+      final String line;
+      try {
+        line = (data as JSString).toDart;
+      } catch (_) {
+        // Non-string message — ignore.
+        return;
+      }
       _onMessage(line);
     }.toJS;
 
-    // Kick off UCI handshake.
+    // Kick off UCI handshake AFTER onmessage is attached so no reply is missed.
     _sendCommand('uci');
 
     await _readyCompleter!.future.timeout(
