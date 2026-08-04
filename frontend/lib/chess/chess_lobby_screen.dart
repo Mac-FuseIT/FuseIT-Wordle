@@ -380,7 +380,15 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
             color: color.withValues(alpha: 0.2),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
           ),
-          child: Text('Skill Level $elo  •  $eloRange ELO', textAlign: TextAlign.center, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold)),
+          child: title == 'Phantom'
+              ? Text('$elo ELO', textAlign: TextAlign.center, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold))
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Skill Level $elo', textAlign: TextAlign.center, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold)),
+                    Text('$eloRange ELO', textAlign: TextAlign.center, style: TextStyle(color: color, fontSize: 10)),
+                  ],
+                ),
         ),
         // Card
         GestureDetector(
