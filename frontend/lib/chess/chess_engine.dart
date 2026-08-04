@@ -135,42 +135,30 @@ class ChessEngine {
   // ELO / strength configuration
   // ---------------------------------------------------------------------------
 
-  /// Sends UCI options to match the target [elo] strength.
+  /// Sends UCI options to configure the Stockfish Skill Level (0-20).
   ///
-  /// Stockfish supports `UCI_Elo` only above ~1320; below that we fall back to
-  /// the discrete `Skill Level` option (0–20).
-  void _configureElo(int elo) {
-    if (elo >= 1320) {
-      _sendCommand('setoption name UCI_LimitStrength value true');
-      _sendCommand('setoption name UCI_Elo value $elo');
+  /// botLevel is now directly a Stockfish Skill Level, so we set it directly.
+  void _configureElo(int skillLevel) {
+    // botLevel is now directly a Stockfish Skill Level (0-20)
+    if (skillLevel >= 20) {
+      // Full strength
+      _sendCommand('setoption name UCI_LimitStrength value false');
+      _sendCommand('setoption name Skill Level value 20');
     } else {
       _sendCommand('setoption name UCI_LimitStrength value false');
-      _sendCommand(
-        'setoption name Skill Level value ${_eloToSkillLevel(elo)}',
-      );
+      _sendCommand('setoption name Skill Level value $skillLevel');
     }
     // No 'isready' here — we don't want the 'readyok' reply to accidentally
     // complete the init completer, and we don't need to wait before sending
     // 'position'+'go' because Stockfish processes commands sequentially.
   }
 
-  /// Maps ELO (100–1319) to Stockfish Skill Level (0–20).
-  int _eloToSkillLevel(int elo) {
-    if (elo < 200) return 0;
-    if (elo < 400) return 2;
-    if (elo < 600) return 5;
-    if (elo < 800) return 8;
-    if (elo < 1000) return 11;
-    if (elo < 1200) return 14;
-    return 17;
-  }
-
-  /// Think time in milliseconds, scaled to ELO so weaker bots feel snappier.
-  int _getMoveTime(int elo) {
-    if (elo < 400) return 100;
-    if (elo < 800) return 200;
-    if (elo < 1000) return 400;
-    if (elo < 1320) return 600;
+  /// Think time in milliseconds, scaled to skill level so weaker bots feel snappier.
+  int _getMoveTime(int skillLevel) {
+    if (skillLevel < 3) return 200;
+    if (skillLevel < 6) return 400;
+    if (skillLevel < 10) return 600;
+    if (skillLevel < 15) return 800;
     return 1000;
   }
 

@@ -362,9 +362,17 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
     required Color color,
     required VoidCallback onPlay,
   }) {
+    const eloRanges = [
+      '1000-1100', '1100-1200', '1200-1300', '1300-1400', '1400-1450',
+      '1450-1500', '1500-1550', '1550-1600', '1600-1650', '1650-1700',
+      '1700-1750', '1750-1800', '1800-1900', '1900-2000', '2000-2100',
+      '2100-2200', '2200-2400', '2400-2600', '2600-2800', '2800-3000', '3500+',
+    ];
+    final eloRange = elo >= 0 && elo <= 20 ? eloRanges[elo] : 'Unknown';
+
     return Column(
       children: [
-        // ELO bar above card
+        // Skill level bar above card
         Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(vertical: 6),
@@ -372,7 +380,7 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
             color: color.withValues(alpha: 0.2),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
           ),
-          child: Text('Bot: $elo ELO', textAlign: TextAlign.center, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold)),
+          child: Text('Skill Level $elo  •  $eloRange ELO', textAlign: TextAlign.center, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold)),
         ),
         // Card
         GestureDetector(

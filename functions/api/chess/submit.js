@@ -46,6 +46,7 @@ export async function onRequestPost({ request, env }) {
 }
 
 function getDailyBotLevel(dateStr) {
+  // Seeded RNG from date
   let h = 0xdeadbeef;
   const s = 'chess:' + dateStr;
   for (let i = 0; i < s.length; i++) {
@@ -54,5 +55,21 @@ function getDailyBotLevel(dateStr) {
   }
   h = Math.imul(h ^ (h >>> 16), 2246822507);
   h = (h ^ (h >>> 16)) >>> 0;
-  return 100 + (h % 1401);
+
+  // Weighted skill level selection (0-20)
+  // Lower levels are more likely (friendlier for office players)
+  // Weights: level 0 has weight 20, level 1 has 18, ... level 20 has 1
+  const weights = [20, 18, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 3, 2, 2, 1, 1];
+  const totalWeight = weights.reduce((a, b) => a + b, 0);
+  let roll = h % totalWeight;
+  let skillLevel = 0;
+  for (let i = 0; i < weights.length; i++) {
+    roll -= weights[i];
+    if (roll < 0) {
+      skillLevel = i;
+      break;
+    }
+  }
+
+  return skillLevel;
 }

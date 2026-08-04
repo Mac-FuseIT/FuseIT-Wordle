@@ -334,7 +334,21 @@ class _ChessGameScreenState extends State<ChessGameScreen> {
             IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: _handleBack),
             const Text('Chess.IT', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
             const Spacer(),
-            Text('Bot: ${widget.botLevel} ELO', style: const TextStyle(color: Colors.white70, fontSize: 14)),
+            Builder(builder: (context) {
+              const eloRanges = [
+                '1000-1100', '1100-1200', '1200-1300', '1300-1400', '1400-1450',
+                '1450-1500', '1500-1550', '1550-1600', '1600-1650', '1650-1700',
+                '1700-1750', '1750-1800', '1800-1900', '1900-2000', '2000-2100',
+                '2100-2200', '2200-2400', '2400-2600', '2600-2800', '2800-3000', '3500+',
+              ];
+              final eloRange = widget.botLevel >= 0 && widget.botLevel <= 20
+                  ? eloRanges[widget.botLevel]
+                  : 'Unknown';
+              return Text(
+                'Skill Level ${widget.botLevel}  •  $eloRange ELO',
+                style: const TextStyle(color: Colors.white70, fontSize: 14),
+              );
+            }),
           ]),
         ),
         const Divider(color: Color(0xFF3A3A3C), height: 1),
