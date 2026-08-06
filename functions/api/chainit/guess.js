@@ -87,10 +87,11 @@ export async function onRequestPost({ request, env }) {
       try {
         const dictRes = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${guess}`);
         if (dictRes.ok) { dictOk = true; break; }
-        if (dictRes.status === 404) break;
+        if (dictRes.status === 404) break; // genuinely not a word
       } catch (_) {
-        if (attempt < 2) await new Promise(r => setTimeout(r, 500));
+        // Network error — retry
       }
+      if (attempt < 2) await new Promise(r => setTimeout(r, 1500));
     }
     if (!dictOk) return errorResponse('Not a valid word');
   }

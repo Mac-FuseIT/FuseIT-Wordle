@@ -67,8 +67,8 @@ export async function onRequestPost({ request, env }) {
         if (dictRes.status === 404) break; // genuinely not a word, don't retry
       } catch (_) {
         // Network error — retry
-        if (attempt < 2) await new Promise(r => setTimeout(r, 500));
       }
+      if (attempt < 2) await new Promise(r => setTimeout(r, 1500));
     }
     if (dictOk) {
       foundWords.push({ word, type: 'bonus', path });
