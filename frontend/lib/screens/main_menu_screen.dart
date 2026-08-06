@@ -42,7 +42,7 @@ class MainMenuScreen extends StatelessWidget {
       children: [
         // Fixed header: title + subtitle + profile/logout
         Padding(
-          padding: const EdgeInsets.only(top: 32, left: 32, right: 32),
+          padding: const EdgeInsets.only(top: 102, left: 32, right: 32),
           child: Column(
             children: [
               Text(
@@ -120,12 +120,7 @@ class MainMenuScreen extends StatelessWidget {
                     _GameCard(title: 'Cross.IT', subtitle: 'Mini crossword', icon: Icons.grid_on, color: theme.present, onTap: onCrossIT),
                     const SizedBox(width: 16),
                     _GameCard(title: 'Span.IT', subtitle: 'Word strands', icon: Icons.link, color: theme.correct, onTap: onGramIT),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
+                    const SizedBox(width: 16),
                     _GameCard(title: 'Chain.IT', subtitle: 'Word ladder', icon: Icons.swap_vert, color: theme.present, onTap: onChainIT),
                   ],
                 ),
