@@ -44,8 +44,17 @@ export async function onRequestPost({ request, env }) {
   // Check target word first - if it matches, skip dictionary validation
   const isCorrect = normalizedGuess === word;
   if (!isCorrect) {
-    const dictRes = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${normalizedGuess}`);
-    if (!dictRes.ok) return errorResponse('Not a valid word');
+    let dictOk = false;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const dictRes = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${normalizedGuess}`);
+        if (dictRes.ok) { dictOk = true; break; }
+        if (dictRes.status === 404) break;
+      } catch (_) {
+        if (attempt < 2) await new Promise(r => setTimeout(r, 500));
+      }
+    }
+    if (!dictOk) return errorResponse('Not a valid word');
   }
 
   // Check if already completed

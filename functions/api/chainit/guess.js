@@ -83,13 +83,13 @@ export async function onRequestPost({ request, env }) {
   // Dictionary validation (skip if guess matches target — it was pre-validated)
   if (guess !== targetWord) {
     let dictOk = false;
-    for (let attempt = 0; attempt < 2; attempt++) {
+    for (let attempt = 0; attempt < 3; attempt++) {
       try {
         const dictRes = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${guess}`);
         if (dictRes.ok) { dictOk = true; break; }
         if (dictRes.status === 404) break;
       } catch (_) {
-        if (attempt === 0) await new Promise(r => setTimeout(r, 300));
+        if (attempt < 2) await new Promise(r => setTimeout(r, 500));
       }
     }
     if (!dictOk) return errorResponse('Not a valid word');
