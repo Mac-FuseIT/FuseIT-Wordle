@@ -19,6 +19,8 @@ import 'chess/chess_lobby_screen.dart';
 import 'blackjack/blackjack_lobby_screen.dart'; // class renamed to CasinoLobbyScreen
 import 'solitaire/solitaire_lobby_screen.dart';
 import 'codeit/codeit_screen.dart';
+import 'chainit/chainit_screen.dart';
+import 'chainit/chainit_leaderboard.dart';
 import 'widgets/wavy_background.dart';
 
 void main() => runApp(const FuseArcadeApp());
@@ -37,7 +39,7 @@ class FuseArcadeApp extends StatelessWidget {
   }
 }
 
-enum AppView { login, menu, guessGame, guessLeaderboard, crossGame, crossLeaderboard, strandsGame, strandsLeaderboard, pongGame, invadeGame, chessGame, blackjackGame, solitaireGame, codeItGame, profile }
+enum AppView { login, menu, guessGame, guessLeaderboard, crossGame, crossLeaderboard, strandsGame, strandsLeaderboard, pongGame, invadeGame, chessGame, blackjackGame, solitaireGame, codeItGame, chainItGame, chainItLeaderboard, profile }
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -132,6 +134,7 @@ class _AppShellState extends State<AppShell> {
                 onBlackjackIT: () => setState(() => _view = AppView.blackjackGame),
                 onDealIT: () => setState(() => _view = AppView.solitaireGame),
                 onCodeIT: () => setState(() => _view = AppView.codeItGame),
+                onChainIT: () => setState(() => _view = AppView.chainItGame),
                 onProfile: () => setState(() => _view = AppView.profile),
                 onLogout: _logout,
               ),
@@ -197,6 +200,19 @@ class _AppShellState extends State<AppShell> {
                 userId: _userId!,
                 nickname: _name!,
                 onBack: () => setState(() => _view = AppView.menu),
+              ),
+              AppView.chainItGame => ChainItScreen(
+                theme: _theme,
+                userId: _userId!,
+                nickname: _name!,
+                onBack: () => setState(() => _view = AppView.menu),
+                onLeaderboard: () => setState(() => _view = AppView.chainItLeaderboard),
+              ),
+              AppView.chainItLeaderboard => ChainItLeaderboard(
+                theme: _theme,
+                userId: _userId!,
+                nickname: _name!,
+                onBack: () => setState(() => _view = AppView.chainItGame),
               ),
               AppView.profile => ProfileScreen(
                 userId: _userId!, currentName: _name!, currentTheme: _theme,

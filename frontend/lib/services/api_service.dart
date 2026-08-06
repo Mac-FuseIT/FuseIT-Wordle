@@ -300,4 +300,20 @@ class ApiService {
   static List<GuessResult> parseGuesses(List<dynamic> raw) {
     return raw.map((g) => GuessResult.fromJson(g as Map<String, dynamic>)).toList();
   }
+
+  // Chain.IT
+  static Future<Map<String, dynamic>> getChainItToday() async {
+    final res = await _authGet('/api/chainit/today');
+    return jsonDecode(res.body);
+  }
+
+  static Future<Map<String, dynamic>> submitChainItGuess(String guess) async {
+    final res = await _authPost('/api/chainit/guess', body: {'guess': guess});
+    return jsonDecode(res.body);
+  }
+
+  static Future<Map<String, dynamic>> getChainItLeaderboard() async {
+    final res = await _authGet('/api/chainit/leaderboard');
+    return jsonDecode(res.body);
+  }
 }

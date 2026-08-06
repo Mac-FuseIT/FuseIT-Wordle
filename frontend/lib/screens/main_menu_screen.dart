@@ -14,6 +14,7 @@ class MainMenuScreen extends StatelessWidget {
   final VoidCallback onBlackjackIT;
   final VoidCallback onDealIT;
   final VoidCallback onCodeIT;
+  final VoidCallback onChainIT;
   final VoidCallback onProfile;
   final VoidCallback onLogout;
 
@@ -30,6 +31,7 @@ class MainMenuScreen extends StatelessWidget {
     required this.onBlackjackIT,
     required this.onDealIT,
     required this.onCodeIT,
+    required this.onChainIT,
     required this.onProfile,
     required this.onLogout,
   });
@@ -67,6 +69,8 @@ class MainMenuScreen extends StatelessWidget {
                 _GameCard(title: 'Cross.IT', subtitle: 'Mini crossword', icon: Icons.grid_on, color: theme.present, onTap: onCrossIT),
                 const SizedBox(width: 16),
                 _GameCard(title: 'Span.IT', subtitle: 'Word strands', icon: Icons.link, color: theme.correct, onTap: onGramIT),
+                const SizedBox(width: 16),
+                _GameCard(title: 'Chain.IT', subtitle: 'Word ladder', icon: Icons.swap_vert, color: theme.present, onTap: onChainIT),
               ],
             ),
             const SizedBox(height: 16),
