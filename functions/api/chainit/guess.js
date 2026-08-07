@@ -75,9 +75,15 @@ export async function onRequestPost({ request, env }) {
   // Determine previous word (start word if no guesses yet)
   const previousWord = guesses.length === 0 ? startWord : guesses[guesses.length - 1];
 
-  // Validate exactly 1 letter changed
-  if (countDifferences(previousWord, guess) !== 1) {
-    return errorResponse('Must change exactly 1 letter from previous word');
+  // Validate exactly 1 letter changed (or up to 2 for 6-letter words)
+  const diffs = countDifferences(previousWord, guess);
+  const maxChanges = length >= 6 ? 2 : 1;
+  if (diffs < 1 || diffs > maxChanges) {
+    if (maxChanges === 1) {
+      return errorResponse('Must change exactly 1 letter from previous word');
+    } else {
+      return errorResponse('Must change 1 or 2 letters from previous word');
+    }
   }
 
   // Dictionary validation (skip if guess matches target — it was pre-validated)

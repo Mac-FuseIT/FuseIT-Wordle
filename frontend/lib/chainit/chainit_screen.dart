@@ -5,6 +5,7 @@ import '../models/app_theme.dart';
 import '../models/game_state.dart';
 import '../services/api_service.dart';
 import '../widgets/keyboard.dart';
+import '../widgets/help_dialog.dart';
 
 class ChainItScreen extends StatefulWidget {
   final AppTheme theme;
@@ -103,6 +104,13 @@ class _ChainItScreenState extends State<ChainItScreen> with TickerProviderStateM
       } else {
         _scheduleScrollToBottom();
       }
+
+      // Show help on first visit (no guesses yet and game not completed)
+      if (chain.isEmpty && !(data['completed'] as bool? ?? false)) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _showHelp();
+        });
+      }
     } catch (e) {
       setState(() {
         _errorMessage = 'Failed to load puzzle';
@@ -172,6 +180,16 @@ class _ChainItScreenState extends State<ChainItScreen> with TickerProviderStateM
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) setState(() => _errorMessage = null);
     });
+  }
+
+  void _showHelp() {
+    showHelpDialog(context, widget.theme, 'Chain.IT', [
+      const HelpSection(body: 'Transform the starting word into the target word by changing one letter at a time!'),
+      const HelpSection(heading: '🔗 Rules', body: '\u2022 Change exactly ONE letter per step\n\u2022 Each step must be a valid English word\n\u2022 Keep going until you reach the target word\n\u2022 Fewest steps wins!'),
+      const HelpSection(heading: '🎨 Letter Colors', body: '\u2022 Green: letter is in the target word, correct position\n\u2022 Yellow: letter is in the target word, wrong position\n\u2022 Grey: letter is not in the target word'),
+      const HelpSection(heading: '🔢 6-Letter Words', body: 'For 6-letter puzzles, you may change up to TWO letters at a time (since longer words are harder to chain).'),
+      const HelpSection(heading: '⚡ Tips', body: '\u2022 Look at which letters need to change (grey letters)\n\u2022 Try to change one grey letter to a green/yellow one each step\n\u2022 Common word patterns help: -ING, -ATE, -OOK, etc.'),
+    ]);
   }
 
   // ---------------------------------------------------------------------------
@@ -409,7 +427,11 @@ class _ChainItScreenState extends State<ChainItScreen> with TickerProviderStateM
                   'Puzzle #$_puzzleNumber',
                   style: const TextStyle(color: Colors.grey, fontSize: 13),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 4),
+                IconButton(
+                  icon: const Icon(Icons.help_outline, color: Colors.white70, size: 20),
+                  onPressed: _showHelp,
+                ),
               ],
             ),
           ),
