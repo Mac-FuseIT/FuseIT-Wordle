@@ -51,7 +51,7 @@ export async function onRequestPost({ request, env }) {
         if (dictRes.ok) { dictOk = true; break; }
         if (dictRes.status === 404) break;
       } catch (_) {}
-      if (attempt < 2) await new Promise(r => setTimeout(r, 1500));
+      if (attempt < 2) await new Promise(r => setTimeout(r, 2500));
     }
     if (!dictOk) return errorResponse('Not a valid word');
   }

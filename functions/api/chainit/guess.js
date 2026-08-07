@@ -91,7 +91,7 @@ export async function onRequestPost({ request, env }) {
       } catch (_) {
         // Network error — retry
       }
-      if (attempt < 2) await new Promise(r => setTimeout(r, 1500));
+      if (attempt < 2) await new Promise(r => setTimeout(r, 2500));
     }
     if (!dictOk) return errorResponse('Not a valid word');
   }
