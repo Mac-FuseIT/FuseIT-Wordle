@@ -18,19 +18,64 @@ export function getChainItPuzzle(dateStr) {
   const wordLength = 4 + (lengthHash % 3); // 4, 5, or 6
 
   // Filter to only real English words — eliminates tech acronyms (GRPC, CSRF,
-  // SMTP, NUXTJS etc.) that have no valid 1-letter neighbours in a word ladder.
-  // Rules:
-  //   • At least 1 vowel for any word (drops grpc, csrf, smtp, nmap, ctrl …)
-  //   • At least 2 vowels for 5+ letter words (drops single-vowel tech jargon)
-  //   • No 4+ consecutive consonants (drops nuxtjs, nxtjs …)
-  //   • No 3+ consecutive consonants for 4-letter words (drops json, ctrl …)
+  // SMTP, NUXTJS, REGEXP etc.) that aren't in standard dictionaries and have
+  // no valid 1-letter neighbours in a word ladder.
+  //
+  // Strategy: blocklist of known tech-only terms that pass heuristic filters,
+  // combined with pattern rules for structural non-English indicators.
+  //
+  // Rules applied in order:
+  //   1. Blocklist — tech acronyms/tools that are NOT in dictionaryapi.dev
+  //   2. At least 1 vowel (drops grpc, csrf, smtp, nmap, ctrl …)
+  //   3. No 4+ consecutive consonants (drops nuxtjs …)
+  //   4. No 3+ consecutive consonants for 4-letter words (drops json, ctrl …)
+  //   5. No 'x' followed by a consonant — catches regexp (xp), nuxtjs (xtj) etc.
+  //      English words like "boxer", "oxide", "exact" have x before a vowel.
+  //   6. Ends with known tech-only suffixes that are never English word endings
+  const techOnlyWords = new Set([
+    // 4-letter tech acronyms / tools — definitely not in standard dictionaries
+    'ajax','amqp','ansi','args','bios','cicd','cron','csrf','ctrl','deps',
+    'devs','dhcp','dkim','enum','eval','exec','fifo','func','glob','goto',
+    'grep','grpc','guid','gzip','html','http','imap','init','ipfs','jira',
+    'jest','json','kube','ldap','lifo','lint','lisp','llvm','mern','mqtt',
+    'nats','nmap','noop','orms','proc','prod','prom','prop','repl','repo',
+    'saas','sass','scsi','smtp','snmp','sram','stub','sudo','sync','toml',
+    'trie','undo','unix','uuid','vlan','wasm','wget','xmpp','yaml','zlib',
+    // 5-letter tech-only (one-vowel real-word false positives handled by blocklist)
+    'async','azure','babel','codec','cname','const','crate','deque','devex',
+    'dtype','enums','nginx','oauth','redux','regex','scala','svelt','xpath',
+    'pydoc',
+    // 6-letter tech-only
+    'devops','docker','github','gitlab','golang','groovy','heroku','jython',
+    'jquery','kotlin','mongod','nestjs','nodejs','nuxtjs','prisma','python',
+    'regexp','svelte','syslog','vercel','vuexjs','vscode','webkit','vulkan',
+    'erlang','django',
+  ]);
+
   const allWords = wordsByLength[wordLength];
   const words = (allWords || []).filter(w => {
-    const vowelCount = (w.match(/[aeiou]/gi) || []).length;
+    // 1. Explicit blocklist
+    if (techOnlyWords.has(w)) return false;
+
+    const vowelCount = (w.match(/[aeiou]/g) || []).length;
+
+    // 2. Must have at least 1 vowel
     if (vowelCount < 1) return false;
-    if (wordLength >= 5 && vowelCount < 2) return false;
-    if (/[^aeiou]{4}/i.test(w)) return false;
-    if (/[^aeiou]{3}/i.test(w) && wordLength <= 4) return false;
+
+    // 3. No 4+ consecutive consonants
+    if (/[^aeiou]{4}/.test(w)) return false;
+
+    // 4. No 3+ consecutive consonants for 4-letter words
+    if (wordLength <= 4 && /[^aeiou]{3}/.test(w)) return false;
+
+    // 5. No 'x' followed by a consonant — key rule that catches regexp, nuxtjs etc.
+    //    Valid English: boxer (x+e), exact (x+a), oxide (x+i).
+    //    Invalid: regexp (x+p), nexus passes fine (x+u).
+    if (/x[^aeiou]/.test(w)) return false;
+
+    // 6. Ends with known tech-only suffixes (never standard English endings)
+    if (/(?:js|db|fs|ql|rx)$/.test(w)) return false;
+
     return true;
   });
   if (!words || words.length < 2) return null;
