@@ -14,8 +14,10 @@ function hash(str) {
 
 export function getChainItPuzzle(dateStr) {
   // Pick length: 4, 5, or 6
+  // Weighted length selection: 50% = 4 letters, 40% = 5 letters, 10% = 6 letters
   const lengthHash = hash('chainit-length:' + dateStr);
-  const wordLength = 4 + (lengthHash % 3); // 4, 5, or 6
+  const roll = lengthHash % 100;
+  const wordLength = roll < 50 ? 4 : (roll < 90 ? 5 : 6);
 
   // Filter to only real English words — eliminates tech acronyms (GRPC, CSRF,
   // SMTP, NUXTJS, REGEXP etc.) that aren't in standard dictionaries and have
