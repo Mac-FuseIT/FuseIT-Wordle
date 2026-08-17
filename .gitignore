@@ -18,6 +18,7 @@ frontend/.idea/
 
 # Kiro
 .kiro_tmp/
+.workbench/
 
 # Wrangler
 .wrangler/
