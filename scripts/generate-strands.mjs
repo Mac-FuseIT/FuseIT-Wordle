@@ -162,8 +162,23 @@ async function fetchWordsForSpangram(spangram, topic) {
   // Higher bonus = more likely to be picked. Tight relations outrank loose ones.
   processResults(allResults.gen, 100000);  // hyponyms (types of)
   processResults(allResults.com, 90000);   // parts/comprises
-  processResults(allResults.trg, 50000);   // co-occurrence (lower — often noisy)
   processResults(allResults.jjb, 70000);   // adjectives
+
+  // rel_trg (co-occurrence) is noisy — only boost words already in scored
+  // from a tight source. Standalone rel_trg words like "chicken" get nothing.
+  for (const w of allResults.trg) {
+    if (isProperNoun(w)) continue;
+    const word = w.word.toLowerCase();
+    if (!/^[a-z]+$/.test(word) || word.length < 4 || word.length > 8) continue;
+    if (word === spangram || word === topic || word === singular) continue;
+    const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
+    const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
+    if (freq < 2.0) continue;
+    // Only boost if already scored from gen, com, or jjb
+    if (scored[word]) {
+      scored[word] += 80000;
+    }
+  }
 
   // ml as amplifier only: boost words already scored from tight sources
   const mlRes = await fetch(
@@ -193,7 +208,6 @@ async function fetchWordsForSpangram(spangram, topic) {
   }
   countSignal(allResults.gen);
   countSignal(allResults.com);
-  countSignal(allResults.trg);
   countSignal(allResults.jjb);
 
   // Words in 2+ sources are more reliable — boost them
