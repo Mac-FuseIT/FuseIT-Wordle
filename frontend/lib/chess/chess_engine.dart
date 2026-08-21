@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:math';
 import 'dart:js_interop';
 import 'package:web/web.dart' as web;
+import 'package:chess/chess.dart' as chess;
 
 /// Chess engine service that communicates with Stockfish.js via a Web Worker.
 ///
@@ -22,6 +24,8 @@ class ChessEngine {
 
   bool _ready = false;
   bool _disposed = false;
+
+  final Random _rng = Random();
 
   // ---------------------------------------------------------------------------
   // Public API
@@ -93,6 +97,60 @@ class ChessEngine {
     );
   }
 
+  /// Returns a move for amateur mode. Uses a mix of random moves and
+  /// Stockfish's best move (at Skill Level 0) based on the ELO level.
+  ///
+  /// Random move probability:
+  ///   100 ELO: 80% random
+  ///   200 ELO: 70% random
+  ///   300 ELO: 60% random
+  ///   400 ELO: 50% random
+  ///   500 ELO: 40% random
+  ///   600 ELO: 30% random
+  ///   700 ELO: 25% random
+  ///   800 ELO: 18% random
+  ///   900 ELO: 15% random
+  Future<String> getBestMoveAmateur(String fen, int eloLevel) async {
+    if (!_ready || _disposed) return '';
+
+    // Calculate random move probability based on ELO
+    final randomChance = _getRandomChance(eloLevel);
+
+    // Get all legal moves from the current position
+    final game = chess.Chess.fromFEN(fen);
+    final legalMoves = game.moves({'verbose': true});
+
+    if (legalMoves.isEmpty) return '';
+
+    // Roll the dice: pick random move or ask Stockfish
+    if (_rng.nextDouble() < randomChance) {
+      // Pick a random legal move, return as UCI format
+      final randomMove = legalMoves[_rng.nextInt(legalMoves.length)];
+      final from = randomMove['from'] as String;
+      final to = randomMove['to'] as String;
+      final promotion = randomMove['promotion'] as String?;
+      return '$from$to${promotion ?? ''}';
+    }
+
+    // Use Stockfish at Skill Level 0 for a weak but not random move
+    _configureElo(0);
+    _sendCommand('position fen $fen');
+    _moveCompleter = Completer<String>();
+    _sendCommand('go movetime 200');
+
+    return _moveCompleter!.future.timeout(
+      const Duration(milliseconds: 5200),
+      onTimeout: () {
+        // Fallback to random move on timeout
+        final randomMove = legalMoves[_rng.nextInt(legalMoves.length)];
+        final from = randomMove['from'] as String;
+        final to = randomMove['to'] as String;
+        final promotion = randomMove['promotion'] as String?;
+        return '$from$to${promotion ?? ''}';
+      },
+    );
+  }
+
   /// Terminates the Web Worker and releases resources.
   void dispose() {
     _disposed = true;
@@ -160,6 +218,19 @@ class ChessEngine {
     if (skillLevel < 10) return 600;
     if (skillLevel < 15) return 800;
     return 1000;
+  }
+
+  /// Returns the probability of making a random move for amateur mode.
+  double _getRandomChance(int eloLevel) {
+    if (eloLevel <= 100) return 0.80;
+    if (eloLevel <= 200) return 0.70;
+    if (eloLevel <= 300) return 0.60;
+    if (eloLevel <= 400) return 0.50;
+    if (eloLevel <= 500) return 0.40;
+    if (eloLevel <= 600) return 0.30;
+    if (eloLevel <= 700) return 0.25;
+    if (eloLevel <= 800) return 0.18;
+    return 0.15; // 900 ELO
   }
 
   // ---------------------------------------------------------------------------

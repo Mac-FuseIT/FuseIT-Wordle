@@ -5,13 +5,17 @@ export async function onRequestGet({ request, env }) {
   const auth = await requireAuth(request, env);
   const date = getToday();
 
+  const url = new URL(request.url);
+  const mode = url.searchParams.get('mode') || 'expert';
+  const gameMode = mode === 'amateur' ? 'amateur' : 'expert';
+
   const top = await env.DB.prepare(`
     SELECT u.nickname, u.name, g.won, g.moves, g.bot_level, g.date
     FROM chess_games g JOIN users u ON u.id = g.user_id
-    WHERE g.date = ?
+    WHERE g.date = ? AND g.mode = ?
     ORDER BY g.won DESC, g.moves ASC
     LIMIT 30
-  `).bind(date).all();
+  `).bind(date, gameMode).all();
 
   const monthly = await env.DB.prepare(`
     SELECT u.nickname, u.name,
@@ -19,17 +23,17 @@ export async function onRequestGet({ request, env }) {
       COUNT(*) as games,
       AVG(CASE WHEN g.won = 1 THEN g.moves ELSE NULL END) as avg_moves
     FROM chess_games g JOIN users u ON u.id = g.user_id
-    WHERE g.date >= date('now', 'start of month')
+    WHERE g.date >= date('now', 'start of month') AND g.mode = ?
     GROUP BY g.user_id
     ORDER BY wins DESC, avg_moves ASC
     LIMIT 20
-  `).all();
+  `).bind(gameMode).all();
 
   let myHistory = [];
   if (auth) {
     const rows = await env.DB.prepare(
-      'SELECT date, won, moves, bot_level FROM chess_games WHERE user_id = ? ORDER BY date DESC LIMIT 10'
-    ).bind(auth.userId).all();
+      'SELECT date, won, moves, bot_level FROM chess_games WHERE user_id = ? AND mode = ? ORDER BY date DESC LIMIT 10'
+    ).bind(auth.userId, gameMode).all();
     myHistory = rows.results || [];
   }
 

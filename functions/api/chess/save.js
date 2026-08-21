@@ -6,24 +6,26 @@ export async function onRequestPost({ request, env }) {
   if (!auth) return errorResponse('Unauthorized', 401);
 
   const date = getToday();
-  const { fen, moveHistory, moveCount, redosUsed } = await request.json();
+  const { fen, moveHistory, moveCount, redosUsed, mode } = await request.json();
 
   if (!fen || !Array.isArray(moveHistory) || typeof moveCount !== 'number') {
     return errorResponse('Missing fields', 400);
   }
 
+  const gameMode = mode === 'amateur' ? 'amateur' : 'expert';
+
   // Don't allow saving if already completed
   const completed = await env.DB.prepare(
-    'SELECT id FROM chess_games WHERE user_id = ? AND date = ?'
-  ).bind(auth.userId, date).first();
+    'SELECT id FROM chess_games WHERE user_id = ? AND date = ? AND mode = ?'
+  ).bind(auth.userId, date, gameMode).first();
   if (completed) return errorResponse('Already completed', 403);
 
   await env.DB.prepare(
-    `INSERT INTO chess_sessions (user_id, date, fen, move_history, move_count, redos_used)
-     VALUES (?, ?, ?, ?, ?, ?)
-     ON CONFLICT(user_id, date) DO UPDATE SET fen = ?, move_history = ?, move_count = ?, redos_used = ?`
+    `INSERT INTO chess_sessions (user_id, date, fen, move_history, move_count, redos_used, mode)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(user_id, date, mode) DO UPDATE SET fen = ?, move_history = ?, move_count = ?, redos_used = ?`
   ).bind(
-    auth.userId, date, fen, JSON.stringify(moveHistory), moveCount, redosUsed || 0,
+    auth.userId, date, fen, JSON.stringify(moveHistory), moveCount, redosUsed || 0, gameMode,
     fen, JSON.stringify(moveHistory), moveCount, redosUsed || 0
   ).run();
 

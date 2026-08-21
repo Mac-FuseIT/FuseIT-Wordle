@@ -11,10 +11,11 @@ class ChessGameScreen extends StatefulWidget {
   final AppTheme theme;
   final Map<String, dynamic>? session;
   final String playerColor; // 'white' or 'black'
+  final String mode; // 'amateur' or 'expert'
   final Future<void> Function(bool won, int moves, int redosUsed, List<String> moveHistory, String fen) onFinish;
   final VoidCallback onBack;
 
-  const ChessGameScreen({super.key, required this.botLevel, required this.theme, this.session, this.playerColor = 'white', required this.onFinish, required this.onBack});
+  const ChessGameScreen({super.key, required this.botLevel, required this.theme, this.session, this.playerColor = 'white', this.mode = 'expert', required this.onFinish, required this.onBack});
 
   @override
   State<ChessGameScreen> createState() => _ChessGameScreenState();
@@ -254,7 +255,12 @@ class _ChessGameScreenState extends State<ChessGameScreen> {
     if (!mounted) return;
 
     final fen = _game.fen;
-    final bestMove = await _engine.getBestMove(fen, widget.botLevel);
+    final String bestMove;
+    if (widget.mode == 'amateur') {
+      bestMove = await _engine.getBestMoveAmateur(fen, widget.botLevel);
+    } else {
+      bestMove = await _engine.getBestMove(fen, widget.botLevel);
+    }
     if (!mounted || bestMove.isEmpty) return;
 
     // Parse UCI move (e.g., 'e2e4' or 'e7e8q' for promotion)
@@ -304,7 +310,7 @@ class _ChessGameScreenState extends State<ChessGameScreen> {
 
   Future<void> _saveSession() async {
     if (_gameOver) return;
-    await ApiService.saveChessSession(_game.fen, _moveHistory, _moveCount, _redosUsed);
+    await ApiService.saveChessSession(_game.fen, _moveHistory, _moveCount, _redosUsed, mode: widget.mode);
   }
 
   bool get _playerWon {
@@ -335,6 +341,12 @@ class _ChessGameScreenState extends State<ChessGameScreen> {
             const Text('Chess.IT', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
             const Spacer(),
             Builder(builder: (context) {
+              if (widget.mode == 'amateur') {
+                return Text(
+                  'Amateur  •  ${widget.botLevel} ELO',
+                  style: const TextStyle(color: Colors.white70, fontSize: 14),
+                );
+              }
               const eloRanges = [
                 '1000-1100', '1100-1200', '1200-1300', '1300-1400', '1400-1450',
                 '1450-1500', '1500-1550', '1550-1600', '1600-1650', '1650-1700',
@@ -345,7 +357,7 @@ class _ChessGameScreenState extends State<ChessGameScreen> {
                   ? eloRanges[widget.botLevel]
                   : 'Unknown';
               return Text(
-                'Skill Level ${widget.botLevel}  •  $eloRange ELO',
+                'Expert  •  Skill ${widget.botLevel}  •  $eloRange ELO',
                 style: const TextStyle(color: Colors.white70, fontSize: 14),
               );
             }),

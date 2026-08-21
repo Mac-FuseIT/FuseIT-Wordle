@@ -162,34 +162,34 @@ class ApiService {
   }
 
   // Chess.IT
-  static Future<Map<String, dynamic>> getChessToday() async {
-    final res = await _authGet('/api/chess/today');
+  static Future<Map<String, dynamic>> getChessToday({String mode = 'expert'}) async {
+    final res = await _authGet('/api/chess/today?mode=$mode');
     return jsonDecode(res.body);
   }
 
-  static Future<bool> submitChessResult(bool won, int moves, int redosUsed, List<String> moveHistory, String fen) async {
+  static Future<bool> submitChessResult(bool won, int moves, int redosUsed, List<String> moveHistory, String fen, {String mode = 'expert'}) async {
     await _loadToken();
     final res = await http.post(
       Uri.parse('$baseUrl/api/chess/submit'),
       headers: _authHeaders,
-      body: jsonEncode({'won': won, 'moves': moves, 'redosUsed': redosUsed, 'moveHistory': moveHistory, 'fen': fen}),
+      body: jsonEncode({'won': won, 'moves': moves, 'redosUsed': redosUsed, 'moveHistory': moveHistory, 'fen': fen, 'mode': mode}),
     );
     return res.statusCode == 200;
   }
 
-  static Future<bool> saveChessSession(String fen, List<String> moveHistory, int moveCount, int redosUsed) async {
+  static Future<bool> saveChessSession(String fen, List<String> moveHistory, int moveCount, int redosUsed, {String mode = 'expert'}) async {
     await _loadToken();
     final res = await http.post(
       Uri.parse('$baseUrl/api/chess/save'),
       headers: _authHeaders,
-      body: jsonEncode({'fen': fen, 'moveHistory': moveHistory, 'moveCount': moveCount, 'redosUsed': redosUsed}),
+      body: jsonEncode({'fen': fen, 'moveHistory': moveHistory, 'moveCount': moveCount, 'redosUsed': redosUsed, 'mode': mode}),
     );
     return res.statusCode == 200;
   }
 
-  static Future<Map<String, dynamic>> getChessLeaderboard() async {
+  static Future<Map<String, dynamic>> getChessLeaderboard({String mode = 'expert'}) async {
     await _loadToken();
-    final res = await http.get(Uri.parse('$baseUrl/api/chess/leaderboard'), headers: _authHeaders);
+    final res = await http.get(Uri.parse('$baseUrl/api/chess/leaderboard?mode=$mode'), headers: _authHeaders);
     return jsonDecode(res.body);
   }
 

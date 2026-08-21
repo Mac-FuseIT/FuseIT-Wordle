@@ -21,24 +21,40 @@ class ChessLobbyScreen extends StatefulWidget {
 class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
   bool _loading = true;
   bool _playing = false;
+  String _playingMode = 'expert'; // which mode is currently being played
   bool _playingPhantom = false;
   bool _playingPvp = false;
-  bool _played = false;
-  bool? _won;
-  int? _moves;
-  int _botLevel = 800;
-  Map<String, dynamic>? _session;
-  String _playerColor = 'white';
+
+  // Expert mode state
+  bool _expertPlayed = false;
+  bool? _expertWon;
+  int? _expertMoves;
+  int _expertBotLevel = 800;
+  Map<String, dynamic>? _expertSession;
+  String _expertPlayerColor = 'white';
+
+  // Amateur mode state
+  bool _amateurPlayed = false;
+  bool? _amateurWon;
+  int? _amateurMoves;
+  int _amateurBotLevel = 400;
+  Map<String, dynamic>? _amateurSession;
+  String _amateurPlayerColor = 'white';
+
+  // Phantom mode state
   bool _phantomPlayed = false;
   bool? _phantomWon;
   int? _phantomMoves;
   int _phantomBotLevel = 400;
   Map<String, dynamic>? _phantomSession;
   String _phantomPlayerColor = 'white';
-  bool _showPhantomLb = false;
-  int _lbTab = 0; // 0=normal, 1=phantom, 2=pvp
-  List<Map<String, dynamic>> _daily = [];
-  List<Map<String, dynamic>> _history = [];
+
+  // Leaderboard
+  int _lbTab = 0; // 0=expert, 1=amateur, 2=phantom, 3=pvp
+  List<Map<String, dynamic>> _expertDaily = [];
+  List<Map<String, dynamic>> _expertHistory = [];
+  List<Map<String, dynamic>> _amateurDaily = [];
+  List<Map<String, dynamic>> _amateurHistory = [];
   List<Map<String, dynamic>> _phantomDaily = [];
   List<Map<String, dynamic>> _phantomHistory = [];
   List<Map<String, dynamic>> _pvpLeaderboard = [];
@@ -52,8 +68,10 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
 
   Future<void> _load() async {
     try {
-      final today = await ApiService.getChessToday();
-      final lb = await ApiService.getChessLeaderboard();
+      final expertToday = await ApiService.getChessToday(mode: 'expert');
+      final amateurToday = await ApiService.getChessToday(mode: 'amateur');
+      final expertLb = await ApiService.getChessLeaderboard(mode: 'expert');
+      final amateurLb = await ApiService.getChessLeaderboard(mode: 'amateur');
       Map<String, dynamic> pToday = {};
       Map<String, dynamic> pLb = {};
       try { pToday = await ApiService.getPhantomChessToday(); } catch (_) {}
@@ -61,15 +79,28 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
       Map<String, dynamic> pvpLb = {};
       try { pvpLb = await ApiService.getChessPvpLeaderboard(); } catch (_) {}
       if (mounted) setState(() {
-        _botLevel = today['botLevel'] ?? 800;
-        _played = today['played'] ?? false;
-        _won = today['won'] == null ? null : (today['won'] == 1 || today['won'] == true);
-        _moves = today['moves'];
-        _session = today['session'];
-        _playerColor = today['playerColor'] ?? 'white';
-        _daily = List<Map<String, dynamic>>.from(lb['daily'] ?? []);
-        _history = List<Map<String, dynamic>>.from(lb['history'] ?? []);
-        _phantomBotLevel = pToday['botLevel'] ?? (_botLevel ~/ 2);
+        // Expert
+        _expertBotLevel = expertToday['botLevel'] ?? 800;
+        _expertPlayed = expertToday['played'] ?? false;
+        _expertWon = expertToday['won'] == null ? null : (expertToday['won'] == 1 || expertToday['won'] == true);
+        _expertMoves = expertToday['moves'];
+        _expertSession = expertToday['session'];
+        _expertPlayerColor = expertToday['playerColor'] ?? 'white';
+        _expertDaily = List<Map<String, dynamic>>.from(expertLb['daily'] ?? []);
+        _expertHistory = List<Map<String, dynamic>>.from(expertLb['history'] ?? []);
+
+        // Amateur
+        _amateurBotLevel = amateurToday['botLevel'] ?? 400;
+        _amateurPlayed = amateurToday['played'] ?? false;
+        _amateurWon = amateurToday['won'] == null ? null : (amateurToday['won'] == 1 || amateurToday['won'] == true);
+        _amateurMoves = amateurToday['moves'];
+        _amateurSession = amateurToday['session'];
+        _amateurPlayerColor = amateurToday['playerColor'] ?? 'white';
+        _amateurDaily = List<Map<String, dynamic>>.from(amateurLb['daily'] ?? []);
+        _amateurHistory = List<Map<String, dynamic>>.from(amateurLb['history'] ?? []);
+
+        // Phantom
+        _phantomBotLevel = pToday['botLevel'] ?? (_expertBotLevel ~/ 2);
         _phantomPlayed = pToday['played'] ?? false;
         _phantomWon = pToday['won'] == null ? null : (pToday['won'] == 1 || pToday['won'] == true);
         _phantomMoves = pToday['moves'];
@@ -77,6 +108,8 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
         _phantomPlayerColor = pToday['playerColor'] ?? 'white';
         _phantomDaily = List<Map<String, dynamic>>.from(pLb['daily'] ?? []);
         _phantomHistory = List<Map<String, dynamic>>.from(pLb['history'] ?? []);
+
+        // PvP
         _pvpLeaderboard = List<Map<String, dynamic>>.from(pvpLb['leaderboard'] ?? []);
         _pvpRecord = pvpLb['myRecord'];
         _loading = false;
@@ -113,13 +146,15 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
     }
 
     if (_playing) {
+      final isAmateur = _playingMode == 'amateur';
       return ChessGameScreen(
-        botLevel: _botLevel,
+        botLevel: isAmateur ? _amateurBotLevel : _expertBotLevel,
         theme: widget.theme,
-        session: _session,
-        playerColor: _playerColor,
+        session: isAmateur ? _amateurSession : _expertSession,
+        playerColor: isAmateur ? _amateurPlayerColor : _expertPlayerColor,
+        mode: _playingMode,
         onFinish: (won, moves, redos, moveHistory, fen) async {
-          await ApiService.submitChessResult(won, moves, redos, moveHistory, fen);
+          await ApiService.submitChessResult(won, moves, redos, moveHistory, fen, mode: _playingMode);
           setState(() { _playing = false; });
           _load();
         },
@@ -151,16 +186,8 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
                           // Game cards side by side
                           Row(
                             children: [
-                              Expanded(child: _buildGameCard(
-                                title: 'Normal',
-                                elo: _botLevel,
-                                played: _played,
-                                won: _won,
-                                moves: _moves,
-                                hasSession: _session != null,
-                                color: widget.theme.correct,
-                                onPlay: () => setState(() => _playing = true),
-                              )),
+                              // Normal card with Amateur/Expert sub-buttons
+                              Expanded(flex: 2, child: _buildNormalCard()),
                               const SizedBox(width: 12),
                               Expanded(child: _buildGameCard(
                                 title: 'Phantom',
@@ -209,8 +236,9 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
                             width: double.infinity, height: 44,
                             child: ElevatedButton(
                               onPressed: () => showHelpDialog(context, widget.theme, 'How to Play Chess.IT', const [
-                                HelpSection(body: 'Play chess against a daily bot. The bot level changes every day (100-1500 ELO).'),
-                                HelpSection(heading: '♟️ One Chance', body: 'You get one game per day. Win or lose, your result goes on the leaderboard.'),
+                                HelpSection(body: 'Play chess against a daily bot. The bot level changes every day.'),
+                                HelpSection(heading: '🎯 Two Modes', body: 'Amateur (100-900 ELO) for casual play, Expert (Skill 0-20) for a challenge. Both can be played daily!'),
+                                HelpSection(heading: '♟️ One Chance Per Mode', body: 'You get one game per mode per day. Win or lose, your result goes on the leaderboard.'),
                                 HelpSection(heading: '↩️ Redo Moves', body: 'You get 2 redo moves per game if you make a mistake. Use them wisely!'),
                                 HelpSection(heading: '🏆 Scoring', body: 'Win with fewer moves to rank higher. Losses show ✗ on the leaderboard.'),
                               ]),
@@ -226,20 +254,24 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
                           const SizedBox(height: 16),
                           // Leaderboard toggle buttons
                           Row(children: [
-                            Expanded(child: _lbTabBtn('Normal', 0)),
-                            const SizedBox(width: 8),
-                            Expanded(child: _lbTabBtn('Phantom', 1)),
-                            const SizedBox(width: 8),
-                            Expanded(child: _lbTabBtn('PvP', 2)),
+                            Expanded(child: _lbTabBtn('Expert', 0)),
+                            const SizedBox(width: 6),
+                            Expanded(child: _lbTabBtn('Amateur', 1)),
+                            const SizedBox(width: 6),
+                            Expanded(child: _lbTabBtn('Phantom', 2)),
+                            const SizedBox(width: 6),
+                            Expanded(child: _lbTabBtn('PvP', 3)),
                           ]),
                           const SizedBox(height: 16),
-                          if (_lbTab < 2) ...[
+                          if (_lbTab < 3) ...[
                             const Text("Today's Leaderboard", style: TextStyle(color: Colors.grey, fontSize: 14)),
                             const SizedBox(height: 12),
-                            if ((_lbTab == 1 ? _phantomDaily : _daily).isEmpty)
-                              const Text('No games yet today.', style: TextStyle(color: Colors.grey, fontSize: 14))
-                            else
-                              ...(_lbTab == 1 ? _phantomDaily : _daily).asMap().entries.map((entry) {
+                            Builder(builder: (context) {
+                              final daily = _lbTab == 0 ? _expertDaily : _lbTab == 1 ? _amateurDaily : _phantomDaily;
+                              if (daily.isEmpty) {
+                                return const Text('No games yet today.', style: TextStyle(color: Colors.grey, fontSize: 14));
+                              }
+                              return Column(children: daily.asMap().entries.map((entry) {
                                 final i = entry.key;
                                 final row = entry.value;
                                 final won = row['won'] == true;
@@ -262,35 +294,43 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
                                     ),
                                   ]),
                                 );
-                              }),
-                            if ((_lbTab == 1 ? _phantomHistory : _history).isNotEmpty) ...[
-                              const SizedBox(height: 24),
-                              const Divider(color: Color(0xFF3A3A3C)),
-                              const SizedBox(height: 16),
-                              const Text('Your History', style: TextStyle(color: Colors.grey, fontSize: 14)),
-                              const SizedBox(height: 12),
-                              ...(_lbTab == 1 ? _phantomHistory : _history).map((row) {
-                                final won = row['won'] == 1 || row['won'] == true;
-                                return Container(
-                                  margin: const EdgeInsets.only(bottom: 6),
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF1A1A1B),
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: const Color(0xFF3A3A3C)),
-                                  ),
-                                  child: Row(children: [
-                                    SizedBox(width: 90, child: Text(row['date'] ?? '', style: const TextStyle(color: Colors.grey, fontSize: 12))),
-                                    Text('Bot ${row['bot_level']}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                                    const Spacer(),
-                                    Text(
-                                      won ? '${row['moves']} moves ✓' : '✗',
-                                      style: TextStyle(color: won ? widget.theme.correct : Colors.redAccent, fontWeight: FontWeight.bold),
-                                    ),
-                                  ]),
-                                );
-                              }),
-                            ],
+                              }).toList());
+                            }),
+                            Builder(builder: (context) {
+                              final history = _lbTab == 0 ? _expertHistory : _lbTab == 1 ? _amateurHistory : _phantomHistory;
+                              if (history.isEmpty) return const SizedBox.shrink();
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const SizedBox(height: 24),
+                                  const Divider(color: Color(0xFF3A3A3C)),
+                                  const SizedBox(height: 16),
+                                  const Text('Your History', style: TextStyle(color: Colors.grey, fontSize: 14)),
+                                  const SizedBox(height: 12),
+                                  ...history.map((row) {
+                                    final won = row['won'] == 1 || row['won'] == true;
+                                    return Container(
+                                      margin: const EdgeInsets.only(bottom: 6),
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF1A1A1B),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: const Color(0xFF3A3A3C)),
+                                      ),
+                                      child: Row(children: [
+                                        SizedBox(width: 90, child: Text(row['date'] ?? '', style: const TextStyle(color: Colors.grey, fontSize: 12))),
+                                        Text('Bot ${row['bot_level']}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                                        const Spacer(),
+                                        Text(
+                                          won ? '${row['moves']} moves ✓' : '✗',
+                                          style: TextStyle(color: won ? widget.theme.correct : Colors.redAccent, fontWeight: FontWeight.bold),
+                                        ),
+                                      ]),
+                                    );
+                                  }),
+                                ],
+                              );
+                            }),
                           ] else ...[
                             // PvP Leaderboard
                             if (_pvpRecord != null) ...[
@@ -332,6 +372,105 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
     );
   }
 
+  /// Builds the "Normal" card with Amateur/Expert sub-buttons
+  Widget _buildNormalCard() {
+    final color = widget.theme.correct;
+
+    return Column(
+      children: [
+        // Header bar
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.2),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+          ),
+          child: Text('Normal', textAlign: TextAlign.center, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold)),
+        ),
+        // Card body with two sub-buttons
+        Container(
+          width: double.infinity,
+          height: 120,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+            border: Border.all(color: color.withValues(alpha: 0.4), width: 1.5),
+          ),
+          child: Row(
+            children: [
+              // Amateur sub-button
+              Expanded(child: _buildSubButton(
+                label: 'Amateur',
+                subtitle: '${_amateurBotLevel} ELO',
+                played: _amateurPlayed,
+                won: _amateurWon,
+                moves: _amateurMoves,
+                hasSession: _amateurSession != null,
+                color: Colors.orangeAccent,
+                onTap: () => setState(() { _playing = true; _playingMode = 'amateur'; }),
+              )),
+              // Divider
+              Container(width: 1, height: 80, color: color.withValues(alpha: 0.3)),
+              // Expert sub-button
+              Expanded(child: _buildSubButton(
+                label: 'Expert',
+                subtitle: 'Skill $_expertBotLevel',
+                played: _expertPlayed,
+                won: _expertWon,
+                moves: _expertMoves,
+                hasSession: _expertSession != null,
+                color: color,
+                onTap: () => setState(() { _playing = true; _playingMode = 'expert'; }),
+              )),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSubButton({
+    required String label,
+    required String subtitle,
+    required bool played,
+    required bool? won,
+    required int? moves,
+    required bool hasSession,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: played ? null : onTap,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(label, style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 2),
+          Text(subtitle, style: TextStyle(color: color.withValues(alpha: 0.7), fontSize: 10)),
+          const SizedBox(height: 8),
+          if (played)
+            Text(
+              won == true ? '$moves moves ✓' : '✗',
+              style: TextStyle(color: won == true ? widget.theme.correct : Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 12),
+            )
+          else
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                hasSession ? 'Continue' : 'Play',
+                style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _lbTabBtn(String label, int tab) {
     final selected = _lbTab == tab;
     return GestureDetector(
@@ -346,7 +485,7 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
         ),
         child: Text(label, style: TextStyle(
           color: selected ? Colors.white : widget.theme.present,
-          fontWeight: FontWeight.bold, fontSize: 13,
+          fontWeight: FontWeight.bold, fontSize: 12,
         )),
       ),
     );
@@ -362,14 +501,6 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
     required Color color,
     required VoidCallback onPlay,
   }) {
-    const eloRanges = [
-      '1000-1100', '1100-1200', '1200-1300', '1300-1400', '1400-1450',
-      '1450-1500', '1500-1550', '1550-1600', '1600-1650', '1650-1700',
-      '1700-1750', '1750-1800', '1800-1900', '1900-2000', '2000-2100',
-      '2100-2200', '2200-2400', '2400-2600', '2600-2800', '2800-3000', '3500+',
-    ];
-    final eloRange = elo >= 0 && elo <= 20 ? eloRanges[elo] : 'Unknown';
-
     return Column(
       children: [
         // Skill level bar above card
@@ -380,15 +511,7 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
             color: color.withValues(alpha: 0.2),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
           ),
-          child: title == 'Phantom'
-              ? Text('$elo ELO', textAlign: TextAlign.center, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold))
-              : Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('Skill Level $elo', textAlign: TextAlign.center, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold)),
-                    Text('$eloRange ELO', textAlign: TextAlign.center, style: TextStyle(color: color, fontSize: 10)),
-                  ],
-                ),
+          child: Text('$elo ELO', textAlign: TextAlign.center, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold)),
         ),
         // Card
         GestureDetector(
@@ -404,9 +527,9 @@ class _ChessLobbyScreenState extends State<ChessLobbyScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(title == 'Phantom' ? Icons.visibility_off : Icons.smart_toy, color: color, size: 30),
+                Icon(Icons.visibility_off, color: color, size: 30),
                 const SizedBox(height: 8),
-                Text(title, style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                Text(title, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 6),
                 if (played)
                   Text(

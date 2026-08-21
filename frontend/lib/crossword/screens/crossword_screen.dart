@@ -273,7 +273,7 @@ class _CrosswordScreenState extends State<CrosswordScreen> {
       _completed = true;
       _failed = true;
       _message = 'Failed — Better luck tomorrow!';
-      _hideClues = true;
+      // Don't hide clues on failure — user wants to see clues for revealed answers
     });
   }
 
