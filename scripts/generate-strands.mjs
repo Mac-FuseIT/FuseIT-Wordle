@@ -109,6 +109,54 @@ async function fetchSpangramCandidates(topic) {
   return candidates;
 }
 
+// ─── Blocklist: Generic/Taxonomic Words ───────────────────────────────────────
+// These words appear in Datamuse results for many topics but are never
+// thematically interesting as puzzle fill words.
+const BLOCKED_WORDS = new Set([
+  // Biological/taxonomic
+  'adult', 'female', 'male', 'young', 'juvenile', 'mature', 'immature',
+  'species', 'genus', 'family', 'order', 'class', 'phylum',
+  'organism', 'specimen', 'variety', 'breed', 'type', 'kind',
+  // Size/quantity descriptors
+  'large', 'small', 'tiny', 'huge', 'giant', 'little', 'medium',
+  'bigger', 'smaller', 'largest', 'smallest', 'single', 'double',
+  'many', 'much', 'several', 'numerous', 'various', 'multiple',
+  // Generic adjectives
+  'common', 'typical', 'normal', 'general', 'usual', 'regular',
+  'simple', 'basic', 'similar', 'different', 'certain', 'specific',
+  'particular', 'various', 'other', 'another', 'same',
+  // Temporal
+  'early', 'late', 'recent', 'ancient', 'modern', 'older', 'newer',
+  // Generic actions/states
+  'found', 'known', 'called', 'named', 'used', 'made', 'seen',
+  'given', 'taken', 'come', 'become', 'remain', 'include',
+  // Geographic generics
+  'native', 'local', 'resident', 'western', 'eastern', 'northern',
+  'southern', 'central', 'upper', 'lower',
+  'british', 'english', 'indian', 'european', 'american',
+  'african', 'asian', 'french', 'german', 'spanish',
+  // Quality/evaluation generics
+  'good', 'best', 'great', 'fine', 'real', 'true', 'full',
+  'well', 'better', 'important', 'main', 'major', 'minor',
+  'dead', 'alive', 'wild', 'tame', 'domestic', 'captive',
+  'lovely', 'beautiful', 'ugly', 'dumb', 'stupid',
+  'happy', 'angry', 'sad', 'lonely', 'lone', 'sick', 'poor',
+  'dark', 'light', 'bright', 'pale', 'wet', 'dry', 'hot', 'cold',
+  'ready', 'live', 'frank', 'famous', 'harmless',
+  'celebrated', 'remarkable', 'superb', 'distressed',
+  'isolated', 'awake', 'asleep',
+  // Shape/position generics (these modify any noun)
+  'flat', 'round', 'thin', 'thick', 'long', 'short',
+  'rectangular', 'triangular', 'circular',
+  // Quantity/measurement
+  'total', 'whole', 'entire', 'complete', 'half', 'part',
+  'extra', 'additional', 'further', 'average',
+  // People-related generics (for animal topics these are irrelevant)
+  'human', 'person', 'people', 'individual', 'group', 'member',
+  // Colour generics (too vague as standalone fill words)
+  'black', 'white', 'grey', 'brown', 'yellow',
+]);
+
 // Fetch fill words tightly related to the topic (the spangram IS the topic)
 async function fetchWordsForSpangram(spangram, topic) {
   const queryWord = topic;
@@ -118,7 +166,18 @@ async function fetchWordsForSpangram(spangram, topic) {
   if (queryWord !== singular) queries.push(queryWord);
   if (spangram !== singular && spangram !== queryWord) queries.push(spangram);
 
-  // Fire tight queries for all query variants
+  // ─── Primary source: ml (meaning-like) with topic filtering ───────────────
+  // This is the BEST source for thematically relevant words. It uses word2vec
+  // similarity which captures "words that evoke the same concept".
+  const mlResults = [];
+  for (const q of queries) {
+    const res = await fetch(
+      `https://api.datamuse.com/words?ml=${encodeURIComponent(q)}&topics=${encodeURIComponent(topic)}&max=200&md=f,p`
+    ).then(r => r.json()).catch(() => []);
+    mlResults.push(...res);
+  }
+
+  // ─── Secondary sources: structured relations ──────────────────────────────
   const allResults = { gen: [], com: [], trg: [], jjb: [] };
 
   for (const q of queries) {
@@ -137,83 +196,105 @@ async function fetchWordsForSpangram(spangram, topic) {
   const scored = {};
 
   function isProperNoun(w) {
-    // Check tags for 'prop' (proper noun)
     const tags = w.tags || [];
     if (tags.includes('prop')) return true;
-    // If the word as returned starts with uppercase, likely proper noun
     if (w.word && w.word[0] === w.word[0].toUpperCase() && w.word[0] !== w.word[0].toLowerCase()) return true;
     return false;
   }
 
-  function processResults(results, bonus) {
+  function isBlocked(word) {
+    return BLOCKED_WORDS.has(word);
+  }
+
+  function processWord(w) {
+    if (isProperNoun(w)) return null;
+    const word = w.word.toLowerCase();
+    if (!/^[a-z]+$/.test(word) || word.length < 4 || word.length > 8) return null;
+    if (word === spangram || word === topic || word === singular) return null;
+    if (isBlocked(word)) return null;
+    const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
+    const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
+    if (freq < 2.0) return null;
+    return word;
+  }
+
+  // ─── Score ml results as PRIMARY source ────────────────────────────────────
+  // ml results are ranked by Datamuse's word2vec score — use rank position as
+  // a quality signal. Top results are much more relevant than bottom ones.
+  const seenMl = new Set();
+  for (let i = 0; i < mlResults.length; i++) {
+    const word = processWord(mlResults[i]);
+    if (!word || seenMl.has(word)) continue;
+    seenMl.add(word);
+    // Top ml results get highest scores. Position-weighted: top-10 get 200k, decays from there.
+    const positionScore = Math.max(200000 - (i * 1000), 50000);
+    scored[word] = (scored[word] || 0) + positionScore;
+  }
+
+  // ─── Score structured relations (secondary) ────────────────────────────────
+  // Only boost words that are ALSO in ml results (confirms thematic relevance).
+  // jjb and gen are too noisy to trust standalone — they return generic words
+  // like "adult", "lone", "dark", "hill" for any noun. Only com (parts of)
+  // gets a small standalone allowance since "parts of X" is genuinely specific.
+  function processStructured(results, mlBonus, standaloneScore) {
     for (const w of results) {
-      if (isProperNoun(w)) continue; // Skip proper nouns
-      const word = w.word.toLowerCase();
-      if (!/^[a-z]+$/.test(word) || word.length < 4 || word.length > 8) continue;
-      if (word === spangram || word === topic || word === singular) continue;
-      const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
-      const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
-      if (freq < 2.0) continue;
-      // Use FIXED bonus only — do NOT use w.score (it's word2vec distance, not relevance)
-      scored[word] = (scored[word] || 0) + bonus;
+      const word = processWord(w);
+      if (!word) continue;
+      if (scored[word]) {
+        // Already in ml — this confirms it's a good word
+        scored[word] += mlBonus;
+      } else if (standaloneScore > 0) {
+        // Not in ml — only allow standalone for highly specific relations (com)
+        scored[word] = (scored[word] || 0) + standaloneScore;
+      }
     }
   }
 
-  // Higher bonus = more likely to be picked. Tight relations outrank loose ones.
-  processResults(allResults.gen, 100000);  // hyponyms (types of)
-  processResults(allResults.com, 90000);   // parts/comprises
-  processResults(allResults.jjb, 70000);   // adjectives
+  // com (parts of) is the most reliable structured relation — allows standalone
+  processStructured(allResults.com, 80000, 40000);
+  // gen (hyponyms) — confirmation only, no standalone (too noisy: "adult", "species")
+  processStructured(allResults.gen, 60000, 0);
+  // jjb (adjectives) — confirmation only, no standalone (too noisy: "lone", "dark", "hill")
+  processStructured(allResults.jjb, 50000, 0);
 
-  // rel_trg (co-occurrence) is noisy — only boost words already in scored
-  // from a tight source. Standalone rel_trg words like "chicken" get nothing.
+  // trg (co-occurrence/triggers) — only use as confirmation, never standalone
   for (const w of allResults.trg) {
-    if (isProperNoun(w)) continue;
-    const word = w.word.toLowerCase();
-    if (!/^[a-z]+$/.test(word) || word.length < 4 || word.length > 8) continue;
-    if (word === spangram || word === topic || word === singular) continue;
-    const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
-    const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
-    if (freq < 2.0) continue;
-    // Only boost if already scored from gen, com, or jjb
+    const word = processWord(w);
+    if (!word) continue;
     if (scored[word]) {
-      scored[word] += 80000;
+      scored[word] += 40000;
     }
   }
 
-  // ml as amplifier only: boost words already scored from tight sources
-  const mlRes = await fetch(
-    `https://api.datamuse.com/words?ml=${encodeURIComponent(queryWord)}&topics=${encodeURIComponent(queryWord)}&max=150&md=f,p`
-  ).then(r => r.json()).catch(() => []);
-
-  for (const w of mlRes) {
-    if (isProperNoun(w)) continue;
-    const word = w.word.toLowerCase();
-    if (!/^[a-z]+$/.test(word) || word.length < 4 || word.length > 8) continue;
-    if (word === spangram || word === topic || word === singular) continue;
-    const freqTag = (w.tags || []).find(t => t.startsWith('f:'));
-    const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
-    if (freq < 2.0) continue;
-    if (scored[word]) {
-      scored[word] += 10000; // amplify existing good words
-    }
-  }
-
-  // Words that appear in multiple signal sources get a bonus multiplier
-  const signalCounts = {};
-  function countSignal(results) {
+  // ─── Multi-source bonus ────────────────────────────────────────────────────
+  // Words confirmed by multiple sources are more reliable
+  const sourceCounts = {};
+  function countSource(results, sourceName) {
     for (const w of results) {
-      const word = w.word.toLowerCase();
-      if (scored[word]) signalCounts[word] = (signalCounts[word] || 0) + 1;
+      const word = processWord(w);
+      if (!word || !scored[word]) continue;
+      if (!sourceCounts[word]) sourceCounts[word] = new Set();
+      sourceCounts[word].add(sourceName);
     }
   }
-  countSignal(allResults.gen);
-  countSignal(allResults.com);
-  countSignal(allResults.jjb);
+  countSource(mlResults, 'ml');
+  countSource(allResults.gen, 'gen');
+  countSource(allResults.com, 'com');
+  countSource(allResults.jjb, 'jjb');
+  countSource(allResults.trg, 'trg');
 
-  // Words in 2+ sources are more reliable — boost them
-  for (const [word, count] of Object.entries(signalCounts)) {
-    if (count >= 2 && scored[word]) scored[word] = Math.floor(scored[word] * 1.5);
-    if (count >= 3 && scored[word]) scored[word] = Math.floor(scored[word] * 2);
+  for (const [word, sources] of Object.entries(sourceCounts)) {
+    if (sources.size >= 3 && scored[word]) scored[word] = Math.floor(scored[word] * 1.5);
+    if (sources.size >= 4 && scored[word]) scored[word] = Math.floor(scored[word] * 1.3);
+  }
+
+  // ─── Penalize words that are ONLY from gen/jjb (likely generic) ────────────
+  // If a word came only from gen or jjb and NOT from ml, it's probably
+  // a generic taxonomic word that slipped through the blocklist.
+  for (const [word, sources] of Object.entries(sourceCounts)) {
+    if (!sources.has('ml') && scored[word]) {
+      scored[word] = Math.floor(scored[word] * 0.3); // heavy penalty
+    }
   }
 
   return Object.entries(scored)
@@ -367,6 +448,7 @@ const PLANS_BY_SPANGRAM = {
 
 async function generatePuzzle(dateStr, themeName, themeTopics, rng) {
   const topic = themeTopics.split(',')[0].trim();
+  const singular = topic.replace(/s$/, '');
 
   // Step 1: Get spangram candidates from theme topic
   const spangramCandidates = await fetchSpangramCandidates(topic);
@@ -380,10 +462,18 @@ async function generatePuzzle(dateStr, themeName, themeTopics, rng) {
     const fillWords = await fetchWordsForSpangram(spangram, topic);
     if (fillWords.length < 10) continue;
 
+    // Words that pass scoring are already validated:
+    // - ml results are topic-filtered by Datamuse (queried with topics= param)
+    // - com results are genuinely specific ("parts of" the topic)
+    // - jjb/gen/trg only boost existing ml words (no standalone scoring)
+    // The blocklist removes generic filler. No additional validation needed.
+    const finalFillWords = fillWords;
+    if (finalFillWords.length < 8) continue;
+
     const plans = shuffle([...(PLANS_BY_SPANGRAM[spangram.length] || PLANS_BY_SPANGRAM[8])], rng);
 
     const byLength = { 4: [], 5: [], 6: [], 7: [], 8: [] };
-    for (const w of fillWords) {
+    for (const w of finalFillWords) {
       if (byLength[w.length] && w !== spangram) byLength[w.length].push(w);
     }
 
@@ -406,7 +496,7 @@ async function generatePuzzle(dateStr, themeName, themeTopics, rng) {
           const candidates = byLength[len].filter(w => !used.has(w));
           if (candidates.length === 0) { ok = false; break; }
           // Pick from top of list (highest relevance to spangram)
-          const pick = candidates[Math.floor(rng() * Math.min(candidates.length, 3))];
+          const pick = candidates[Math.floor(rng() * Math.min(candidates.length, 5))];
           otherWords.push(pick);
           used.add(pick);
         }
