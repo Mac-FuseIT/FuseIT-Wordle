@@ -8,6 +8,39 @@ class ApiService {
   static String? _token;
   static void Function()? onUnauthorized;
 
+  // ─── Rate limiting ──────────────────────────────────────────────────────────
+  // Prevents rapid-fire requests to the same endpoint. If a request is already
+  // in-flight for a given key, subsequent calls return the in-flight future.
+  // Also enforces a minimum cooldown between requests to the same endpoint.
+  static final Map<String, Future<http.Response>> _inFlight = {};
+  static final Map<String, DateTime> _lastRequest = {};
+  static const Duration _minCooldown = Duration(milliseconds: 800);
+
+  /// Wraps a request with deduplication and cooldown.
+  /// If a request to [key] is already in-flight, returns that same future.
+  /// If the last request to [key] was less than [_minCooldown] ago, returns an
+  /// error response without hitting the network.
+  static Future<http.Response> _throttled(String key, Future<http.Response> Function() makeRequest) async {
+    // If already in-flight, return the existing future (dedup)
+    if (_inFlight.containsKey(key)) {
+      return _inFlight[key]!;
+    }
+
+    // If cooldown hasn't elapsed, return a synthetic throttle response
+    final last = _lastRequest[key];
+    if (last != null && DateTime.now().difference(last) < _minCooldown) {
+      return http.Response('{"error":"Please wait before submitting again"}', 429);
+    }
+
+    // Execute the request
+    final future = makeRequest().whenComplete(() {
+      _inFlight.remove(key);
+      _lastRequest[key] = DateTime.now();
+    });
+    _inFlight[key] = future;
+    return future;
+  }
+
   static Future<void> _loadToken() async {
     if (_token != null) return;
     final prefs = await SharedPreferences.getInstance();
@@ -104,11 +137,11 @@ class ApiService {
 
   static Future<Map<String, dynamic>> submitGuess(int userId, String guess) async {
     await _loadToken();
-    final res = await http.post(
+    final res = await _throttled('guess', () => http.post(
       Uri.parse('$baseUrl/api/guess'),
       headers: _authHeaders,
       body: jsonEncode({'guess': guess}),
-    );
+    ));
     return jsonDecode(res.body);
   }
 
@@ -308,7 +341,7 @@ class ApiService {
   }
 
   static Future<Map<String, dynamic>> submitChainItGuess(String guess) async {
-    final res = await _authPost('/api/chainit/guess', body: {'guess': guess});
+    final res = await _throttled('chainit_guess', () => _authPost('/api/chainit/guess', body: {'guess': guess}));
     return jsonDecode(res.body);
   }
 

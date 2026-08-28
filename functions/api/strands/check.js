@@ -1,4 +1,5 @@
 import { getToday, jsonResponse, errorResponse, requireAuth } from '../../../src/db.js';
+import { isValidWord } from '../../../src/dict-cache.js';
 
 function isAdjacent(a, b) {
   return Math.abs(a[0] - b[0]) <= 1 && Math.abs(a[1] - b[1]) <= 1 && !(a[0] === b[0] && a[1] === b[1]);
@@ -56,21 +57,9 @@ export async function onRequestPost({ request, env }) {
   if (foundWords.some(f => f.word === word)) return jsonResponse({ type: 'already_found' });
 
   if (word.length >= 4 && !foundWords.some(f => f.word === word)) {
-    let dictOk = false;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        const dictRes = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word.toLowerCase()}`);
-        if (dictRes.ok) {
-          dictOk = true;
-          break;
-        }
-        if (dictRes.status === 404) break; // genuinely not a word, don't retry
-      } catch (_) {
-        // Network error — retry
-      }
-      if (attempt < 2) await new Promise(r => setTimeout(r, 2500));
-    }
-    if (dictOk) {
+    const dictResult = await isValidWord(word.toLowerCase(), env.DB);
+    if (dictResult.error) return jsonResponse({ type: 'api_error', message: 'Dictionary service unavailable, please try again' });
+    if (dictResult.valid) {
       foundWords.push({ word, type: 'bonus', path });
       const bonusCount = foundWords.filter(f => f.type === 'bonus').length;
       if (bonusCount % 3 === 0) hintCharges++;

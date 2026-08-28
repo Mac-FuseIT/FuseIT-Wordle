@@ -1,5 +1,6 @@
 import { getToday, jsonResponse, errorResponse, requireAuth } from '../../../src/db.js';
 import { getOrCreateChainItPuzzle } from '../../../src/chainit-selection.js';
+import { isValidWord } from '../../../src/dict-cache.js';
 
 function countDifferences(word1, word2) {
   let diffs = 0;
@@ -83,18 +84,9 @@ export async function onRequestPost({ request, env }) {
 
   // Dictionary validation (skip if guess matches target — it was pre-validated)
   if (guess !== targetWord) {
-    let dictOk = false;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        const dictRes = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${guess}`);
-        if (dictRes.ok) { dictOk = true; break; }
-        if (dictRes.status === 404) break; // genuinely not a word
-      } catch (_) {
-        // Network error — retry
-      }
-      if (attempt < 2) await new Promise(r => setTimeout(r, 2500));
-    }
-    if (!dictOk) return errorResponse('Not a valid word');
+    const dictResult = await isValidWord(guess, env.DB);
+    if (dictResult.error) return errorResponse('Dictionary service unavailable, please try again', 503);
+    if (!dictResult.valid) return errorResponse('Not a valid word');
   }
 
   // Valid guess — add to chain

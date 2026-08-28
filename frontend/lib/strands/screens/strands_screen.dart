@@ -118,6 +118,8 @@ class _StrandsScreenState extends State<StrandsScreen> {
         _showMessage('${res['word']} — bonus word! (${bc % 3}/3 to hint)', Colors.grey);
       } else if (type == 'already_found') {
         _showMessage('Already tried!', Colors.grey);
+      } else if (type == 'api_error') {
+        _showMessage('Dictionary unavailable — please try again', Colors.orange);
       } else {
         _showMessage('Not a valid word', Colors.redAccent);
       }

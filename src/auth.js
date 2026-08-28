@@ -5,7 +5,7 @@ export async function hashPassword(password) {
 }
 
 export async function createToken(userId, secret) {
-  const payload = JSON.stringify({ userId, exp: Date.now() + 7 * 24 * 60 * 60 * 1000 }); // 7 days
+  const payload = JSON.stringify({ userId, exp: Date.now() + 2 * 24 * 60 * 60 * 1000 }); // 2 days
   const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
   const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payload));
   const sigHex = [...new Uint8Array(sig)].map(b => b.toString(16).padStart(2, '0')).join('');

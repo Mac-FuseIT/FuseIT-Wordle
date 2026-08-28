@@ -101,6 +101,16 @@ export class RouletteTable extends DurableObject {
 
   async alarm() {
     const state = await this.getState();
+
+    // If no players remain, stop the game loop entirely
+    if (state.players.length === 0) {
+      state.phase = 'idle';
+      state.phaseEndTime = null;
+      await this.ctx.storage.deleteAlarm();
+      await this.saveState(state);
+      return;
+    }
+
     switch (state.phase) {
       case 'betting':
         await this.transitionToSpinning(state);
@@ -113,6 +123,7 @@ export class RouletteTable extends DurableObject {
         break;
       // 'idle' — alarm should not fire when idle, but guard anyway
       default:
+        await this.ctx.storage.deleteAlarm();
         break;
     }
   }

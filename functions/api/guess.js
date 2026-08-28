@@ -1,5 +1,6 @@
 import { getToday, jsonResponse, errorResponse, requireAuth } from '../../src/db.js';
 import { getOrCreateDailyWord } from '../../src/word-selection.js';
+import { isValidWord } from '../../src/dict-cache.js';
 
 function evaluateGuess(guess, answer) {
   const result = Array(answer.length).fill(null);
@@ -44,16 +45,9 @@ export async function onRequestPost({ request, env }) {
   // Check target word first - if it matches, skip dictionary validation
   const isCorrect = normalizedGuess === word;
   if (!isCorrect) {
-    let dictOk = false;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        const dictRes = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${normalizedGuess}`);
-        if (dictRes.ok) { dictOk = true; break; }
-        if (dictRes.status === 404) break;
-      } catch (_) {}
-      if (attempt < 2) await new Promise(r => setTimeout(r, 2500));
-    }
-    if (!dictOk) return errorResponse('Not a valid word');
+    const dictResult = await isValidWord(normalizedGuess, env.DB);
+    if (dictResult.error) return errorResponse('Dictionary service unavailable, please try again', 503);
+    if (!dictResult.valid) return errorResponse('Not a valid word');
   }
 
   // Check if already completed
