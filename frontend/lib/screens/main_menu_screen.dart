@@ -15,6 +15,7 @@ class MainMenuScreen extends StatelessWidget {
   final VoidCallback onDealIT;
   final VoidCallback onCodeIT;
   final VoidCallback onChainIT;
+  final VoidCallback onSudoIT;
   final VoidCallback onProfile;
   final VoidCallback onLogout;
 
@@ -32,6 +33,7 @@ class MainMenuScreen extends StatelessWidget {
     required this.onDealIT,
     required this.onCodeIT,
     required this.onChainIT,
+    required this.onSudoIT,
     required this.onProfile,
     required this.onLogout,
   });
@@ -141,6 +143,8 @@ class MainMenuScreen extends StatelessWidget {
                     _GameCard(title: 'Invade.IT', subtitle: 'Space invaders', icon: Icons.rocket_launch, color: theme.correct, onTap: onInvadeIT),
                     const SizedBox(width: 16),
                     _GameCard(title: 'Klond.IT', subtitle: 'Daily solitaire', icon: Icons.layers, color: theme.present, onTap: onDealIT),
+                    const SizedBox(width: 16),
+                    _GameCard(title: 'Sudo.IT', subtitle: 'Daily sudoku', icon: Icons.grid_4x4, color: theme.correct, onTap: onSudoIT),
                   ],
                 ),
                 const SizedBox(height: 32),

@@ -21,6 +21,7 @@ import 'solitaire/solitaire_lobby_screen.dart';
 import 'codeit/codeit_screen.dart';
 import 'chainit/chainit_screen.dart';
 import 'chainit/chainit_leaderboard.dart';
+import 'sudoku/sudoku_screen.dart';
 import 'widgets/wavy_background.dart';
 
 void main() => runApp(const FuseArcadeApp());
@@ -39,7 +40,7 @@ class FuseArcadeApp extends StatelessWidget {
   }
 }
 
-enum AppView { login, menu, guessGame, guessLeaderboard, crossGame, crossLeaderboard, strandsGame, strandsLeaderboard, pongGame, invadeGame, chessGame, blackjackGame, solitaireGame, codeItGame, chainItGame, chainItLeaderboard, profile }
+enum AppView { login, menu, guessGame, guessLeaderboard, crossGame, crossLeaderboard, strandsGame, strandsLeaderboard, pongGame, invadeGame, chessGame, blackjackGame, solitaireGame, codeItGame, chainItGame, chainItLeaderboard, sudokuGame, profile }
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -135,6 +136,7 @@ class _AppShellState extends State<AppShell> {
                 onDealIT: () => setState(() => _view = AppView.solitaireGame),
                 onCodeIT: () => setState(() => _view = AppView.codeItGame),
                 onChainIT: () => setState(() => _view = AppView.chainItGame),
+                onSudoIT: () => setState(() => _view = AppView.sudokuGame),
                 onProfile: () => setState(() => _view = AppView.profile),
                 onLogout: _logout,
               ),
@@ -213,6 +215,12 @@ class _AppShellState extends State<AppShell> {
                 userId: _userId!,
                 nickname: _name!,
                 onBack: () => setState(() => _view = AppView.chainItGame),
+              ),
+              AppView.sudokuGame => SudokuScreen(
+                theme: _theme,
+                onBack: () => setState(() => _view = AppView.menu),
+                nickname: _name!,
+                userId: _userId!,
               ),
               AppView.profile => ProfileScreen(
                 userId: _userId!, currentName: _name!, currentTheme: _theme,
