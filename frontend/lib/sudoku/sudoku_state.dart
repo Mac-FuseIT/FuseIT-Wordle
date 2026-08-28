@@ -10,15 +10,13 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
-// ---------------------------------------------------------------------------
-// Difficulty enum
-// ---------------------------------------------------------------------------
+import 'sudoku_generator.dart';
 
-/// The three playable difficulty levels.
-///
-/// Defined here (rather than in the generator) so the state layer can be
-/// compiled and tested independently without importing the full generator.
-enum SudokuDifficulty { easy, medium, hard }
+export 'sudoku_generator.dart' show SudokuDifficulty;
+
+// ---------------------------------------------------------------------------
+// SudokuDifficulty label extension
+// ---------------------------------------------------------------------------
 
 extension SudokuDifficultyLabel on SudokuDifficulty {
   /// Lowercase label used in SharedPreferences key suffixes.
