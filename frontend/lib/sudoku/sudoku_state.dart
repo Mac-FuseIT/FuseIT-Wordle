@@ -1,10 +1,9 @@
-/// Game state management for Sudo.IT.
-///
-/// Holds the complete mutable state for one puzzle session:
-/// board, notes, conflicts, undo stack, selected cell, notes mode, and
-/// solved flag.  Also handles SharedPreferences persistence per difficulty
-/// per day.
-library sudoku.sudoku_state;
+// Game state management for Sudo.IT.
+//
+// Holds the complete mutable state for one puzzle session:
+// board, notes, conflicts, undo stack, selected cell, notes mode, and
+// solved flag. Also handles SharedPreferences persistence per difficulty
+// per day.
 
 import 'dart:convert';
 
@@ -361,7 +360,7 @@ class SudokuGameState {
   Future<void> saveState(SudokuDifficulty difficulty) async {
     final prefs = await SharedPreferences.getInstance();
 
-    final today = _todayString();
+    final today = todayString();
     await prefs.setString(_keyDate, today);
 
     // Board — flat List<int>.
@@ -388,7 +387,7 @@ class SudokuGameState {
     final prefs = await SharedPreferences.getInstance();
 
     final savedDate = prefs.getString(_keyDate);
-    if (savedDate != _todayString()) {
+    if (savedDate != todayString()) {
       // Stale — do not load.
       return false;
     }
@@ -441,7 +440,7 @@ class SudokuGameState {
   // ---- Date helper ----
 
   /// Returns today's date as `YYYY-MM-DD`.
-  static String _todayString() {
+  static String todayString() {
     final now = DateTime.now();
     return '${now.year}-'
         '${now.month.toString().padLeft(2, '0')}-'

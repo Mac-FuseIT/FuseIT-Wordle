@@ -1,7 +1,7 @@
-/// Main screen for Sudo.IT — the Fuse Arcade daily Sudoku game.
-///
-/// Composes the grid, number pad, header, and difficulty tabs.  All puzzle
-/// generation and persistence is fully client-side (no backend involvement).
+// Main screen for Sudo.IT — the Fuse Arcade daily Sudoku game.
+//
+// Composes the grid, number pad, header, and difficulty tabs. All puzzle
+// generation and persistence is fully client-side (no backend involvement).
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -94,7 +94,7 @@ class _SudokuScreenState extends State<SudokuScreen>
   Future<void> _initAllDifficulties(DateTime date) async {
     // Check if the saved date still matches today — clear stale state first.
     final saved = await SudokuGameState.savedDate();
-    final today = _todayString();
+    final today = SudokuGameState.todayString();
     if (saved != null && saved != today) {
       await SudokuGameState.clearAllState();
     }
@@ -120,7 +120,7 @@ class _SudokuScreenState extends State<SudokuScreen>
   /// Checks whether the calendar date has rolled over since the last init.
   Future<void> _checkDateChange() async {
     final saved = await SudokuGameState.savedDate();
-    final today = _todayString();
+    final today = SudokuGameState.todayString();
     if (saved != null && saved != today) {
       // New day — reinitialise everything.
       setState(() => _loading = true);
@@ -161,7 +161,7 @@ class _SudokuScreenState extends State<SudokuScreen>
     setState(() => _currentState.selectedCell = index);
   }
 
-  void _onNumber(int digit) {
+  Future<void> _onNumber(int digit) async {
     if (_isSolved) return;
     final gs = _currentState;
     final cell = gs.selectedCell;
@@ -176,9 +176,9 @@ class _SudokuScreenState extends State<SudokuScreen>
     });
 
     if (gs.solved) {
-      _onPuzzleSolved();
+      await _onPuzzleSolved();
     } else {
-      gs.saveState(_difficulty);
+      await gs.saveState(_difficulty);
     }
   }
 
@@ -187,25 +187,25 @@ class _SudokuScreenState extends State<SudokuScreen>
     setState(() => _currentState.notesMode = !_currentState.notesMode);
   }
 
-  void _onUndo() {
+  Future<void> _onUndo() async {
     if (_isSolved) return;
     setState(() => _currentState.undo());
-    _currentState.saveState(_difficulty);
+    await _currentState.saveState(_difficulty);
   }
 
-  void _onErase() {
+  Future<void> _onErase() async {
     if (_isSolved) return;
     final gs = _currentState;
     final cell = gs.selectedCell;
     if (cell == null) return;
     setState(() => gs.erase(cell));
-    gs.saveState(_difficulty);
+    await gs.saveState(_difficulty);
   }
 
-  void _onPuzzleSolved() {
-    _currentState.saveState(_difficulty);
-    // Trigger a rebuild to show the celebration overlay.
-    setState(() {});
+  Future<void> _onPuzzleSolved() async {
+    // Persist first, then the setState from _onNumber's caller already
+    // triggers the rebuild that shows the completion overlay.
+    await _currentState.saveState(_difficulty);
   }
 
   // ── Physical keyboard ───────────────────────────────────────────────────
@@ -295,15 +295,6 @@ class _SudokuScreenState extends State<SudokuScreen>
       }
     }
     setState(() => gs.selectedCell = next);
-  }
-
-  // ── Helpers ─────────────────────────────────────────────────────────────
-
-  static String _todayString() {
-    final now = DateTime.now();
-    return '${now.year}-'
-        '${now.month.toString().padLeft(2, '0')}-'
-        '${now.day.toString().padLeft(2, '0')}';
   }
 
   // ── Build ───────────────────────────────────────────────────────────────
