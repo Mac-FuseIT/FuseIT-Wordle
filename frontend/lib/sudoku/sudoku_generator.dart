@@ -1,13 +1,12 @@
-/// Deterministic puzzle generation for Sudo.IT.
-///
-/// Every client running the same date + difficulty produces the identical
-/// 9×9 Sudoku puzzle with no backend involvement required for gameplay.
-///
-/// Board representation: flat [List<int>] of 81 elements, 0 = empty.
-///   row = index ~/ 9
-///   col = index % 9
-///   box = (row ~/ 3) * 3 + (col ~/ 3)
-library sudoku.puzzle_generator;
+// Deterministic puzzle generation for Sudo.IT.
+//
+// Every client running the same date + difficulty produces the identical
+// 9×9 Sudoku puzzle with no backend involvement required for gameplay.
+//
+// Board representation: flat [List<int>] of 81 elements, 0 = empty.
+//   row = index ~/ 9
+//   col = index % 9
+//   box = (row ~/ 3) * 3 + (col ~/ 3)
 
 // ---------------------------------------------------------------------------
 // Seeded RNG — Xorshift32

@@ -1,9 +1,8 @@
-/// 9×9 Sudoku grid widget for Sudo.IT.
-///
-/// Renders all 81 cells with proper 3×3 box borders, selection highlights,
-/// conflict tinting, notes (pencil marks), and given-cell styling.
-/// Sizing is responsive — adapts to available width with a 500 px cap.
-library sudoku.widgets.sudoku_grid;
+// 9×9 Sudoku grid widget for Sudo.IT.
+//
+// Renders all 81 cells with proper 3×3 box borders, selection highlights,
+// conflict tinting, notes (pencil marks), and given-cell styling.
+// Sizing is responsive — adapts to available width with a 500 px cap.
 
 import 'package:flutter/material.dart';
 
@@ -116,7 +115,7 @@ class SudokuGrid extends StatelessWidget {
   // -------------------------------------------------------------------------
 
   Widget _buildCell(int index, int row, int col, double cellSize) {
-    final borderColor = theme.textColor.withOpacity(0.35);
+    final borderColor = theme.textColor.withValues(alpha: 0.35);
 
     // --- Border thickness ---
     // Left border: thick if at box boundary (col % 3 == 0), else thin.
@@ -164,31 +163,36 @@ class SudokuGrid extends StatelessWidget {
 
     // Conflict always wins over selection highlights.
     if (isConflict) {
-      return Colors.red.withOpacity(0.3);
+      return Colors.red.withValues(alpha: 0.3);
     }
 
     if (isSelected) {
-      return theme.correct.withOpacity(0.3);
+      return theme.correct.withValues(alpha: 0.3);
     }
 
     if (selectedCell != null) {
       // Same-digit highlight (non-zero digit that matches the selected cell).
       final selectedDigit = board[selectedCell!];
       if (selectedDigit != 0 && board[index] == selectedDigit) {
-        return theme.correct.withOpacity(0.15);
+        return theme.correct.withValues(alpha: 0.15);
       }
 
       // Same row/col/box highlight.
       if (_isPeer(index, selectedCell!)) {
-        return theme.correct.withOpacity(0.1);
+        return theme.correct.withValues(alpha: 0.1);
       }
     }
 
     // Given cells get a marginally brighter tint so they feel "solid".
     if (puzzle[index] != 0) {
-      return theme.background.withOpacity(1.0).withBlue(
-            (theme.background.blue + 12).clamp(0, 255),
-          );
+      // Nudge the blue channel slightly to create a subtle given-cell tint
+      // that is theme-neutral (works across all AppTheme variants).
+      final bg = theme.background;
+      return bg.withValues(
+        red: bg.r,
+        green: bg.g,
+        blue: (bg.b + 12.0 / 255.0).clamp(0.0, 1.0),
+      );
     }
 
     return theme.background;
@@ -263,7 +267,7 @@ class SudokuGrid extends StatelessWidget {
   /// Only digits present in [cellNotes] are shown; the rest are invisible
   /// placeholders that keep the layout stable.
   Widget _notesWidget(Set<int> cellNotes, double cellSize) {
-    final noteColor = theme.textColor.withOpacity(0.5);
+    final noteColor = theme.textColor.withValues(alpha: 0.5);
     // Target roughly 1/3 of the cell height per note row, capped sensibly.
     final noteFontSize = (cellSize * 0.27).clamp(6.0, 14.0);
 
