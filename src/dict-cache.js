@@ -19,7 +19,7 @@ export async function isValidWord(word, db) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000);
     const res = await fetch(
-      `https://api.datamuse.com/words?sp=${encodeURIComponent(normalized)}&max=1`,
+      `https://api.datamuse.com/words?sp=${encodeURIComponent(normalized)}&max=1&md=f`,
       { signal: controller.signal }
     );
     clearTimeout(timeout);
@@ -29,8 +29,15 @@ export async function isValidWord(word, db) {
     }
 
     const data = await res.json();
-    // Word is valid only if the API returns it as an exact match
-    const valid = data.length > 0 && data[0].word === normalized;
+    // Word is valid only if the API returns an exact match AND has a minimum
+    // frequency of 0.05 (per word-per-million). This rejects nonsense words
+    // that Datamuse knows about (max nonsense freq seen: 0.019) while accepting
+    // all real dictionary words (min real-word freq seen: 0.057).
+    // See .workbench/word-validation/feedback-investigation.md for full analysis.
+    const entry = data[0];
+    const freqTag = entry && entry.tags ? entry.tags.find(t => t.startsWith('f:')) : null;
+    const freq = freqTag ? parseFloat(freqTag.slice(2)) : 0;
+    const valid = !!entry && entry.word === normalized && freq >= 0.05;
 
     return { valid, error: null };
   } catch (_) {
