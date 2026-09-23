@@ -168,12 +168,21 @@ class _StrandGridState extends State<StrandGrid> {
     else if (isHint) { bg = widget.theme.present.withAlpha(80); }
     else { bg = widget.theme.tileEmpty; }
 
+    // White border when dragging over an already-found cell (so the selection is visible)
+    final bool isFoundAndSelected = inPath && (isTheme || isSpangram);
+    final Color borderColor = isFoundAndSelected
+        ? Colors.white
+        : inPath
+            ? widget.theme.correct
+            : widget.theme.absent.withAlpha(80);
+    final double borderWidth = (inPath || isFoundAndSelected) ? 2.5 : 1;
+
     return Container(
       width: _cellSize, height: _cellSize,
       decoration: BoxDecoration(
         color: bg,
         shape: BoxShape.circle,
-        border: Border.all(color: inPath ? widget.theme.correct : widget.theme.absent.withAlpha(80), width: inPath ? 2.5 : 1),
+        border: Border.all(color: borderColor, width: borderWidth),
       ),
       alignment: Alignment.center,
       child: Text(letter, style: TextStyle(color: textColor, fontSize: 18, fontWeight: FontWeight.bold)),
