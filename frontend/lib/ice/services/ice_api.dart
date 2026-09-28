@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../services/api_service.dart';
 
 class IceApi {
   static const String baseUrl = '';
@@ -27,6 +28,7 @@ class IceApi {
       },
       body: jsonEncode({'bestOf': bestOf, 'puckSpeed': puckSpeed, 'playersPerSide': playersPerSide}),
     );
+    ApiService.notifyIfUnauthorized(res.statusCode);
     if (res.statusCode != 200) throw Exception('Failed to create session');
     final data = jsonDecode(res.body);
     return data['sessionId'];
