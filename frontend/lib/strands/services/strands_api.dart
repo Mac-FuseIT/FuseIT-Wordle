@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../services/api_service.dart';
 
 class StrandsApi {
   static const String baseUrl = '';
@@ -18,6 +19,7 @@ class StrandsApi {
 
   static Future<Map<String, dynamic>> getToday() async {
     final res = await http.get(Uri.parse('$baseUrl/api/strands/today'), headers: await _headers);
+    ApiService.notifyIfUnauthorized(res.statusCode);
     return jsonDecode(res.body);
   }
 
@@ -25,6 +27,7 @@ class StrandsApi {
     // If already in-flight, return existing future result
     if (_checkInFlight != null) {
       final res = await _checkInFlight!;
+      ApiService.notifyIfUnauthorized(res.statusCode);
       return jsonDecode(res.body);
     }
 
@@ -37,6 +40,7 @@ class StrandsApi {
     _checkInFlight = future;
     try {
       final res = await future;
+      ApiService.notifyIfUnauthorized(res.statusCode);
       return jsonDecode(res.body);
     } finally {
       _checkInFlight = null;
@@ -46,11 +50,13 @@ class StrandsApi {
 
   static Future<Map<String, dynamic>> useHint() async {
     final res = await http.post(Uri.parse('$baseUrl/api/strands/hint'), headers: await _headers, body: '{}');
+    ApiService.notifyIfUnauthorized(res.statusCode);
     return jsonDecode(res.body);
   }
 
   static Future<Map<String, dynamic>> getLeaderboard() async {
     final res = await http.get(Uri.parse('$baseUrl/api/strands/leaderboard'), headers: await _headers);
+    ApiService.notifyIfUnauthorized(res.statusCode);
     return jsonDecode(res.body);
   }
 }

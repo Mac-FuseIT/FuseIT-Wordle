@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/app_theme.dart';
+import '../services/api_service.dart';
 import 'blackjack_mp_screen.dart';
 import 'blackjack_screen.dart';
 import 'roulette/roulette_screen.dart';
@@ -90,6 +91,9 @@ class _CasinoLobbyScreenState extends State<CasinoLobbyScreen> {
       final todayRes = results[0];
       final lbRes = results[1];
 
+      ApiService.notifyIfUnauthorized(todayRes.statusCode);
+      ApiService.notifyIfUnauthorized(lbRes.statusCode);
+
       if (todayRes.statusCode == 200) {
         final data = jsonDecode(todayRes.body);
         setState(() {
@@ -117,6 +121,7 @@ class _CasinoLobbyScreenState extends State<CasinoLobbyScreen> {
     try {
       final headers = await _getHeaders();
       final res = await http.get(Uri.parse('/api/blackjack-mp/games'), headers: headers);
+      ApiService.notifyIfUnauthorized(res.statusCode);
       if (res.statusCode == 200 && mounted) {
         final data = jsonDecode(res.body);
         setState(() {
@@ -129,6 +134,7 @@ class _CasinoLobbyScreenState extends State<CasinoLobbyScreen> {
     try {
       final headers = await _getHeaders();
       final rouletteRes = await http.get(Uri.parse('/api/roulette/status'), headers: headers);
+      ApiService.notifyIfUnauthorized(rouletteRes.statusCode);
       if (rouletteRes.statusCode == 200 && mounted) {
         final data = jsonDecode(rouletteRes.body);
         setState(() {
@@ -143,6 +149,7 @@ class _CasinoLobbyScreenState extends State<CasinoLobbyScreen> {
     try {
       final headers = await _getHeaders();
       final res = await http.post(Uri.parse('/api/blackjack/uncashout'), headers: headers);
+      ApiService.notifyIfUnauthorized(res.statusCode);
       if (res.statusCode == 200 && mounted) {
         _load(); // Reload everything
       }
@@ -154,6 +161,7 @@ class _CasinoLobbyScreenState extends State<CasinoLobbyScreen> {
     try {
       final headers = await _getHeaders();
       final res = await http.post(Uri.parse('/api/blackjack-mp/create'), headers: headers);
+      ApiService.notifyIfUnauthorized(res.statusCode);
       if (res.statusCode == 200 && mounted) {
         final data = jsonDecode(res.body);
         setState(() => _mpGameId = data['gameId']);

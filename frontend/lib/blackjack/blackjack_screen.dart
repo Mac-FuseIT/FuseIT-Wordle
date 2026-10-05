@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/app_theme.dart';
+import '../services/api_service.dart';
 import 'widgets/animated_hand.dart';
 
 class BlackjackScreen extends StatefulWidget {
@@ -70,6 +71,7 @@ class _BlackjackScreenState extends State<BlackjackScreen> {
     try {
       final headers = await _getHeaders();
       final res = await http.get(Uri.parse('/api/blackjack/today'), headers: headers);
+      ApiService.notifyIfUnauthorized(res.statusCode);
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         setState(() {
@@ -276,6 +278,7 @@ class _BlackjackScreenState extends State<BlackjackScreen> {
         headers: headers,
         body: jsonEncode({'amount': _betAmount}),
       );
+      ApiService.notifyIfUnauthorized(res.statusCode);
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         // From this point on, cards animate in — no more instant display.
@@ -296,6 +299,7 @@ class _BlackjackScreenState extends State<BlackjackScreen> {
     try {
       final headers = await _getHeaders();
       final res = await http.post(Uri.parse('/api/blackjack/hit'), headers: headers);
+      ApiService.notifyIfUnauthorized(res.statusCode);
       if (res.statusCode == 200) {
         _applyState(jsonDecode(res.body));
       }
@@ -308,6 +312,7 @@ class _BlackjackScreenState extends State<BlackjackScreen> {
     try {
       final headers = await _getHeaders();
       final res = await http.post(Uri.parse('/api/blackjack/stand'), headers: headers);
+      ApiService.notifyIfUnauthorized(res.statusCode);
       if (res.statusCode == 200) {
         _applyState(jsonDecode(res.body));
       }
@@ -320,6 +325,7 @@ class _BlackjackScreenState extends State<BlackjackScreen> {
     try {
       final headers = await _getHeaders();
       final res = await http.post(Uri.parse('/api/blackjack/double'), headers: headers);
+      ApiService.notifyIfUnauthorized(res.statusCode);
       if (res.statusCode == 200) {
         _applyState(jsonDecode(res.body));
       } else {
@@ -335,6 +341,7 @@ class _BlackjackScreenState extends State<BlackjackScreen> {
     try {
       final headers = await _getHeaders();
       final res = await http.post(Uri.parse('/api/blackjack/cashout'), headers: headers);
+      ApiService.notifyIfUnauthorized(res.statusCode);
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         setState(() {

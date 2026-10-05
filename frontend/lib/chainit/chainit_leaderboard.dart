@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/app_theme.dart';
+import '../services/api_service.dart';
 
 class ChainItLeaderboard extends StatefulWidget {
   final AppTheme theme;
@@ -46,6 +47,7 @@ class _ChainItLeaderboardState extends State<ChainItLeaderboard> {
         Uri.parse('/api/chainit/leaderboard'),
         headers: headers,
       );
+      ApiService.notifyIfUnauthorized(res.statusCode);
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         setState(() {

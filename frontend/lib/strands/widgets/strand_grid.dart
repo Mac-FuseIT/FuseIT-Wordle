@@ -168,7 +168,7 @@ class _StrandGridState extends State<StrandGrid> {
     else if (isHint) { bg = widget.theme.present.withAlpha(80); }
     else { bg = widget.theme.tileEmpty; }
 
-    // White border when dragging over an already-found cell
+    // White border when dragging over an already-found cell (so the selection is visible)
     final bool isFoundAndSelected = inPath && (isTheme || isSpangram);
     final Color borderColor = isFoundAndSelected
         ? Colors.white
