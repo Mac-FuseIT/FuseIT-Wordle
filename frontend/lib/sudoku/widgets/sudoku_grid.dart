@@ -115,7 +115,15 @@ class SudokuGrid extends StatelessWidget {
   // -------------------------------------------------------------------------
 
   Widget _buildCell(int index, int row, int col, double cellSize) {
-    final borderColor = theme.textColor.withValues(alpha: 0.35);
+    // --- Row/column outline highlight ---
+    // When a cell is selected, cells sharing its row or column get a
+    // highlighted border so the row and column visibly stand out.
+    final bool highlightOutline = selectedCell != null &&
+        (row == selectedCell! ~/ 9 || col == selectedCell! % 9);
+
+    final Color borderColor = highlightOutline
+        ? theme.correct.withValues(alpha: 0.9)
+        : theme.textColor.withValues(alpha: 0.35);
 
     // --- Border thickness ---
     // Left border: thick if at box boundary (col % 3 == 0), else thin.
@@ -123,8 +131,10 @@ class SudokuGrid extends StatelessWidget {
     // Right border: always thin (next cell provides the left thick border)
     //   except the last column uses a thick right border for the outer edge.
     // Bottom border: always thin except last row uses thick.
-    const double thick = 2.0;
-    const double thin = 0.5;
+    // Highlighted (row/col) cells use a slightly beefier thin width so the
+    // outline reads clearly without disturbing the 3×3 box structure.
+    final double thick = 2.0;
+    final double thin = highlightOutline ? 1.5 : 0.5;
 
     final leftWidth = col % 3 == 0 ? thick : thin;
     final topWidth = row % 3 == 0 ? thick : thin;
@@ -167,19 +177,19 @@ class SudokuGrid extends StatelessWidget {
     }
 
     if (isSelected) {
-      return theme.correct.withValues(alpha: 0.3);
+      return theme.correct.withValues(alpha: 0.55);
     }
 
     if (selectedCell != null) {
       // Same-digit highlight (non-zero digit that matches the selected cell).
       final selectedDigit = board[selectedCell!];
       if (selectedDigit != 0 && board[index] == selectedDigit) {
-        return theme.correct.withValues(alpha: 0.15);
+        return theme.correct.withValues(alpha: 0.35);
       }
 
-      // Same row/col/box highlight.
+      // Same row/col/box highlight — strong enough to clearly stand out.
       if (_isPeer(index, selectedCell!)) {
-        return theme.correct.withValues(alpha: 0.1);
+        return theme.correct.withValues(alpha: 0.22);
       }
     }
 
